@@ -86,7 +86,7 @@ function addElement(number, rowNumber) {
         if (distance < 0)
         {
             clearInterval(x);
-            document.getElementById("timeDisplayer" + number).innerHTML = ARRAY_NAMES[number] + " : Rest In Peace.. ㅠㅠ (" + ARRAY_PREFIX[number][0] + ARRAY_PREFIX[number][1] + ")";
+            document.getElementById("timeDisplayer" + number).innerHTML = ARRAY_PREFIX[number] + " 0일 0시간 0분 0초";
         }
     }, 10);
 }
