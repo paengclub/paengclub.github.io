@@ -1,8 +1,9 @@
-const NUMBER_OF_MEMBERS = 7;
+const NUMBER_OF_MEMBERS = 8;
 
-const ARRAY_PREFIX = ["휴가까지", "입대까지", "전역까지", "전역까지", "전역까지", "전역까지", "전역까지"]
-const ARRAY_NAMES = ["예지민", "이성민", "허채민", "예지민", "팽지원", "심우재", "이승우"];
-const ARRAY_DATES = ["May 10, 2023 00:00:00", "Jul 10, 2023 14:00:00", "Apr 3, 2024 00:00:00", "Jul 30, 2024 00:00:00", "Sep 20, 2024 00:00:00", "Oct 3, 2024 00:00:00", "Jan 24, 2025 00:00:00"];
+const ARRAY_PREFIX = ["복귀까지", "입대까지", "전역까지", "전역까지", "전역까지", "전역까지", "전역까지", "전역까지"]
+const ARRAY_NAMES = ["예지민", "이성민", "허채민", "예지민", "팽지원", "심우재", "이승우", "이성민"];
+//const ARRAY_DATES = ["Jul 10, 2023 14:00:00", "Apr 3, 2024 00:00:00", "Jul 30, 2024 00:00:00", "Sep 20, 2024 00:00:00", "Oct 3, 2024 00:00:00", "Jan 24, 2025 00:00:00"];
+const ARRAY_DATES = ["2023-05-13T00:00:00", "2023-07-10T14:00:00", "2024-04-03T00:00:00", "2024-07-30T00:00:00", "2024-09-20T00:00:00", "2024-10-03T00:00:00", "2025-01-24T00:00:00", "2025-04-10T00:00:00"];
 
 document.body.onload = renderTimer;
 
@@ -38,7 +39,9 @@ function addElement(number, rowNumber) {
     document.getElementById("row" + rowNumber).insertBefore(colElement, null);
     // card div 추가
     const cardElement = document.createElement("div");
-    cardElement.setAttribute("class", "card");
+    if (ARRAY_PREFIX[number] == '휴가까지') cardElement.setAttribute("class", "card text-white bg-info");
+    if (ARRAY_PREFIX[number] == '전역까지') cardElement.setAttribute("class", "card text-white bg-dark");
+    if (ARRAY_PREFIX[number] == '복귀까지' || ARRAY_PREFIX[number] == '입대까지') cardElement.setAttribute("class", "card text-white bg-danger");
     colElement.insertBefore(cardElement, null);
 
     // card header div 추가
@@ -93,7 +96,9 @@ function addElement(number, rowNumber) {
 
 /* <div class = "wrapper" id="wrapper">
     <h3>나도 추가됐으면 좋겠다 -> 연락주세요~</h3>
-    <div id="bottomdiv"></div>
+    <div class="alert alert-dark" role="alert">
+        내용
+    </div>
 </div> */
 function renderTimer() {
 
@@ -103,9 +108,11 @@ function renderTimer() {
     wrapperElement.setAttribute("id", "wrapper");
     document.getElementById("screen").insertBefore(wrapperElement, null);
     
-    // botdiv 추가
+    // 안내문 추가
     const botDivElement = document.createElement("div");
-    botDivElement.setAttribute("id", "bottomdiv");
+    botDivElement.setAttribute("class", "alert alert-dark");
+    const alertContent = document.createTextNode("입대: 입대일 14시 / 전역:전역일 24시");
+    botDivElement.appendChild(alertContent);
     document.getElementById("wrapper").insertBefore(botDivElement, null);
 
     addElements();
