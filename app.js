@@ -2,17 +2,18 @@ const NUMBER_OF_MEMBERS = 8;
 
 const ARRAY_PREFIX = ["복귀까지", "입대까지", "전역까지", "전역까지", "전역까지", "전역까지", "전역까지", "전역까지"]
 const ARRAY_NAMES = ["예지민", "이성민", "허채민", "예지민", "팽지원", "심우재", "이승우", "이성민"];
-//const ARRAY_DATES = ["Jul 10, 2023 14:00:00", "Apr 3, 2024 00:00:00", "Jul 30, 2024 00:00:00", "Sep 20, 2024 00:00:00", "Oct 3, 2024 00:00:00", "Jan 24, 2025 00:00:00"];
 const ARRAY_DATES = ["2023-05-13T00:00:00", "2023-07-10T14:00:00", "2024-04-03T00:00:00", "2024-07-30T00:00:00", "2024-09-20T00:00:00", "2024-10-03T00:00:00", "2025-01-24T00:00:00", "2025-04-10T00:00:00"];
 
 document.body.onload = renderTimer;
 
-/* <div class = "container" id = "wrapper">
+/*
+<div class = "container" id = "wrapper">
     <div class = "row" id = "row2">
         <div class = "col-sm-6 mt-2"><div class = "card"></div></div>
         <div class = "col-sm-6 mt-2"><div class = "card"></div></div>
     </div>
-</div> */
+</div>
+*/
 function addElements() {
     for (let i = 0; i < parseInt((NUMBER_OF_MEMBERS + 1) / 2); i++) {
         const newDiv = document.createElement("div");
@@ -25,13 +26,16 @@ function addElements() {
     }
 }
 
-/* <div class="card">
+
+/*
+<div class="card">
     <div class="card-header">팽지원</div>
     <div class="card-body">
         <h5 class="card-title">입대까지 1일 ~~~</h5>
         <p class="card-text">2023년 3월 20일 14:00:00</p>
     </div>
-</div> */
+</div>
+*/
 function addElement(number, rowNumber) {
     // col div 추가
     const colElement = document.createElement("div");
@@ -94,12 +98,15 @@ function addElement(number, rowNumber) {
     }, 10);
 }
 
-/* <div class = "wrapper" id="wrapper">
+
+/*
+<div class = "wrapper" id="wrapper">
     <h3>나도 추가됐으면 좋겠다 -> 연락주세요~</h3>
     <div class="alert alert-dark" role="alert">
         내용
     </div>
-</div> */
+</div>
+*/
 function renderTimer() {
 
     // wrapper 추가
