@@ -2,7 +2,7 @@ const NUMBER_OF_MEMBERS = 9;
 
 const ARRAY_PREFIX = ["휴가까지", "복귀까지", "입대까지", "전역까지", "전역까지", "전역까지", "전역까지", "전역까지", "전역까지"]
 const ARRAY_NAMES = ["예지민", "예지민", "이성민", "허채민", "예지민", "팽지원", "심우재", "이승우", "이성민"];
-const ARRAY_DATES = ["2023-05-25T00:00:00", "2023-05-27T00:00:00", "2023-07-10T14:00:00", "2024-04-03T00:00:00", "2024-07-30T00:00:00", "2024-09-20T00:00:00", "2024-10-03T00:00:00", "2025-01-24T00:00:00", "2025-04-10T00:00:00"];
+const ARRAY_DATES = ["2023-05-25T08:00:00", "2023-05-27T20:00:00", "2023-07-10T14:00:00", "2024-04-02T08:00:00", "2024-07-29T08:00:00", "2024-09-19T08:00:00", "2024-10-02T08:00:00", "2025-01-23T08:00:00", "2025-04-09T08:00:00"];
 
 document.body.onload = renderTimer;
 
@@ -118,7 +118,7 @@ function renderTimer() {
     // 안내문 추가
     const botDivElement = document.createElement("div");
     botDivElement.setAttribute("class", "alert alert-dark");
-    const alertContent = document.createTextNode("입대: 입대일 14시 / 전역:전역일 24시");
+    const alertContent = document.createTextNode("휴가,전역:08시 / 입대:14시 / 복귀:21시");
     botDivElement.appendChild(alertContent);
     document.getElementById("wrapper").insertBefore(botDivElement, null);
 
