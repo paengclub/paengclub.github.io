@@ -1,10 +1,34 @@
-const NUMBER_OF_MEMBERS = 9;
-
-const ARRAY_PREFIX = ["휴가까지", "복귀까지", "입대까지", "전역까지", "전역까지", "전역까지", "전역까지", "전역까지", "전역까지"]
-const ARRAY_NAMES = ["예지민", "예지민", "이성민", "허채민", "예지민", "팽지원", "심우재", "이승우", "이성민"];
-const ARRAY_DATES = ["2023-05-25T08:00:00", "2023-05-27T20:00:00", "2023-07-10T14:00:00", "2024-04-02T08:00:00", "2024-07-29T08:00:00", "2024-09-19T08:00:00", "2024-10-02T08:00:00", "2025-01-23T08:00:00", "2025-04-09T08:00:00"];
+const DATA = [
+    {name:'예지민', type:'휴가', date:'2023-05-25'},
+    {name:'예지민', type:'복귀', date:'2023-05-27'},
+    {name:'예지민', type:'외출', date:'2023-06-10'},
+    {name:'예지민', type:'복귀', date:'2023-06-11'},
+    {name:'예지민', type:'외출', date:'2023-06-17'},
+    {name:'예지민', type:'복귀', date:'2023-06-18'},
+    {name:'예지민', type:'외출', date:'2023-06-24'},
+    {name:'예지민', type:'복귀', date:'2023-06-25'},
+    {name:'이성민', type:'입대', date:'2023-07-10'},
+    {name:'허채민', type:'전역', date:'2024-04-02'},
+    {name:'예지민', type:'전역', date:'2024-07-29'},
+    {name:'팽지원', type:'전역', date:'2024-09-19'},
+    {name:'심우재', type:'전역', date:'2024-10-02'},
+    {name:'이승우', type:'전역', date:'2025-01-23'},
+    {name:'이성민', type:'전역', date:'2025-04-09'}
+];
 
 document.body.onload = renderTimer;
+
+function my_format_converter(number) {
+    let time = '';
+    if (DATA[number].type == '외출') time = 'T08:00:00';
+    if (DATA[number].type == '외박') time = 'T08:00:00';
+    if (DATA[number].type == '휴가') time = 'T08:00:00';
+    if (DATA[number].type == '복귀') time = 'T08:00:00';
+    if (DATA[number].type == '입대') time = 'T08:00:00';
+    if (DATA[number].type == '전역') time = 'T08:00:00';
+
+    return DATA[number].date + time;
+}
 
 /*
 <div class = "container" id = "wrapper">
@@ -15,13 +39,13 @@ document.body.onload = renderTimer;
 </div>
 */
 function addElements() {
-    for (let i = 0; i < parseInt((NUMBER_OF_MEMBERS + 1) / 2); i++) {
+    for (let i = 0; i < parseInt((DATA.length + 1) / 2); i++) {
         const newDiv = document.createElement("div");
         newDiv.setAttribute("class", "row");
         newDiv.setAttribute("id", "row" + i);
         document.getElementById("wrapper").insertBefore(newDiv, null);
     }
-    for (let i = 0; i < NUMBER_OF_MEMBERS; i++) {
+    for (let i = 0; i < DATA.length; i++) {
         addElement(i, parseInt(i / 2));
     }
 }
@@ -43,15 +67,15 @@ function addElement(number, rowNumber) {
     document.getElementById("row" + rowNumber).insertBefore(colElement, null);
     // card div 추가
     const cardElement = document.createElement("div");
-    if (ARRAY_PREFIX[number] == '휴가까지') cardElement.setAttribute("class", "card text-white bg-info");
-    if (ARRAY_PREFIX[number] == '전역까지') cardElement.setAttribute("class", "card text-white bg-dark");
-    if (ARRAY_PREFIX[number] == '복귀까지' || ARRAY_PREFIX[number] == '입대까지') cardElement.setAttribute("class", "card text-white bg-danger");
+    if (DATA[number].type == '휴가' || DATA[number].type == '외출' || DATA[number].type == '외박') cardElement.setAttribute("class", "card text-white bg-info");
+    if (DATA[number].type == '전역') cardElement.setAttribute("class", "card text-white bg-dark");
+    if (DATA[number].type == '복귀' || DATA[number].type == '입대') cardElement.setAttribute("class", "card text-white bg-danger");
     colElement.insertBefore(cardElement, null);
 
     // card header div 추가
     const cardHeaderElement = document.createElement("div");
     cardHeaderElement.setAttribute("class", "card-header");
-    cardHeaderElement.innerHTML = ARRAY_NAMES[number];
+    cardHeaderElement.innerHTML = DATA[number].name;
     cardElement.insertBefore(cardHeaderElement, null);
     
     // card body div 추가
@@ -59,7 +83,7 @@ function addElement(number, rowNumber) {
     cardBodyElement.setAttribute("class", "card-body");
     cardElement.insertBefore(cardBodyElement, null);
 
-    const dateObject = new Date(ARRAY_DATES[number]);
+    const dateObject = new Date(my_format_converter(number));
 
     // h5 카운터 div 추가
     const counterElement = document.createElement("h5");
@@ -87,13 +111,13 @@ function addElement(number, rowNumber) {
         let seconds = Math.floor((distance % (1000 * 60)) / 1000);
         
         let timerContent = days + "일 " + hours + "시간 " + minutes + "분 " + seconds + "초";
-        timerContent = ARRAY_PREFIX[number] + " " + timerContent;
+        timerContent = DATA[number].type + "까지 " + timerContent;
         document.getElementById("timeDisplayer" + number).innerHTML = timerContent;
         
         if (distance < 0)
         {
             clearInterval(x);
-            document.getElementById("timeDisplayer" + number).innerHTML = ARRAY_PREFIX[number] + " 0일 0시간 0분 0초";
+            document.getElementById("timeDisplayer" + number).innerHTML = DATA[number].type + "까지 0일 0시간 0분 0초";
         }
     }, 10);
 }
@@ -118,7 +142,7 @@ function renderTimer() {
     // 안내문 추가
     const botDivElement = document.createElement("div");
     botDivElement.setAttribute("class", "alert alert-dark");
-    const alertContent = document.createTextNode("휴가,전역:08시 / 입대:14시 / 복귀:21시");
+    const alertContent = document.createTextNode("외출, 외박, 휴가, 전역 : 08시 | 입대 : 14시 | 복귀 : 21시");
     botDivElement.appendChild(alertContent);
     document.getElementById("wrapper").insertBefore(botDivElement, null);
 
