@@ -31,10 +31,10 @@ function my_format_converter(number) {
 }
 
 /*
-<div class = "container" id = "wrapper">
+<div class = "container my-3 mt-3" id = "wrapper">
     <div class = "row" id = "row2">
-        <div class = "col-sm-6 mt-2"><div class = "card"></div></div>
-        <div class = "col-sm-6 mt-2"><div class = "card"></div></div>
+        <div class = "col-sm-6 mt-2"><div class = "card text-white bg-info"></div></div>
+        <div class = "col-sm-6 mt-2"><div class = "card text-white bg-dark"></div></div>
     </div>
 </div>
 */
@@ -52,11 +52,11 @@ function addElements() {
 
 
 /*
-<div class="card">
+<div class="card text-white bg-dark">
     <div class="card-header">팽지원</div>
     <div class="card-body">
-        <h5 class="card-title">입대까지 1일 ~~~</h5>
-        <p class="card-text">2023년 3월 20일 14:00:00</p>
+        <h5 class="card-title" id="timeDisplayer0">전역까지 490일 15시간 15분 15초</h5>
+        <p class="card-text">2024년 9월 19일</p>
     </div>
 </div>
 */
@@ -124,11 +124,8 @@ function addElement(number, rowNumber) {
 
 
 /*
-<div class = "wrapper" id="wrapper">
-    <h3>나도 추가됐으면 좋겠다 -> 연락주세요~</h3>
-    <div class="alert alert-dark" role="alert">
-        내용
-    </div>
+<div class = "container my-3 mt-3" id="wrapper">
+    <div class="alert alert-dark">내용</div>
 </div>
 */
 function renderTimer() {
