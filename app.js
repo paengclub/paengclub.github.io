@@ -1,11 +1,11 @@
 const DATA = [
     {name:'예지민', type:'휴가', date:'2023-05-25'},
     {name:'예지민', type:'복귀', date:'2023-05-27'},
-    {name:'예지민', type:'외박', date:'2023-06-10'},
+    {name:'예지민', type:'외박', date:'2023-06-09'},
     {name:'예지민', type:'복귀', date:'2023-06-11'},
-    {name:'예지민', type:'외박', date:'2023-06-17'},
+    {name:'예지민', type:'외박', date:'2023-06-16'},
     {name:'예지민', type:'복귀', date:'2023-06-18'},
-    {name:'예지민', type:'외박', date:'2023-06-24'},
+    {name:'예지민', type:'외박', date:'2023-06-23'},
     {name:'예지민', type:'복귀', date:'2023-06-25'},
     {name:'이성민', type:'입대', date:'2023-07-10'},
     {name:'허채민', type:'전역', date:'2024-04-02'},
@@ -21,10 +21,10 @@ document.body.onload = renderTimer;
 function my_format_converter(number) {
     let time = '';
     if (DATA[number].type == '외출') time = 'T08:00:00';
-    if (DATA[number].type == '외박') time = 'T08:00:00';
+    if (DATA[number].type == '외박') time = 'T17:00:00';
     if (DATA[number].type == '휴가') time = 'T08:00:00';
-    if (DATA[number].type == '복귀') time = 'T08:00:00';
-    if (DATA[number].type == '입대') time = 'T08:00:00';
+    if (DATA[number].type == '복귀') time = 'T21:00:00';
+    if (DATA[number].type == '입대') time = 'T14:00:00';
     if (DATA[number].type == '전역') time = 'T08:00:00';
 
     return DATA[number].date + time;
