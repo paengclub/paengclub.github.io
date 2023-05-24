@@ -4,7 +4,9 @@ const DATA = [
     {name:'예지민', type:'외박', date:'2023-06-09'},
     {name:'예지민', type:'복귀', date:'2023-06-11'},
     {name:'예지민', type:'외박', date:'2023-06-16'},
+    {name:'팽지원', type:'외박', date:'2023-06-17'},
     {name:'예지민', type:'복귀', date:'2023-06-18'},
+    {name:'팽지원', type:'복귀', date:'2023-06-18'},
     {name:'예지민', type:'외박', date:'2023-06-23'},
     {name:'예지민', type:'복귀', date:'2023-06-25'},
     {name:'이성민', type:'입대', date:'2023-07-10'},
@@ -18,14 +20,27 @@ const DATA = [
 
 document.body.onload = renderTimer;
 
+function int_to_date(number) {
+    if (number == 0) return '일';
+    else if (number == 1) return '월';
+    else if (number == 2) return '화';
+    else if (number == 3) return '수';
+    else if (number == 4) return '목';
+    else if (number == 5) return '금';
+    else if (number == 6) return '토';
+    return 'error';
+}
+
 function my_format_converter(number) {
     let time = '';
-    if (DATA[number].type == '외출') time = 'T08:00:00';
-    if (DATA[number].type == '외박') time = 'T17:00:00';
-    if (DATA[number].type == '휴가') time = 'T08:00:00';
-    if (DATA[number].type == '복귀') time = 'T21:00:00';
-    if (DATA[number].type == '입대') time = 'T14:00:00';
-    if (DATA[number].type == '전역') time = 'T08:00:00';
+    if (DATA[number].type == '외박' && DATA[number].name == '예지민') time = 'T17:00:00';
+    else if (DATA[number].type == '외출') time = 'T08:00:00';
+    else if (DATA[number].type == '외박') time = 'T08:00:00';
+    else if (DATA[number].type == '휴가') time = 'T08:00:00';
+    else if (DATA[number].type == '복귀') time = 'T21:00:00';
+    else if (DATA[number].type == '입대') time = 'T14:00:00';
+    else if (DATA[number].type == '전역') time = 'T08:00:00';
+    else time = 'T00:00:00';
 
     return DATA[number].date + time;
 }
@@ -96,7 +111,7 @@ function addElement(number, rowNumber) {
     // p 내용 div 추가
     const dateElement = document.createElement("p");
     dateElement.setAttribute("class", "card-text");
-    dateElement.innerHTML = dateObject.getFullYear().toString() + "년 " + (dateObject.getMonth() + 1).toString() + "월 " + dateObject.getDate().toString() + "일";
+    dateElement.innerHTML = dateObject.getFullYear().toString() + "년 " + (dateObject.getMonth() + 1).toString() + "월 " + dateObject.getDate().toString() + "일 (" + int_to_date(dateObject.getDay()) + ") " + dateObject.getHours().toString() + "시";
     cardBodyElement.insertBefore(dateElement, null);
 
     const x = setInterval(function() {
