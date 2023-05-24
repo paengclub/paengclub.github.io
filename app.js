@@ -20,6 +20,29 @@ const DATA = [
 
 document.body.onload = renderTimer;
 
+function getRandomInt() {
+    return Math.floor(Math.random() * 8) + 1;
+}
+
+function processFOOLSEVENT(number) {
+    // id = foolsevent#인 div를 찾아서 class를 랜덤하게 바꿈
+    let event_color = getRandomInt();
+
+    let classContent = '';
+
+    if (event_color == 1) classContent = 'card text-white bg-primary';
+    else if (event_color == 2) classContent = 'card text-white bg-secondary';
+    else if (event_color == 3) classContent = 'card text-white bg-success';
+    else if (event_color == 4) classContent = 'card text-white bg-danger';
+    else if (event_color == 5) classContent = 'card text-white bg-warning';
+    else if (event_color == 6) classContent = 'card text-white bg-info';
+    else if (event_color == 7) classContent = 'card bg-light';
+    else if (event_color == 8) classContent = 'card text-white bg-dark';
+    else classContent = 'card';
+
+    document.getElementById('foolsevent' + number).setAttribute('class', classContent);
+}
+
 function int_to_date(number) {
     if (number == 0) return '일';
     else if (number == 1) return '월';
@@ -75,6 +98,7 @@ function addElements() {
     </div>
 </div>
 */
+
 function addElement(number, rowNumber) {
     // col div 추가
     const colElement = document.createElement("div");
@@ -85,6 +109,7 @@ function addElement(number, rowNumber) {
     if (DATA[number].type == '휴가' || DATA[number].type == '외출' || DATA[number].type == '외박') cardElement.setAttribute("class", "card text-white bg-info");
     if (DATA[number].type == '전역') cardElement.setAttribute("class", "card text-white bg-dark");
     if (DATA[number].type == '복귀' || DATA[number].type == '입대') cardElement.setAttribute("class", "card text-white bg-danger");
+    cardElement.setAttribute("id", "foolsevent" + number);
     colElement.insertBefore(cardElement, null);
 
     // card header div 추가
@@ -128,6 +153,7 @@ function addElement(number, rowNumber) {
         let timerContent = days + "일 " + hours + "시간 " + minutes + "분 " + seconds + "초";
         timerContent = DATA[number].type + "까지 " + timerContent;
         document.getElementById("timeDisplayer" + number).innerHTML = timerContent;
+        if (getRandomInt() == 1) processFOOLSEVENT(number);
         
         if (distance < 0)
         {
