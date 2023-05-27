@@ -185,7 +185,7 @@ function renderTimer() {
     // alarmDiv 추가
     const alarmDivElement = document.createElement("div");
     alarmDivElement.setAttribute("class", "alert alert-warning alert-dismissable fade show");
-    const alertContent = document.createTextNode("외출, 외박, 휴가, 전역 : 08시 | 입대 : 14시 | 복귀 : 21시");
+    const alertContent = document.createTextNode("출타 및 전역 : 08시 | 입대 : 14시 | 복귀 : 21시");
     alarmDivElement.appendChild(alertContent);
     wrapperElement.insertBefore(alarmDivElement, null);
 
