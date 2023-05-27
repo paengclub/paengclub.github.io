@@ -166,7 +166,12 @@ function addElement(number, rowNumber) {
 
 /*
 <div class = "container my-3 mt-3" id="wrapper">
-    <div class="alert alert-dark">내용</div>
+    <div class="alert alert-warning alert-dismissable fade show">
+        내용
+        <button type="button" class="close" data-dismiss="alert">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
 </div>
 */
 function renderTimer() {
@@ -177,12 +182,24 @@ function renderTimer() {
     wrapperElement.setAttribute("id", "wrapper");
     document.getElementById("screen").insertBefore(wrapperElement, null);
     
-    // 안내문 추가
-    const botDivElement = document.createElement("div");
-    botDivElement.setAttribute("class", "alert alert-dark");
+    // alarmDiv 추가
+    const alarmDivElement = document.createElement("div");
+    alarmDivElement.setAttribute("class", "alert alert-warning alert-dismissable fade show");
     const alertContent = document.createTextNode("외출, 외박, 휴가, 전역 : 08시 | 입대 : 14시 | 복귀 : 21시");
-    botDivElement.appendChild(alertContent);
-    document.getElementById("wrapper").insertBefore(botDivElement, null);
+    alarmDivElement.appendChild(alertContent);
+    wrapperElement.insertBefore(alarmDivElement, null);
 
+    // button 추가
+    const buttonElement = document.createElement("button");
+    buttonElement.setAttribute("type", "button");
+    buttonElement.setAttribute("class", "close");
+    buttonElement.setAttribute("data-dismiss", "alert");
+    alarmDivElement.insertBefore(buttonElement, null);
+
+    // span 추가
+    const spanElement = document.createElement("span");
+    spanElement.innerHTML = "&times;";
+    buttonElement.insertBefore(spanElement, null);
+    
     addElements();
 }
