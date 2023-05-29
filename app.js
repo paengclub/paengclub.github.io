@@ -1,6 +1,4 @@
-const DATA = [
-    {name:'예지민', type:'휴가', date:'2023-05-25'},
-    {name:'예지민', type:'복귀', date:'2023-05-27'},
+const ITINERARY = [
     {name:'예지민', type:'외박', date:'2023-06-09'},
     {name:'예지민', type:'복귀', date:'2023-06-11'},
     {name:'예지민', type:'외박', date:'2023-06-16'},
@@ -8,18 +6,20 @@ const DATA = [
     {name:'예지민', type:'복귀', date:'2023-06-18'},
     {name:'팽지원', type:'복귀', date:'2023-06-18'},
     {name:'예지민', type:'외박', date:'2023-06-23'},
-    {name:'예지민', type:'복귀', date:'2023-06-25'},
-    {name:'이성민', type:'입대', date:'2023-07-10'},
-    {name:'허채민', type:'전역', date:'2024-04-02'},
-    {name:'예지민', type:'전역', date:'2024-07-29'},
-    {name:'팽지원', type:'전역', date:'2024-09-19'},
-    {name:'심우재', type:'전역', date:'2024-10-02'},
-    {name:'이승우', type:'전역', date:'2025-01-23'},
-    {name:'이성민', type:'전역', date:'2025-04-09'}
+    {name:'예지민', type:'복귀', date:'2023-06-25'}
+];
+
+const DATA = [
+    {name:'허채민', enlisted:'2022-10-03', discharged:'2024-04-02'},
+    {name:'예지민', enlisted:'2023-01-30', discharged:'2024-07-29'},
+    {name:'팽지원', enlisted:'2023-03-20', discharged:'2024-09-19'},
+    {name:'심우재', enlisted:'2023-04-03', discharged:'2024-10-02'},
+    {name:'이승우', enlisted:'2023-04-10', discharged:'2025-01-23'},
+    {name:'이성민', enlisted:'2023-07-10', discharged:'2025-04-09'}
 ];
 
 document.body.onload = renderTimer;
-
+/*
 function getRandomInt() {
     return Math.floor(Math.random() * 8) + 1;
 }
@@ -42,6 +42,7 @@ function processFOOLSEVENT(number) {
 
     document.getElementById('foolsevent' + number).setAttribute('class', classContent);
 }
+*/
 
 function int_to_date(number) {
     if (number == 0) return '일';
@@ -55,6 +56,7 @@ function int_to_date(number) {
 }
 
 function my_format_converter(number) {
+    return DATA[number].discharged + "T08:00:00";
     let time = '';
     if (DATA[number].type == '외박' && DATA[number].name == '예지민') time = 'T17:00:00';
     else if (DATA[number].type == '외출') time = 'T08:00:00';
@@ -99,6 +101,27 @@ function addElements() {
 </div>
 */
 
+/*
+<div class="card">
+    <div class="card-header">
+        <span>팽지원</span>
+        <span class="float-right">D-480</span>
+    </div>
+    <div class="card-body">
+        <div class="progress mb-3">
+            <div class="progress-bar" style="width: 25%;">25%</div>
+        </div>
+        <div class="collapse multi-collapse" id="collapsedData0">
+            <div class="card card-body">
+                <div class="card-text">2023년 06월 17일: 외박(480일 22시간 46분 10초)</div>
+                <div class="card-text">2023년 06월 18일: 복귀(480일 22시간 46분 10초)</div>
+                <div class="card-text">2024년 09월 19일: 전역(480일 22시간 46분 10초)</div>
+            </div>
+        </div>
+        <button class="btn btn-sm btn-primary btn-block mt-2" type="button" data-toggle="collapse" data-target="#collapsedData0">펼쳐보기</button>
+    </div>
+</div>
+*/
 function addElement(number, rowNumber) {
     // col div 추가
     const colElement = document.createElement("div");
@@ -106,25 +129,61 @@ function addElement(number, rowNumber) {
     document.getElementById("row" + rowNumber).insertBefore(colElement, null);
     // card div 추가
     const cardElement = document.createElement("div");
-    if (DATA[number].type == '휴가' || DATA[number].type == '외출' || DATA[number].type == '외박') cardElement.setAttribute("class", "card text-white bg-info");
-    if (DATA[number].type == '전역') cardElement.setAttribute("class", "card text-white bg-dark");
-    if (DATA[number].type == '복귀' || DATA[number].type == '입대') cardElement.setAttribute("class", "card text-white bg-danger");
-    cardElement.setAttribute("id", "foolsevent" + number);
+    cardElement.setAttribute("class", "card");
     colElement.insertBefore(cardElement, null);
 
     // card header div 추가
     const cardHeaderElement = document.createElement("div");
     cardHeaderElement.setAttribute("class", "card-header");
-    cardHeaderElement.innerHTML = DATA[number].name;
     cardElement.insertBefore(cardHeaderElement, null);
     
+    // left span 추가
+    const leftSpanElement = document.createElement("span");
+    leftSpanElement.innerHTML = DATA[number].name;
+    cardHeaderElement.insertBefore(leftSpanElement, null);
+
+    // right span 추가
+    const rightSpanElement = document.createElement("span");
+    rightSpanElement.setAttribute("class", "float-right");
+    rightSpanElement.innerHTML = "D-" + (Math.floor((new Date(DATA[number].discharged + "T00:00:00").getTime() - new Date().getTime()) / 1000 / 60 / 60 / 24) + 1);
+    cardHeaderElement.insertBefore(rightSpanElement, null);
+
+    {/*
+    <div class="card-body">
+        <div class="progress mb-3">
+            <div class="progress-bar" style="width: 25%;" id="progressDisplayer0">25%</div>
+        </div>
+        <div class="collapse multi-collapse" id="collapsedData0">
+            <div class="card card-body">
+                <div class="card-text">2023년 06월 17일: 외박(480일 22시간 46분 10초)</div>
+                <div class="card-text">2023년 06월 18일: 복귀(480일 22시간 46분 10초)</div>
+                <div class="card-text">2024년 09월 19일: 전역(480일 22시간 46분 10초)</div>
+            </div>
+        </div>
+        <button class="btn btn-sm btn-primary btn-block mt-2" type="button" data-toggle="collapse" data-target="#collapsedData0">펼쳐보기</button>
+    </div>
+    */}
+
     // card body div 추가
     const cardBodyElement = document.createElement("div");
     cardBodyElement.setAttribute("class", "card-body");
     cardElement.insertBefore(cardBodyElement, null);
 
-    const dateObject = new Date(my_format_converter(number));
+    // progress div 추가
+    const progressElement = document.createElement("div");
+    progressElement.setAttribute("class", "progress mb-3");
+    cardBodyElement.insertBefore(progressElement, null);
 
+    // progress bar div 추가
+    const progressBarElement = document.createElement("div");
+    progressBarElement.setAttribute("class", "progress-bar text-dark"); // font-weight-bold
+    progressBarElement.setAttribute("style", "width: 0%;");
+    progressBarElement.setAttribute("id", "progressDisplayer" + number);
+    progressBarElement.innerHTML = "50%";
+    progressElement.insertBefore(progressBarElement, null);
+
+
+    
     // h5 카운터 div 추가
     const counterElement = document.createElement("h5");
     const newContent = document.createTextNode("test text");
@@ -133,6 +192,7 @@ function addElement(number, rowNumber) {
     counterElement.setAttribute("id", "timeDisplayer" + number);
     cardBodyElement.insertBefore(counterElement, null);
 
+    const dateObject = new Date(my_format_converter(number));
     // p 내용 div 추가
     const dateElement = document.createElement("p");
     dateElement.setAttribute("class", "card-text");
@@ -141,20 +201,20 @@ function addElement(number, rowNumber) {
 
     const x = setInterval(function() {
         
-        let now = new Date().getTime();
-        
+        let now = new Date().getTime();        
         let distance = dateObject.getTime() - now;
         
-        let days = Math.floor(distance / (1000 * 60 * 60 * 24));
-        let hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        let minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        let seconds = Math.floor((distance % (1000 * 60)) / 1000);
-        
-        let timerContent = days + "일 " + hours + "시간 " + minutes + "분 " + seconds + "초";
-        timerContent = DATA[number].type + "까지 " + timerContent;
-        document.getElementById("timeDisplayer" + number).innerHTML = timerContent;
-        if (getRandomInt() == 1) processFOOLSEVENT(number);
-        
+        document.getElementById("timeDisplayer" + number).innerHTML = "전역까지"
+            + Math.floor(distance / (1000 * 60 * 60 * 24)) + "일 "
+            + Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) + "시간 "
+            + Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)) + "분 "
+            + Math.floor((distance % (1000 * 60)) / 1000) + "초";
+
+        let currentProgress = 100 * (now - new Date(DATA[number].enlisted + "T00:00:00").getTime()) / (new Date(DATA[number].discharged + "T00:00:00").getTime() - new Date(DATA[number].enlisted + "T00:00:00").getTime());
+        if (currentProgress > 12) progressBarElement.innerText = Math.floor(currentProgress * 1000000) / 1000000 + "%";
+        else progressBarElement.innerText = "";
+        progressBarElement.setAttribute("style", "width:"+Math.max(Math.floor(currentProgress), 0)+"%;");
+
         if (distance < 0)
         {
             clearInterval(x);
@@ -182,24 +242,26 @@ function renderTimer() {
     wrapperElement.setAttribute("id", "wrapper");
     document.getElementById("screen").insertBefore(wrapperElement, null);
     
+    /*
     // alarmDiv 추가
     const alarmDivElement = document.createElement("div");
     alarmDivElement.setAttribute("class", "alert alert-warning alert-dismissable fade show");
-    const alertContent = document.createTextNode("출타 및 전역 : 08시 | 입대 : 14시 | 복귀 : 21시");
+    const alertContent = document.createTextNode("외출, 외박, 휴가, 전역 : 08시 | 입대 : 14시 | 복귀 : 21시");
     alarmDivElement.appendChild(alertContent);
     wrapperElement.insertBefore(alarmDivElement, null);
-
+    
     // button 추가
     const buttonElement = document.createElement("button");
     buttonElement.setAttribute("type", "button");
     buttonElement.setAttribute("class", "close");
     buttonElement.setAttribute("data-dismiss", "alert");
     alarmDivElement.insertBefore(buttonElement, null);
-
+    
     // span 추가
     const spanElement = document.createElement("span");
     spanElement.innerHTML = "&times;";
     buttonElement.insertBefore(spanElement, null);
+    */
     
     addElements();
 }
