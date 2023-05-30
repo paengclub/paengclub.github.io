@@ -6,7 +6,9 @@ const ITINERARY = [
     {name:'예지민', type:'복귀', date:'2023-06-18'},
     {name:'팽지원', type:'복귀', date:'2023-06-18'},
     {name:'예지민', type:'외박', date:'2023-06-23'},
-    {name:'예지민', type:'복귀', date:'2023-06-25'}
+    {name:'예지민', type:'복귀', date:'2023-06-25'},
+    {name:'예지민', type:'출국', date:'2023-07-26'},
+    {name:'심우재', type:'유격', date:'2023-07-31'}
 ];
 
 const DATA = [
@@ -176,39 +178,112 @@ function addElement(number, rowNumber) {
 
     // progress bar div 추가
     const progressBarElement = document.createElement("div");
-    progressBarElement.setAttribute("class", "progress-bar text-dark"); // font-weight-bold
+    progressBarElement.setAttribute("class", "progress-bar"); // font-weight-bold
     progressBarElement.setAttribute("style", "width: 0%;");
     progressBarElement.setAttribute("id", "progressDisplayer" + number);
     progressBarElement.innerHTML = "50%";
     progressElement.insertBefore(progressBarElement, null);
 
+    /*<div class="collapse multi-collapse" id="collapsedData0">
+            <div class="card card-body">
+                <div class="card-text">2023년 06월 17일: 외박(480일 22시간 46분 10초)</div>
+                <div class="card-text">2023년 06월 18일: 복귀(480일 22시간 46분 10초)</div>
+                <div class="card-text">2024년 09월 19일: 전역(480일 22시간 46분 10초)</div>
+            </div>
+        </div>
+    */
+
+    // collapse div 추가
+    const collapseDivElement = document.createElement("div");
+    collapseDivElement.setAttribute("class", "collapse multi-collapse");
+    collapseDivElement.setAttribute("id", "collapsedData" + number);
+    cardBodyElement.insertBefore(collapseDivElement, null);
+
+    // second card body element 추가
+    const secCardBodyElement = document.createElement("div");
+    secCardBodyElement.setAttribute("class", "card card-body");
+    collapseDivElement.insertBefore(secCardBodyElement, null);
+
+    // <div class="card-text">2024년 09월 19일: 전역(480일 22시간 46분 10초)</div>
+    for (let i = 0; i < ITINERARY.length; i++) {
+        if (ITINERARY[i].name != DATA[number].name) continue;
+        const scheduleElement = document.createElement("div");
+        if (ITINERARY[i].type == '출국') scheduleElement.setAttribute("class", "card-text font-weight-bold");
+        else if (ITINERARY[i].type == '유격') scheduleElement.setAttribute("class", "card-text font-weight-bold");
+        else scheduleElement.setAttribute("class", "card-text");
+        
+        const x = setInterval(function() {
+            let target = new Date(ITINERARY[i].date + "T00:00:00");
+            let distance = target.getTime() - new Date().getTime();
+            
+            scheduleElement.innerText = target.getFullYear().toString() + "년 " + (target.getMonth() + 1).toString() + "월 " + target.getDate().toString() + "일: "
+                + ITINERARY[i].type + "("
+                + Math.floor(distance / (1000 * 60 * 60 * 24)) + "일 "
+                + Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) + "시간 "
+                + Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)) + "분 "
+                + Math.floor((distance % (1000 * 60)) / 1000) + "초)";
+            if (distance < 0) clearInterval(x);
+        }, 10);
+
+        secCardBodyElement.insertBefore(scheduleElement, null);
+    }
+
+
+
+    const dischargedScheduleElement = document.createElement("div");
+    dischargedScheduleElement.setAttribute("class", "card-text");
+    
+    const y = setInterval(function() {
+        let target = new Date(DATA[number].discharged + "T00:00:00");
+        let distance = target.getTime() - new Date().getTime();
+        
+        dischargedScheduleElement.innerText = target.getFullYear().toString() + "년 " + (target.getMonth() + 1).toString() + "월 " + target.getDate().toString() + "일: "
+            + "전역("
+            + Math.floor(distance / (1000 * 60 * 60 * 24)) + "일 "
+            + Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) + "시간 "
+            + Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)) + "분 "
+            + Math.floor((distance % (1000 * 60)) / 1000) + "초)";
+        if (distance < 0) clearInterval(x);
+    }, 10);
+
+    secCardBodyElement.insertBefore(dischargedScheduleElement, null);
+
 
     
-    // h5 카운터 div 추가
-    const counterElement = document.createElement("h5");
-    const newContent = document.createTextNode("test text");
-    counterElement.appendChild(newContent);
-    counterElement.setAttribute("class", "card-title");
-    counterElement.setAttribute("id", "timeDisplayer" + number);
-    cardBodyElement.insertBefore(counterElement, null);
+    // button 추가 <button class="btn btn-sm btn-primary btn-block mt-2" type="button" data-toggle="collapse" data-target="#collapsedData0">펼쳐보기</button>
+    const buttonElement = document.createElement("button");
+    buttonElement.setAttribute("class", "btn btn-sm btn-primary btn-block mt-2");
+    buttonElement.setAttribute("type", "button");
+    buttonElement.setAttribute("data-toggle", "collapse");
+    buttonElement.setAttribute("data-target", "#collapsedData" + number);
+    buttonElement.innerText = "펼쳐보기";
+    cardBodyElement.insertBefore(buttonElement, null);
 
-    const dateObject = new Date(my_format_converter(number));
+    // h5 카운터 div 추가
+    // const counterElement = document.createElement("h5");
+    // const newContent = document.createTextNode("test text");
+    // counterElement.appendChild(newContent);
+    // counterElement.setAttribute("class", "card-title");
+    // counterElement.setAttribute("id", "timeDisplayer" + number);
+    // cardBodyElement.insertBefore(counterElement, null);
+
+    const dateObject = new Date(DATA[number].discharged + "T08:00:00");
     // p 내용 div 추가
-    const dateElement = document.createElement("p");
-    dateElement.setAttribute("class", "card-text");
-    dateElement.innerHTML = dateObject.getFullYear().toString() + "년 " + (dateObject.getMonth() + 1).toString() + "월 " + dateObject.getDate().toString() + "일 (" + int_to_date(dateObject.getDay()) + ") " + dateObject.getHours().toString() + "시";
-    cardBodyElement.insertBefore(dateElement, null);
+    // const dateElement = document.createElement("p");
+    // dateElement.setAttribute("class", "card-text");
+    // dateElement.innerHTML = dateObject.getFullYear().toString() + "년 " + (dateObject.getMonth() + 1).toString() + "월 " + dateObject.getDate().toString() + "일 (" + int_to_date(dateObject.getDay()) + ") " + dateObject.getHours().toString() + "시";
+    // cardBodyElement.insertBefore(dateElement, null);
 
     const x = setInterval(function() {
         
         let now = new Date().getTime();        
         let distance = dateObject.getTime() - now;
         
-        document.getElementById("timeDisplayer" + number).innerHTML = "전역까지"
-            + Math.floor(distance / (1000 * 60 * 60 * 24)) + "일 "
-            + Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) + "시간 "
-            + Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)) + "분 "
-            + Math.floor((distance % (1000 * 60)) / 1000) + "초";
+        // document.getElementById("timeDisplayer" + number).innerHTML = "전역까지"
+        //     + Math.floor(distance / (1000 * 60 * 60 * 24)) + "일 "
+        //     + Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) + "시간 "
+        //     + Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)) + "분 "
+        //     + Math.floor((distance % (1000 * 60)) / 1000) + "초";
 
         let currentProgress = 100 * (now - new Date(DATA[number].enlisted + "T00:00:00").getTime()) / (new Date(DATA[number].discharged + "T00:00:00").getTime() - new Date(DATA[number].enlisted + "T00:00:00").getTime());
         if (currentProgress > 12) progressBarElement.innerText = Math.floor(currentProgress * 1000000) / 1000000 + "%";
