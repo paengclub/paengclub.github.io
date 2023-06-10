@@ -25,7 +25,8 @@ const DATA = [
     {name:'예지민', rank:3, enlisted:'2023-01-30', discharged:'2024-07-29'},
     {name:'팽지원', rank:3, enlisted:'2023-03-20', discharged:'2024-09-19'},
     {name:'심우재', rank:2, enlisted:'2023-04-03', discharged:'2024-10-02'},
-    {name:'이승우', rank:2, enlisted:'2023-04-10', discharged:'2025-01-23'},
+    {name:'최재우', rank:2, enlisted:'2023-04-10', discharged:'2024-10-09'},
+    {name:'이승우', rank:2, enlisted:'2023-04-24', discharged:'2025-01-23'},
     {name:'이성민', rank:1, enlisted:'2023-07-10', discharged:'2025-04-09'}
 ];
 
