@@ -1,34 +1,6 @@
-const IMAGE = [
-    "https://i.namu.wiki/i/lySgaeuzlAoq0Df9Zo6gjL9JliKIZmzjTdRQ82lEJ3YNvxYRQ3JxonOBU9bFX7WN94c6CD6XGIZz5JmMV6Hxruis_cczpeA1vus6epiNK5-LIAxWVod9aua9pjMMzbPnMpzF4m-DO3KrL1n5UvpCOg.svg",
-    "https://i.namu.wiki/i/TLjmInHfMThH-C-4PrJsPP3ZMDwY2ctGI_kckmIYyG0k_s3_MObyUDOuH0eRQPXqmmr6F1tnenU0Lv_hPpzSSG_t7KRch5mS8Jht7YkUx_SD6WxZCC7F9OV1p2xx_-1QrYBSxVsGYjvtfGpVa9cgTQ.svg",
-    "https://i.namu.wiki/i/sF9N1YBOcOwuvhvTSck01-uimkjxXqjCt_gjzGvwnAhsxuGR4Wtb6mmaUjXDJ2gKGCKnbFTnxUrmLpgaJPZGUAE3w-FOh6uj8LoEaWksyIIh7gZm1WSaO405GHJnDHlx_0B9WpZkA5Z-nx9KlVQyfg.svg",
-    "https://i.namu.wiki/i/W7KQ-tGP257Wxw0nE1UP6RfsHiHh771fNM17fMRxNjz-PWaYyOHVUFOGV0WGyrgC7TKf6RF0mWAgqSX0qEnNsTvl4QTvlsHWXZGWDpZCN4c_SO-9Qy13tjOKQSpOZYvnEL710qvnw3eVcPhoYn1sLg.svg",
-    "https://i.namu.wiki/i/ArqAQ8H05H-6V7Ln34sDS8SOTOl4fGR92P7ZRFklCGw07lI8xZotS7GsfYXgLXXvJRqA-UJnD_j3no8hz_7hl_lFyQHXZINVHRcYT_BCr_Ykcw9heGlXNLJop1BHAaiajaEjf4z6Qrkjv3MnAY2_gQ.svg",
-    "https://i.namu.wiki/i/EdAs8JB4iNa664ldlqbgNewdC9jPCfRvqa3qbukCc-TnX-bVLec2ORIM2Ut2MXemnI23Sx6zeYyUHX-t4LWDYNZWRFWuWKTAieVn6i_yJ6jt7FDuwI8w9cJjikO6nRkDXIxrPyPSzXKykV4QDlclSg.svg"
-];
+import {ITINERARY, DATA} from "/data.js";
 
-const ITINERARY = [
-    {name:'예지민', type:'외박', date:'2023-06-09'},
-    {name:'예지민', type:'복귀', date:'2023-06-11'},
-    {name:'예지민', type:'외박', date:'2023-06-16'},
-    {name:'팽지원', type:'외박', date:'2023-06-17'},
-    {name:'예지민', type:'복귀', date:'2023-06-18'},
-    {name:'팽지원', type:'복귀', date:'2023-06-18'},
-    {name:'예지민', type:'외박', date:'2023-06-23'},
-    {name:'예지민', type:'복귀', date:'2023-06-25'},
-    {name:'예지민', type:'출국', date:'2023-07-26'},
-    {name:'심우재', type:'유격', date:'2023-07-31'}
-];
-
-const DATA = [
-    {name:'허채민', rank:3, enlisted:'2022-10-03', discharged:'2024-04-02'},
-    {name:'예지민', rank:3, enlisted:'2023-01-30', discharged:'2024-07-29'},
-    {name:'팽지원', rank:3, enlisted:'2023-03-20', discharged:'2024-09-19'},
-    {name:'심우재', rank:2, enlisted:'2023-04-03', discharged:'2024-10-02'},
-    {name:'최재우', rank:2, enlisted:'2023-04-10', discharged:'2024-10-09'},
-    {name:'이승우', rank:2, enlisted:'2023-04-24', discharged:'2025-01-23'},
-    {name:'이성민', rank:1, enlisted:'2023-07-10', discharged:'2025-04-09'}
-];
+document.body.onload = renderTimer;
 
 function preprocessed() {
     for (let i = 0; i < DATA.length; i++) {
@@ -40,10 +12,8 @@ function preprocessed() {
     }
 }
 
-document.body.onload = renderTimer;
-
 function timeFormatter(number) {
-    eventType = ITINERARY[number].type;
+    const eventType = ITINERARY[number].type;
 
     if (eventType == '외박') return ITINERARY[number].date + "T08:00:00";
     else if (eventType == '외출') return ITINERARY[number].date + "T08:00:00";
@@ -121,7 +91,7 @@ function addElement(number, rowNumber) {
 
     // img div 추가
     const imageElement = document.createElement("img");
-    imageElement.setAttribute("src", IMAGE[DATA[number].rank]);
+    imageElement.setAttribute("src", 'images/' + DATA[number].rank + '.svg');
     imageElement.setAttribute("class", "img-thumbnail mr-1");
     imageElement.setAttribute("style", "height:21px;");
     cardHeaderElement.insertBefore(imageElement, null);
@@ -261,6 +231,10 @@ function addElement(number, rowNumber) {
 </div>
 */
 function renderTimer() {
+    console.log("HELLO WORLD!");
+
+    console.log(ITINERARY);
+    console.log(DATA);
 
     // 데이터 전처리 과정
     preprocessed();
