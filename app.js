@@ -21,7 +21,7 @@ function preprocessed() {
 
     // sort ITINERARY
     for (let i = 0; i < ITINERARY.length; i++) {
-        for (let j = 0; j < ITINERARY.length - i - 2; j++) {
+        for (let j = 0; j < ITINERARY.length - i - 1; j++) {
             if (new Date(ITINERARY[j].date).getTime() < new Date(ITINERARY[j + 1].date).getTime()) continue;
             const temp = ITINERARY[j];
             ITINERARY[j] = ITINERARY[j + 1];
