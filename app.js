@@ -4,11 +4,29 @@ document.body.onload = renderTimer;
 
 function preprocessed() {
     for (let i = 0; i < DATA.length; i++) {
-        if (new Date(DATA[i].enlisted).getTime() > new Date().getTime())
-            ITINERARY.push({name:DATA[i].name, type:'입대', date:DATA[i].enlisted});
+        ITINERARY.push({name:DATA[i].name, type:DATA[i].ANF + ' 입대', date:DATA[i].enlisted});
+        ITINERARY.push({name:DATA[i].name, type:'만기 전역', date:DATA[i].discharged});
+        ITINERARY.push({name:DATA[i].name, type:'일병 진급', date:DATA[i].PFC});
+        ITINERARY.push({name:DATA[i].name, type:'상병 진급', date:DATA[i].CPL});
+        ITINERARY.push({name:DATA[i].name, type:'병장 진급', date:DATA[i].SGT});
+
+        const curTime = new Date().getTime();
+        
+        if (curTime > new Date(DATA[i].enlisted).getTime()) DATA[i].rank = 'PV2';
+        if (curTime > new Date(DATA[i].PFC).getTime()) DATA[i].rank = 'PFC';
+        if (curTime > new Date(DATA[i].CPL).getTime()) DATA[i].rank = 'CPL';
+        if (curTime > new Date(DATA[i].SGT).getTime()) DATA[i].rank = 'SGT';
+        if (curTime > new Date(DATA[i].discharged).getTime()) DATA[i].rank = 'GEN';
     }
-    for (let i = 0; i < DATA.length; i++) {
-        ITINERARY.push({name:DATA[i].name, type:'전역', date:DATA[i].discharged});
+
+    // sort ITINERARY
+    for (let i = 0; i < ITINERARY.length; i++) {
+        for (let j = 0; j < ITINERARY.length - i - 2; j++) {
+            if (new Date(ITINERARY[j].date).getTime() < new Date(ITINERARY[j + 1].date).getTime()) continue;
+            const temp = ITINERARY[j];
+            ITINERARY[j] = ITINERARY[j + 1];
+            ITINERARY[j + 1] = temp;
+        }
     }
 }
 
@@ -99,6 +117,7 @@ function addElement(number, rowNumber) {
     // left span 추가
     const leftSpanElement = document.createElement("span");
     leftSpanElement.innerHTML = DATA[number].name;
+    leftSpanElement.setAttribute("title", DATA[number].unit);
     cardHeaderElement.insertBefore(leftSpanElement, null);
 
     // right span 추가
@@ -165,6 +184,10 @@ function addElement(number, rowNumber) {
     // <li class="list-group-item">2024년 09월 19일(목) 08시: 전역(480일 22시간 46분 10초)</li>
     for (let i = 0; i < ITINERARY.length; i++) {
         if (ITINERARY[i].name != DATA[number].name) continue;
+        const tempString = ITINERARY[i].type[3] + ITINERARY[i].type[4];
+        if (tempString != '입대' && tempString != '진급' && tempString != '전역') {
+            if (new Date(ITINERARY[i].date).getTime() < new Date().getTime()) continue;
+        }
         const scheduleElement = document.createElement("li");
         if (ITINERARY[i].type == '출국') scheduleElement.setAttribute("class", "list-group-item font-weight-bold");
         else if (ITINERARY[i].type == '유격') scheduleElement.setAttribute("class", "list-group-item font-weight-bold");
@@ -184,7 +207,15 @@ function addElement(number, rowNumber) {
                 + ((Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) < 10) ? "0" : "") + Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) + "시간 "
                 + ((Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)) < 10) ? "0" : "") + Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)) + "분 "
                 + ((Math.floor((distance % (1000 * 60)) / 1000) < 10) ? "0" : "") + Math.floor((distance % (1000 * 60)) / 1000) + "초)";
-            if (distance < 0) clearInterval(x);
+            if (distance < 0) {
+                scheduleElement.innerText = target.getFullYear().toString() + "년 "
+                + ((target.getMonth() + 1 < 10) ? "0" : "") + (target.getMonth() + 1).toString() + "월 "
+                + ((target.getDate() < 10) ? "0" : "") + target.getDate().toString() + "일"
+                + "(" + int_to_date(target.getDay()) +") "
+                + ((target.getHours() < 10) ? "0" : "") + target.getHours() + "시: "
+                + ITINERARY[i].type + "(000일 00시간 00분 00초)";
+                clearInterval(x);
+            }
         }, 10);
 
         secCardBodyElement.insertBefore(scheduleElement, null);
@@ -207,7 +238,7 @@ function addElement(number, rowNumber) {
         let distance = dateObject.getTime() - now;
 
         let currentProgress = 100 * (now - new Date(DATA[number].enlisted + "T00:00:00").getTime()) / (new Date(DATA[number].discharged + "T00:00:00").getTime() - new Date(DATA[number].enlisted + "T00:00:00").getTime());
-        if (currentProgress > 12) progressBarElement.innerText = Math.floor(currentProgress * 1000000) / 1000000 + "%";
+        if (currentProgress > 10) progressBarElement.innerText = Math.floor(currentProgress * 1000000) / 1000000 + "%";
         else progressBarElement.innerText = "";
         progressBarElement.setAttribute("style", "width:"+Math.max(Math.floor(currentProgress), 0)+"%;");
 
@@ -231,10 +262,6 @@ function addElement(number, rowNumber) {
 </div>
 */
 function renderTimer() {
-    console.log("HELLO WORLD!");
-
-    console.log(ITINERARY);
-    console.log(DATA);
 
     // 데이터 전처리 과정
     preprocessed();
