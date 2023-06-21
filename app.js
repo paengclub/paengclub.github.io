@@ -213,7 +213,7 @@ function addElement(number, rowNumber) {
                 + ((target.getDate() < 10) ? "0" : "") + target.getDate().toString() + "일"
                 + "(" + int_to_date(target.getDay()) +") "
                 + ((target.getHours() < 10) ? "0" : "") + target.getHours() + "시: "
-                + ITINERARY[i].type + "(000일 00시간 00분 00초)";
+                + ITINERARY[i].type;
                 clearInterval(x);
             }
         }, 10);
