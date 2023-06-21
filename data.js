@@ -15,7 +15,7 @@ let DATA = [
     {name:'최재우', rank:'PV2', enlisted:'2023-04-10', PFC:'2023-07-01', CPL:'2024-01-01', SGT:'2024-07-01', discharged:'2024-10-09', ANF:'육군', unit:'제17보병사단'},
     {name:'이승우', rank:'PV2', enlisted:'2023-04-24', PFC:'2023-06-24', CPL:'2023-12-24', SGT:'2024-06-24', discharged:'2025-01-23', ANF:'공군', unit:'공군교육사령부'},
     {name:'이성민', rank:'GEN', enlisted:'2023-07-10', PFC:'2023-09-10', CPL:'2024-03-10', SGT:'2024-09-10', discharged:'2025-04-09', ANF:'공군', unit:'민간인'},
-    {name:'김형빈', rank:'GEN', enlisted:'2023-10-02', PFC:'2024-01-01', CPL:'2024-07-01', SGT:'2025-01-01', discharged:'2025-04-01', ANF:'해병', unit:'민간인'}
+    {name:'김형빈', rank:'LTG', enlisted:'2023-10-02', PFC:'2024-01-01', CPL:'2024-07-01', SGT:'2025-01-01', discharged:'2025-04-01', ANF:'해병', unit:'민간인'}
 ];
 
 export {ITINERARY, DATA};

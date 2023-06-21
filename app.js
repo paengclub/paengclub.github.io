@@ -99,6 +99,7 @@ function addElement(number, rowNumber) {
     document.getElementById("row" + rowNumber).insertBefore(colElement, null);
     // card div 추가
     const cardElement = document.createElement("div");
+    //if (DATA[number].ANF == '해병') cardElement.setAttribute("class", "card bg-danger text-white");
     cardElement.setAttribute("class", "card");
     colElement.insertBefore(cardElement, null);
 
@@ -117,6 +118,7 @@ function addElement(number, rowNumber) {
     // left span 추가
     const leftSpanElement = document.createElement("span");
     leftSpanElement.innerHTML = DATA[number].name;
+    if (DATA[number].ANF == '해병') leftSpanElement.setAttribute("class", "text-warning bg-danger"); //rounded border border-warning
     leftSpanElement.setAttribute("title", DATA[number].unit);
     cardHeaderElement.insertBefore(leftSpanElement, null);
 
@@ -189,8 +191,9 @@ function addElement(number, rowNumber) {
             if (new Date(ITINERARY[i].date).getTime() < new Date().getTime()) continue;
         }
         const scheduleElement = document.createElement("li");
-        if (ITINERARY[i].type == '출국') scheduleElement.setAttribute("class", "list-group-item font-weight-bold");
-        else if (ITINERARY[i].type == '유격') scheduleElement.setAttribute("class", "list-group-item font-weight-bold");
+        if (ITINERARY[i].type == '한국 출국') scheduleElement.setAttribute("class", "list-group-item font-weight-bold");
+        else if (ITINERARY[i].type == '유격 훈련') scheduleElement.setAttribute("class", "list-group-item font-weight-bold");
+        //else if (DATA[number].ANF == '해병') scheduleElement.setAttribute("class", "bg-danger border-white list-group-item");
         else scheduleElement.setAttribute("class", "list-group-item");
         
         const x = setInterval(function() {
@@ -223,6 +226,7 @@ function addElement(number, rowNumber) {
 
     // button 추가 <button class="btn btn-sm btn-primary btn-block mt-2" type="button" data-toggle="collapse" data-target="#collapsedData0">펼쳐보기</button>
     const buttonElement = document.createElement("button");
+    //if (DATA[number].ANF == '해병') buttonElement.setAttribute("class", "btn btn-sm btn-danger border-white text-white btn-block mt-2");
     buttonElement.setAttribute("class", "btn btn-sm btn-primary btn-block mt-2");
     buttonElement.setAttribute("type", "button");
     buttonElement.setAttribute("data-toggle", "collapse");
