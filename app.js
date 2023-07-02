@@ -276,7 +276,7 @@ function renderTimer() {
     wrapperElement.setAttribute("id", "wrapper");
     document.getElementById("screen").insertBefore(wrapperElement, null);
     
-    
+    /*
     // alarmDiv 추가
     const alarmDivElement = document.createElement("div");
     alarmDivElement.setAttribute("class", "alert alert-warning alert-dismissable fade show");
@@ -296,6 +296,7 @@ function renderTimer() {
     const spanElement = document.createElement("span");
     spanElement.innerHTML = "&times;";
     buttonElement.insertBefore(spanElement, null);
+    */
 
     // <button class="btn btn-primary" type="btn" data-toggle="collapse" data-target=".multi-collapse">모두 펼쳐보기</button>
 
