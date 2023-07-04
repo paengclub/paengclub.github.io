@@ -1,8 +1,7 @@
 let ITINERARY = [
     {name:'예지민', type:'특별 외박', date:'2023-07-07'},
     {name:'예지민', type:'외박 복귀', date:'2023-07-09'},
-    {name:'예지민', type:'한국 출국', date:'2023-07-26'},
-    {name:'심우재', type:'유격 훈련', date:'2023-07-31'}
+    {name:'예지민', type:'한국 출국', date:'2023-07-26'}
 ];
 
 let DATA = [
