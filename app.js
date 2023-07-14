@@ -242,9 +242,8 @@ function addElement(number, rowNumber) {
         let distance = dateObject.getTime() - now;
 
         let currentProgress = 100 * (now - new Date(DATA[number].enlisted + "T00:00:00").getTime()) / (new Date(DATA[number].discharged + "T00:00:00").getTime() - new Date(DATA[number].enlisted + "T00:00:00").getTime());
-        if (currentProgress > 10) progressBarElement.innerText = Math.floor(currentProgress * 1000000) / 1000000 + "%";
-        else progressBarElement.innerText = "";
-        progressBarElement.setAttribute("style", "width:"+Math.max(Math.floor(currentProgress), 0)+"%;");
+        progressBarElement.innerText = Math.floor(currentProgress * 1000000) / 1000000 + "%";
+        progressBarElement.setAttribute("style", "width:"+Math.max(Math.round(currentProgress), 0)+"%;");
 
         if (distance < 0)
         {
