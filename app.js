@@ -12,11 +12,12 @@ function preprocessed() {
 
         const curTime = new Date().getTime();
         
-        if (curTime > new Date(DATA[i].enlisted).getTime()) DATA[i].rank = 'PV2';
-        if (curTime > new Date(DATA[i].PFC).getTime()) DATA[i].rank = 'PFC';
-        if (curTime > new Date(DATA[i].CPL).getTime()) DATA[i].rank = 'CPL';
-        if (curTime > new Date(DATA[i].SGT).getTime()) DATA[i].rank = 'SGT';
-        if (curTime > new Date(DATA[i].discharged).getTime()) DATA[i].rank = 'GEN';
+        if (curTime > new Date(DATA[i].enlisted).getTime()) DATA[i].rank = 'PV2.jpg';
+        if (curTime > new Date(DATA[i].PFC).getTime()) DATA[i].rank = 'PFC.jpg';
+        if (curTime > new Date(DATA[i].CPL).getTime()) DATA[i].rank = 'CPL.jpg';
+        if (curTime > new Date(DATA[i].SGT).getTime()) DATA[i].rank = 'SGT.jpg';
+        if (curTime > new Date(DATA[i].discharged).getTime()) DATA[i].rank = 'GEN.svg';
+        if (DATA[i].ANF == '공군') DATA[i].rank = 'AF_' + DATA[i].rank;
     }
 
     // sort ITINERARY
@@ -110,8 +111,9 @@ function addElement(number, rowNumber) {
 
     // img div 추가
     const imageElement = document.createElement("img");
-    imageElement.setAttribute("src", 'images/' + DATA[number].rank + '.svg');
-    imageElement.setAttribute("class", "img-thumbnail mr-1");
+    imageElement.setAttribute("src", 'images/' + DATA[number].rank);
+    if (DATA[number].rank != 'LTG.svg' && DATA[number].rank != 'GEN.svg') imageElement.setAttribute("class", "img-thumbnail mr-1 p-0");
+    else imageElement.setAttribute("class", "img-thumbnail mr-1");
     imageElement.setAttribute("style", "height:21px;");
     cardHeaderElement.insertBefore(imageElement, null);
     
