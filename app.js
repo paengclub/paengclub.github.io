@@ -120,7 +120,9 @@ function addElement(number, rowNumber) {
     // left span 추가
     const leftSpanElement = document.createElement("span");
     leftSpanElement.innerHTML = DATA[number].name;
-    if (DATA[number].ANF == '해병') leftSpanElement.setAttribute("class", "text-warning bg-danger rounded border border-warning");
+    if (DATA[number].ANF == '해병') leftSpanElement.setAttribute("class", "font-weight-bold text-warning bg-danger rounded border border-warning");
+    else if (DATA[number].ANF == '공군') leftSpanElement.setAttribute("class", "font-weight-bold text-primary");
+    else leftSpanElement.setAttribute("class", "font-weight-bold");
     leftSpanElement.setAttribute("title", DATA[number].unit);
     cardHeaderElement.insertBefore(leftSpanElement, null);
 
