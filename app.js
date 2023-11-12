@@ -101,6 +101,7 @@ function addElement(number, rowNumber) {
     // card div 추가
     const cardElement = document.createElement("div");
     if (DATA[number].ANF == '해병') cardElement.setAttribute("class", "card bg-danger text-white");
+    else if (DATA[number].ANF == '공익') cardElement.setAttribute("class", "card bg-dark text-white");
     else cardElement.setAttribute("class", "card");
     colElement.insertBefore(cardElement, null);
 
@@ -112,7 +113,7 @@ function addElement(number, rowNumber) {
     // img div 추가
     const imageElement = document.createElement("img");
     imageElement.setAttribute("src", 'images/' + DATA[number].rank);
-    if (DATA[number].rank != 'LTG.svg' && DATA[number].rank != 'GEN.svg') imageElement.setAttribute("class", "img-thumbnail mr-1 p-0");
+    if (DATA[number].rank != 'LTG.svg' && DATA[number].rank != 'GEN.svg' && DATA[number].rank != 'AF_GEN.svg') imageElement.setAttribute("class", "img-thumbnail mr-1 p-0");
     else imageElement.setAttribute("class", "img-thumbnail mr-1");
     imageElement.setAttribute("style", "height:21px;");
     cardHeaderElement.insertBefore(imageElement, null);
@@ -121,14 +122,14 @@ function addElement(number, rowNumber) {
     const leftSpanElement = document.createElement("span");
     leftSpanElement.innerHTML = DATA[number].name;
     if (DATA[number].ANF == '해병') leftSpanElement.setAttribute("class", "font-weight-bold text-warning bg-danger rounded border border-warning");
+    else if (DATA[number].ANF == '공익') leftSpanElement.setAttribute("class", "font-weight-bold text-white bg-dark rounded border border-white");
     else if (DATA[number].ANF == '공군') leftSpanElement.setAttribute("class", "font-weight-bold text-primary");
     else leftSpanElement.setAttribute("class", "font-weight-bold");
-    leftSpanElement.setAttribute("title", DATA[number].unit);
     cardHeaderElement.insertBefore(leftSpanElement, null);
 
     // right span 추가
     const rightSpanElement = document.createElement("span");
-    rightSpanElement.setAttribute("class", "float-right");
+    rightSpanElement.setAttribute("class", "font-weight-bold float-right");
     rightSpanElement.innerHTML = "D-" + (Math.floor((new Date(DATA[number].discharged + "T00:00:00").getTime() - new Date().getTime()) / 1000 / 60 / 60 / 24) + 1);
     cardHeaderElement.insertBefore(rightSpanElement, null);
 
@@ -198,6 +199,7 @@ function addElement(number, rowNumber) {
         if (ITINERARY[i].type == '한국 출국') scheduleElement.setAttribute("class", "list-group-item font-weight-bold");
         else if (ITINERARY[i].type == '유격 훈련') scheduleElement.setAttribute("class", "list-group-item font-weight-bold");
         else if (DATA[number].ANF == '해병') scheduleElement.setAttribute("class", "bg-danger border-white list-group-item");
+        else if (DATA[number].ANF == '공익') scheduleElement.setAttribute("class", "bg-dark border-white list-group-item");
         else scheduleElement.setAttribute("class", "list-group-item");
         
         const x = setInterval(function() {
@@ -231,6 +233,7 @@ function addElement(number, rowNumber) {
     // button 추가 <button class="btn btn-sm btn-primary btn-block mt-2" type="button" data-toggle="collapse" data-target="#collapsedData0">펼쳐보기</button>
     const buttonElement = document.createElement("button");
     if (DATA[number].ANF == '해병') buttonElement.setAttribute("class", "btn btn-sm btn-danger border-white text-white btn-block mt-2");
+    else if (DATA[number].ANF == '공익') buttonElement.setAttribute("class", "btn btn-sm btn-dark border-white text-white btn-block mt-2");
     else buttonElement.setAttribute("class", "btn btn-sm btn-primary btn-block mt-2");
     buttonElement.setAttribute("type", "button");
     buttonElement.setAttribute("data-toggle", "collapse");
