@@ -1,9 +1,5 @@
 let ITINERARY = [
-    {name:'예지민', type:'특별 외박', date:'2023-07-07'},
-    {name:'예지민', type:'외박 복귀', date:'2023-07-09'},
-    {name:'이승우', type:'신병 휴가', date:'2023-07-16'},
-    {name:'이승우', type:'휴가 복귀', date:'2023-07-20'},
-    {name:'예지민', type:'한국 출국', date:'2023-07-26'}
+    {name:'예지민', type:'한국 귀국', date:'2024-04-15'}
 ];
 
 let DATA = [
@@ -16,8 +12,8 @@ let DATA = [
     {name:'이성민', rank:'GEN.svg', enlisted:'2023-07-10', PFC:'2023-09-10', CPL:'2024-03-10', SGT:'2024-09-10', discharged:'2025-04-09', ANF:'공군'},
     {name:'문성훈', rank:'PV2.svg', enlisted:'2023-07-31', PFC:'2023-10-01', CPL:'2024-04-01', SGT:'2024-10-01', discharged:'2025-01-30', ANF:'육군'},
     {name:'오강현', rank:'GEN.svg', enlisted:'2024-02-01', PFC:'2024-04-01', CPL:'2024-10-01', SGT:'2025-04-01', discharged:'2025-10-31', ANF:'공익'},
-    {name:'김현서', rank:'GEN.svg', enlisted:'2024-08-22', PFC:'2024-11-01', CPL:'2025-05-01', SGT:'2025-11-01', discharged:'2026-05-22', ANF:'공익'},
-    {name:'김형빈', rank:'GEN.svg', enlisted:'2026-12-28', PFC:'2027-02-28', CPL:'2027-08-28', SGT:'2028-02-28', discharged:'2028-09-28', ANF:'공군'}
+    {name:'김형빈', rank:'GEN.svg', enlisted:'2024-07-01', PFC:'2024-09-01', CPL:'2025-03-01', SGT:'2025-09-01', discharged:'2026-03-31', ANF:'공군'},
+    {name:'김현서', rank:'GEN.svg', enlisted:'2024-08-22', PFC:'2024-11-01', CPL:'2025-05-01', SGT:'2025-11-01', discharged:'2026-05-22', ANF:'공익'}
 ];
 
 export {ITINERARY, DATA};
