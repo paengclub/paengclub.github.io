@@ -130,7 +130,10 @@ function addElement(number, rowNumber) {
     // right span 추가
     const rightSpanElement = document.createElement("span");
     rightSpanElement.setAttribute("class", "font-weight-bold float-right");
-    rightSpanElement.innerHTML = "D-" + (Math.floor((new Date(DATA[number].discharged + "T00:00:00").getTime() - new Date().getTime()) / 1000 / 60 / 60 / 24) + 1);
+    let dayLeftTillDischarge = Math.floor((new Date(DATA[number].discharged + "T00:00:00").getTime() - new Date().getTime()) / 1000 / 60 / 60 / 24) + 1;
+    if (dayLeftTillDischarge > 0) rightSpanElement.innerHTML = "D-" + dayLeftTillDischarge;
+    else if (dayLeftTillDischarge == 0) rightSpanElement.innerHTML = "D-DAY";
+    else rightSpanElement.innerHTML = "전역 " + (-dayLeftTillDischarge) + "일 차";
     cardHeaderElement.insertBefore(rightSpanElement, null);
 
     {/*
@@ -249,8 +252,16 @@ function addElement(number, rowNumber) {
         let distance = dateObject.getTime() - now;
 
         let currentProgress = 100 * (now - new Date(DATA[number].enlisted + "T00:00:00").getTime()) / (new Date(DATA[number].discharged + "T00:00:00").getTime() - new Date(DATA[number].enlisted + "T00:00:00").getTime());
-        progressBarElement.innerText = Math.floor(currentProgress * 1000000) / 1000000 + "%";
-        progressBarElement.setAttribute("style", "width:"+Math.max(Math.round(currentProgress), 0)+"%;");
+        
+        if (currentProgress > 100) {
+            progressBarElement.innerText = "전역을 축하합니다!";
+            progressBarElement.setAttribute("style", "width:100%;");
+            progressBarElement.setAttribute("class", "progress-bar bg-success");
+        }
+        else {
+            progressBarElement.innerText = Math.floor(currentProgress * 1000000) / 1000000 + "%";
+            progressBarElement.setAttribute("style", "width:"+Math.max(Math.round(currentProgress), 0)+"%;");
+        }
 
         if (distance < 0)
         {
