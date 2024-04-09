@@ -12,6 +12,7 @@ let DATA = [
     {name:'이성민', rank:'GEN.svg', enlisted:'2023-07-10', PFC:'2023-09-10', CPL:'2024-03-10', SGT:'2024-09-10', discharged:'2025-04-09', ANF:'공군'},
     {name:'문성훈', rank:'PV2.svg', enlisted:'2023-07-31', PFC:'2023-10-01', CPL:'2024-04-01', SGT:'2024-10-01', discharged:'2025-01-30', ANF:'육군'},
     {name:'오강현', rank:'GEN.svg', enlisted:'2024-02-01', PFC:'2024-04-01', CPL:'2024-10-01', SGT:'2025-04-01', discharged:'2025-10-31', ANF:'공익'},
+    {name:'김병용', rank:'GEN.svg', enlisted:'2024-05-27', PFC:'2024-08-01', CPL:'2025-02-01', SGT:'2025-08-01', discharged:'2025-11-26', ANF:'육군'},
     {name:'김형빈', rank:'GEN.svg', enlisted:'2024-07-01', PFC:'2024-09-01', CPL:'2025-03-01', SGT:'2025-09-01', discharged:'2026-03-31', ANF:'공군'},
     {name:'김현서', rank:'GEN.svg', enlisted:'2024-08-22', PFC:'2024-11-01', CPL:'2025-05-01', SGT:'2025-11-01', discharged:'2026-05-22', ANF:'공익'}
 ];
