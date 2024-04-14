@@ -4,11 +4,20 @@ document.body.onload = renderTimer;
 
 function preprocessed() {
     for (let i = 0; i < DATA.length; i++) {
-        ITINERARY.push({name:DATA[i].name, type:DATA[i].ANF + ' 입대', date:DATA[i].enlisted});
-        ITINERARY.push({name:DATA[i].name, type:'만기 전역', date:DATA[i].discharged});
-        ITINERARY.push({name:DATA[i].name, type:'일병 진급', date:DATA[i].PFC});
-        ITINERARY.push({name:DATA[i].name, type:'상병 진급', date:DATA[i].CPL});
-        ITINERARY.push({name:DATA[i].name, type:'병장 진급', date:DATA[i].SGT});
+        if (DATA[i].ANF == '공익') {
+            ITINERARY.push({name:DATA[i].name, type:'훈련소 입소', date:DATA[i].enlisted});
+            ITINERARY.push({name:DATA[i].name, type:'소집 해제', date:DATA[i].discharged});
+            ITINERARY.push({name:DATA[i].name, type:'보수등급 2', date:DATA[i].PFC});
+            ITINERARY.push({name:DATA[i].name, type:'보수등급 3', date:DATA[i].CPL});
+            ITINERARY.push({name:DATA[i].name, type:'보수등급 4', date:DATA[i].SGT});
+        }
+        else {
+            ITINERARY.push({name:DATA[i].name, type:DATA[i].ANF + ' 입대', date:DATA[i].enlisted});
+            ITINERARY.push({name:DATA[i].name, type:'만기 전역', date:DATA[i].discharged});
+            ITINERARY.push({name:DATA[i].name, type:'일병 진급', date:DATA[i].PFC});
+            ITINERARY.push({name:DATA[i].name, type:'상병 진급', date:DATA[i].CPL});
+            ITINERARY.push({name:DATA[i].name, type:'병장 진급', date:DATA[i].SGT});
+        }
 
         const curTime = new Date().getTime();
         
@@ -79,17 +88,7 @@ function addElements() {
         <span class="float-right">D-480</span>
     </div>
     <div class="card-body">
-        <div class="progress mb-3">
-            <div class="progress-bar" style="width: 25%;">25%</div>
-        </div>
-        <div class="collapse multi-collapse" id="collapsedData0">
-            <ul class="list-group list-flush">
-                <li class="list-group-item">2023년 06월 17일(토) 08시: 외박(480일 22시간 46분 10초)</li>
-                <li class="list-group-item">2023년 06월 18일(일) 21시: 복귀(480일 22시간 46분 10초)</li>
-                <li class="list-group-item">2024년 09월 19일(목) 08시: 전역(480일 22시간 46분 10초)</li>
-            </ul>
-        </div>
-        <button class="btn btn-sm btn-primary btn-block mt-2" type="button" data-toggle="collapse" data-target="#collapsedData0">펼쳐보기</button>
+        <div class="progress mb-3"><div class="progress-bar" style="width: 25%;">25%</div></div>
     </div>
 </div>
 */
@@ -107,12 +106,14 @@ function addElement(number, rowNumber) {
 
     // card header div 추가
     const cardHeaderElement = document.createElement("div");
-    cardHeaderElement.setAttribute("class", "card-header px-2");
+    cardHeaderElement.setAttribute("class", "card-header px-2 pt-2 pb-1");
     cardElement.insertBefore(cardHeaderElement, null);
 
     // img div 추가
     const imageElement = document.createElement("img");
-    imageElement.setAttribute("src", 'images/' + DATA[number].rank);
+    if (DATA[number].isDischarged == 'true') imageElement.setAttribute("src", 'images/reserved.jpg');
+    else if (DATA[number].ANF == '공익' && DATA[number].rank != 'PV2.jpg' && DATA[number].rank != 'GEN.svg') imageElement.setAttribute("src", 'images/social.svg');
+    else imageElement.setAttribute("src", 'images/' + DATA[number].rank);
     if (DATA[number].rank != 'LTG.svg' && DATA[number].rank != 'GEN.svg' && DATA[number].rank != 'AF_GEN.svg') imageElement.setAttribute("class", "img-thumbnail mr-1 p-0");
     else imageElement.setAttribute("class", "img-thumbnail mr-1");
     imageElement.setAttribute("style", "height:21px;");
@@ -122,7 +123,7 @@ function addElement(number, rowNumber) {
     const leftSpanElement = document.createElement("span");
     leftSpanElement.innerHTML = DATA[number].name;
     if (DATA[number].ANF == '해병') leftSpanElement.setAttribute("class", "font-weight-bold text-warning bg-danger rounded border border-warning");
-    else if (DATA[number].ANF == '공익') leftSpanElement.setAttribute("class", "font-weight-bold text-white bg-dark rounded border border-white");
+    else if (DATA[number].ANF == '공익') leftSpanElement.setAttribute("class", "font-weight-bold text-white bg-dark");
     else if (DATA[number].ANF == '공군') leftSpanElement.setAttribute("class", "font-weight-bold text-primary");
     else leftSpanElement.setAttribute("class", "font-weight-bold");
     cardHeaderElement.insertBefore(leftSpanElement, null);
@@ -138,7 +139,7 @@ function addElement(number, rowNumber) {
 
     {/*
     <div class="card-body">
-        <div class="progress mb-3">
+        <div class="progress">
             <div class="progress-bar" style="width: 25%;" id="progressDisplayer0">25%</div>
         </div>
         <div class="collapse multi-collapse" id="collapsedData0">
@@ -154,12 +155,12 @@ function addElement(number, rowNumber) {
 
     // card body div 추가
     const cardBodyElement = document.createElement("div");
-    cardBodyElement.setAttribute("class", "card-body");
+    cardBodyElement.setAttribute("class", "card-body p-1");
     cardElement.insertBefore(cardBodyElement, null);
 
     // progress div 추가
     const progressElement = document.createElement("div");
-    progressElement.setAttribute("class", "progress mb-3");
+    progressElement.setAttribute("class", "progress");
     cardBodyElement.insertBefore(progressElement, null);
 
     // progress bar div 추가
@@ -169,7 +170,7 @@ function addElement(number, rowNumber) {
     progressBarElement.setAttribute("id", "progressDisplayer" + number);
     progressBarElement.innerHTML = "50%";
     progressElement.insertBefore(progressBarElement, null);
-
+    
     /*
     <div class="collapse multi-collapse" id="collapsedData0">
             <ul class="list-group list-flush">
@@ -182,7 +183,7 @@ function addElement(number, rowNumber) {
 
     // collapse div 추가
     const collapseDivElement = document.createElement("div");
-    collapseDivElement.setAttribute("class", "collapse multi-collapse");
+    collapseDivElement.setAttribute("class", "collapse multi-collapse mt-1");
     collapseDivElement.setAttribute("id", "collapsedData" + number);
     cardBodyElement.insertBefore(collapseDivElement, null);
 
@@ -195,11 +196,11 @@ function addElement(number, rowNumber) {
     for (let i = 0; i < ITINERARY.length; i++) {
         if (ITINERARY[i].name != DATA[number].name) continue;
         const tempString = ITINERARY[i].type[3] + ITINERARY[i].type[4];
-        if (tempString != '입대' && tempString != '진급' && tempString != '전역') {
+        if (tempString != '입대' && tempString != '진급' && tempString != '전역' && ITINERARY[i].type[0] != '보') {
             if (new Date(ITINERARY[i].date).getTime() < new Date().getTime()) continue;
         }
         const scheduleElement = document.createElement("li");
-        if (ITINERARY[i].type == '한국 출국') scheduleElement.setAttribute("class", "list-group-item font-weight-bold");
+        if (ITINERARY[i].type == '한국 귀국') scheduleElement.setAttribute("class", "list-group-item font-weight-bold");
         else if (ITINERARY[i].type == '유격 훈련') scheduleElement.setAttribute("class", "list-group-item font-weight-bold");
         else if (DATA[number].ANF == '해병') scheduleElement.setAttribute("class", "bg-danger border-white list-group-item");
         else if (DATA[number].ANF == '공익') scheduleElement.setAttribute("class", "bg-dark border-white list-group-item");
@@ -214,7 +215,7 @@ function addElement(number, rowNumber) {
                 + ((target.getDate() < 10) ? "0" : "") + target.getDate().toString() + "일"
                 + "(" + int_to_date(target.getDay()) +") "
                 + ((target.getHours() < 10) ? "0" : "") + target.getHours() + "시: "
-                + ITINERARY[i].type + "("
+                + ITINERARY[i].type + "\n("
                 + ((Math.floor(distance / (1000 * 60 * 60 * 24)) < 100) ? "0" : "") + ((Math.floor(distance / (1000 * 60 * 60 * 24)) < 10) ? "0" : "" ) + Math.floor(distance / (1000 * 60 * 60 * 24)) + "일 "
                 + ((Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) < 10) ? "0" : "") + Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) + "시간 "
                 + ((Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)) < 10) ? "0" : "") + Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)) + "분 "
@@ -232,17 +233,6 @@ function addElement(number, rowNumber) {
 
         secCardBodyElement.insertBefore(scheduleElement, null);
     }
-
-    // button 추가 <button class="btn btn-sm btn-primary btn-block mt-2" type="button" data-toggle="collapse" data-target="#collapsedData0">펼쳐보기</button>
-    const buttonElement = document.createElement("button");
-    if (DATA[number].ANF == '해병') buttonElement.setAttribute("class", "btn btn-sm btn-danger border-white text-white btn-block mt-2");
-    else if (DATA[number].ANF == '공익') buttonElement.setAttribute("class", "btn btn-sm btn-dark border-white text-white btn-block mt-2");
-    else buttonElement.setAttribute("class", "btn btn-sm btn-primary btn-block mt-2");
-    buttonElement.setAttribute("type", "button");
-    buttonElement.setAttribute("data-toggle", "collapse");
-    buttonElement.setAttribute("data-target", "#collapsedData" + number);
-    buttonElement.innerText = "펼쳐보기";
-    cardBodyElement.insertBefore(buttonElement, null);
 
     const dateObject = new Date(DATA[number].discharged + "T08:00:00");
 
@@ -289,7 +279,7 @@ function renderTimer() {
 
     // wrapper 추가
     const wrapperElement = document.createElement("div");
-    wrapperElement.setAttribute("class", "container my-3 mt-3");
+    wrapperElement.setAttribute("class", "container");
     wrapperElement.setAttribute("id", "wrapper");
     document.getElementById("screen").insertBefore(wrapperElement, null);
     
@@ -317,14 +307,14 @@ function renderTimer() {
 
     // <button class="btn btn-primary" type="btn" data-toggle="collapse" data-target=".multi-collapse">모두 펼쳐보기</button>
 
+    
+    
+    addElements();
     const collapseButtonElement = document.createElement("button");
-    collapseButtonElement.setAttribute("class", "btn btn-primary btn-block");
+    collapseButtonElement.setAttribute("class", "btn btn-primary btn-block mt-3");
     collapseButtonElement.setAttribute("type", "button");
     collapseButtonElement.setAttribute("data-toggle", "collapse");
     collapseButtonElement.setAttribute("data-target", ".multi-collapse");
     collapseButtonElement.innerText = "모두 펼쳐보기";
     wrapperElement.insertBefore(collapseButtonElement, null);
-    
-    
-    addElements();
 }
