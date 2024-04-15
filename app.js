@@ -52,16 +52,7 @@ function timeFormatter(number) {
     return ITINERARY[number].date + "T00:00:00";
 }
 
-function int_to_date(number) {
-    if (number == 0) return '일';
-    else if (number == 1) return '월';
-    else if (number == 2) return '화';
-    else if (number == 3) return '수';
-    else if (number == 4) return '목';
-    else if (number == 5) return '금';
-    else if (number == 6) return '토';
-    return 'error';
-}
+const DAY_OF_WEEK = ['일', '월', '화', '수', '목', '금', '토'];
 
 /*
 <div class = "container my-3 mt-3" id = "wrapper">
@@ -255,7 +246,7 @@ function addElement(number, rowNumber) {
             scheduleElement.innerText = target.getFullYear().toString() + "년 "
                 + ((target.getMonth() + 1 < 10) ? "0" : "") + (target.getMonth() + 1).toString() + "월 "
                 + ((target.getDate() < 10) ? "0" : "") + target.getDate().toString() + "일"
-                + "(" + int_to_date(target.getDay()) +") "
+                + "(" + DAY_OF_WEEK[target.getDay()] +") "
                 + ((target.getHours() < 10) ? "0" : "") + target.getHours() + "시: "
                 + ITINERARY[i].type + "\n("
                 + ((Math.floor(distance / (1000 * 60 * 60 * 24)) < 100) ? "0" : "") + ((Math.floor(distance / (1000 * 60 * 60 * 24)) < 10) ? "0" : "" ) + Math.floor(distance / (1000 * 60 * 60 * 24)) + "일 "
@@ -266,7 +257,7 @@ function addElement(number, rowNumber) {
                 scheduleElement.innerText = target.getFullYear().toString() + "년 "
                 + ((target.getMonth() + 1 < 10) ? "0" : "") + (target.getMonth() + 1).toString() + "월 "
                 + ((target.getDate() < 10) ? "0" : "") + target.getDate().toString() + "일"
-                + "(" + int_to_date(target.getDay()) +") "
+                + "(" + DAY_OF_WEEK[target.getDay()] +") "
                 + ((target.getHours() < 10) ? "0" : "") + target.getHours() + "시: "
                 + ITINERARY[i].type;
                 clearInterval(x);
