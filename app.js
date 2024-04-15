@@ -85,10 +85,16 @@ function addElements() {
 <div class="card">
     <div class="card-header">
         <span>팽지원</span>
+        <button type="button" data-toggle="collapse" data-target=".prediselement">말출</button>
         <span class="float-right">D-480</span>
     </div>
     <div class="card-body">
-        <div class="progress mb-3"><div class="progress-bar" style="width: 25%;">25%</div></div>
+        <div class="progress mb-3">
+            <div class="progress-bar" style="width: 25%;">25%</div>
+        </div>
+        <div class="progress mb-3">
+            <div class="progress-bar" style="width: 25%;">25%</div>
+        </div>
     </div>
 </div>
 */
@@ -136,6 +142,23 @@ function addElement(number, rowNumber) {
     else if (dayLeftTillDischarge == 0) rightSpanElement.innerHTML = "D-DAY";
     else rightSpanElement.innerHTML = "전역 " + (-dayLeftTillDischarge) + "일 차";
     cardHeaderElement.insertBefore(rightSpanElement, null);
+    
+    // 말출 button 추가
+    if (DATA[number].discharged != DATA[number].preDischarged) {
+        let preDisDDay = '';
+        let dayLeftTillPreDis = Math.floor((new Date(DATA[number].preDischarged + "T00:00:00").getTime() - new Date().getTime()) / 1000 / 60 / 60 / 24) + 1;
+        if (dayLeftTillPreDis > 0) preDisDDay = "D-" + dayLeftTillPreDis;
+        else if (dayLeftTillPreDis == 0) preDisDDay = "D-DAY";
+        else preDisDDay = "말출 " + (-dayLeftTillPreDis) + "일 차";
+
+        const predisButton = document.createElement("button");
+        predisButton.innerHTML = preDisDDay;
+        predisButton.setAttribute("class", "btn btn-sm btn-dark text-weight-bold float-right px-1 py-0 mr-2");
+        predisButton.setAttribute("type", "button");
+        predisButton.setAttribute("data-toggle", "collapse");
+        predisButton.setAttribute("data-target", ".prediselement");
+        cardHeaderElement.insertBefore(predisButton, null);
+    }
 
     {/*
     <div class="card-body">
@@ -160,7 +183,8 @@ function addElement(number, rowNumber) {
 
     // progress div 추가
     const progressElement = document.createElement("div");
-    progressElement.setAttribute("class", "progress");
+    if (DATA[number].discharged == DATA[number].preDischarged) progressElement.setAttribute("class", "progress");
+    else progressElement.setAttribute("class", "progress prediselement collapse show");
     cardBodyElement.insertBefore(progressElement, null);
 
     // progress bar div 추가
@@ -170,6 +194,24 @@ function addElement(number, rowNumber) {
     progressBarElement.setAttribute("id", "progressDisplayer" + number);
     progressBarElement.innerHTML = "50%";
     progressElement.insertBefore(progressBarElement, null);
+    
+    const preProgressElement = document.createElement("div");
+    const preProgressBarElement = document.createElement("div");
+    if (DATA[number].discharged != DATA[number].preDischarged) {
+        // progress div 추가
+        // const preProgressElement = document.createElement("div");
+        preProgressElement.setAttribute("class", "progress collapse prediselement");
+        cardBodyElement.insertBefore(preProgressElement, null);
+        
+        // progress bar div 추가
+        // const preProgressBarElement = document.createElement("div");
+        preProgressBarElement.setAttribute("class", "progress-bar bg-info"); // font-weight-bold
+        preProgressBarElement.setAttribute("style", "width: 0%;");
+        preProgressBarElement.setAttribute("id", "preProgressDisplayer" + number);
+        preProgressBarElement.innerHTML = "50%";
+        preProgressElement.insertBefore(preProgressBarElement, null);
+
+    }
     
     /*
     <div class="collapse multi-collapse" id="collapsedData0">
@@ -259,6 +301,32 @@ function addElement(number, rowNumber) {
             document.getElementById("timeDisplayer" + number).innerHTML = DATA[number].type + "까지 0일 0시간 0분 0초";
         }
     }, 10);
+    
+    const preDateObject = new Date(DATA[number].preDischarged + "T08:00:00");
+
+    const preProgressIntervalNumber = setInterval(function() {
+        
+        let now = new Date().getTime();        
+        let distance = preDateObject.getTime() - now;
+
+        let currentProgress = 100 * (now - new Date(DATA[number].enlisted + "T00:00:00").getTime()) / (new Date(DATA[number].preDischarged + "T00:00:00").getTime() - new Date(DATA[number].enlisted + "T00:00:00").getTime());
+        
+        if (currentProgress > 100) {
+            preProgressBarElement.innerText = "말출을 축하합니다!";
+            preProgressBarElement.setAttribute("style", "width:100%;");
+            preProgressBarElement.setAttribute("class", "progress-bar bg-success");
+        }
+        else {
+            preProgressBarElement.innerText = Math.floor(currentProgress * 1000000) / 1000000 + "%";
+            preProgressBarElement.setAttribute("style", "width:"+Math.max(Math.round(currentProgress), 0)+"%;");
+        }
+
+        if (distance < 0)
+        {
+            clearInterval(preProgressIntervalNumber);
+            document.getElementById("timeDisplayer" + number).innerHTML = DATA[number].type + "까지 0일 0시간 0분 0초";
+        }
+    }, 10);
 }
 
 
@@ -307,9 +375,8 @@ function renderTimer() {
 
     // <button class="btn btn-primary" type="btn" data-toggle="collapse" data-target=".multi-collapse">모두 펼쳐보기</button>
 
-    
-    
     addElements();
+
     const collapseButtonElement = document.createElement("button");
     collapseButtonElement.setAttribute("class", "btn btn-primary btn-block mt-3");
     collapseButtonElement.setAttribute("type", "button");
@@ -317,4 +384,5 @@ function renderTimer() {
     collapseButtonElement.setAttribute("data-target", ".multi-collapse");
     collapseButtonElement.innerText = "모두 펼쳐보기";
     wrapperElement.insertBefore(collapseButtonElement, null);
+
 }
