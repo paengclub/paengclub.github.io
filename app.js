@@ -229,7 +229,7 @@ function addElement(number, rowNumber) {
     for (let i = 0; i < ITINERARY.length; i++) {
         if (ITINERARY[i].name != DATA[number].name) continue;
         const tempString = ITINERARY[i].type[3] + ITINERARY[i].type[4];
-        if (tempString != '입대' && tempString != '진급' && tempString != '전역' && ITINERARY[i].type[0] != '보') {
+        if (tempString != '입대' && tempString != '진급' && tempString != '전역' && ITINERARY[i].type[0] != '보' && ITINERARY[i].type[4] != '수') {
             if (new Date(ITINERARY[i].date).getTime() < new Date().getTime()) continue;
         }
         const scheduleElement = document.createElement("li");
