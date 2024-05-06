@@ -1,55 +1,52 @@
-import {ITINERARY, DATA} from "/data.js";
+import {itineraries, members} from "/data.js";
 
 document.body.onload = renderTimer;
 
+const agentSet = ['훈련소 입소', '보수등급 2', '보수등급 3', '보수등급 4', '소집 해제'];
+const activeSet = ['일병 진급', '상병 진급', '병장 진급', '만기 전역'];
+const rankSet = ['PV2.jpg', 'PFC.jpg', 'CPL.jpg', 'SGT.jpg', 'GEN.svg'];
+
 function preprocessed() {
-    for (let i = 0; i < DATA.length; i++) {
-        if (DATA[i].ANF == '공익') {
-            ITINERARY.push({name:DATA[i].name, type:'훈련소 입소', date:DATA[i].enlisted});
-            ITINERARY.push({name:DATA[i].name, type:'소집 해제', date:DATA[i].discharged});
-            ITINERARY.push({name:DATA[i].name, type:'보수등급 2', date:DATA[i].PFC});
-            ITINERARY.push({name:DATA[i].name, type:'보수등급 3', date:DATA[i].CPL});
-            ITINERARY.push({name:DATA[i].name, type:'보수등급 4', date:DATA[i].SGT});
+    for (let i = 0; i < members.length; i++) {
+        if (members[i].ANF == '공익') {
+            for (let j = 0; j < 5; j++)
+                itineraries.push({name:members[i].name, type:agentSet[j], date:members[i].dates[j]});
         }
         else {
-            ITINERARY.push({name:DATA[i].name, type:DATA[i].ANF + ' 입대', date:DATA[i].enlisted});
-            ITINERARY.push({name:DATA[i].name, type:'만기 전역', date:DATA[i].discharged});
-            ITINERARY.push({name:DATA[i].name, type:'일병 진급', date:DATA[i].PFC});
-            ITINERARY.push({name:DATA[i].name, type:'상병 진급', date:DATA[i].CPL});
-            ITINERARY.push({name:DATA[i].name, type:'병장 진급', date:DATA[i].SGT});
+            itineraries.push({name:members[i].name, type:members[i].ANF + ' 입대', date:members[i].dates[0]});
+            for (let j = 0; j < 4; j++)
+                itineraries.push({name:members[i].name, type:activeSet[j], date:members[i].dates[j + 1]});
         }
 
         const curTime = new Date().getTime();
         
-        if (curTime > new Date(DATA[i].enlisted).getTime()) DATA[i].rank = 'PV2.jpg';
-        if (curTime > new Date(DATA[i].PFC).getTime()) DATA[i].rank = 'PFC.jpg';
-        if (curTime > new Date(DATA[i].CPL).getTime()) DATA[i].rank = 'CPL.jpg';
-        if (curTime > new Date(DATA[i].SGT).getTime()) DATA[i].rank = 'SGT.jpg';
-        if (curTime > new Date(DATA[i].discharged).getTime()) DATA[i].rank = 'GEN.svg';
-        if (DATA[i].ANF == '공군') DATA[i].rank = 'AF_' + DATA[i].rank;
+        for (let j = 0; j < 5; j++) {
+            if (curTime > new Date(members[i].dates[j]).getTime()) members[i].rank = rankSet[j];
+        }
+        if (members[i].ANF == '공군') members[i].rank = 'AF_' + members[i].rank;
     }
 
-    // sort ITINERARY
-    for (let i = 0; i < ITINERARY.length; i++) {
-        for (let j = 0; j < ITINERARY.length - i - 1; j++) {
-            if (new Date(ITINERARY[j].date).getTime() < new Date(ITINERARY[j + 1].date).getTime()) continue;
-            const temp = ITINERARY[j];
-            ITINERARY[j] = ITINERARY[j + 1];
-            ITINERARY[j + 1] = temp;
+    // sort itineraries
+    for (let i = 0; i < itineraries.length; i++) {
+        for (let j = 0; j < itineraries.length - i - 1; j++) {
+            if (new Date(itineraries[j].date).getTime() < new Date(itineraries[j + 1].date).getTime()) continue;
+            const temp = itineraries[j];
+            itineraries[j] = itineraries[j + 1];
+            itineraries[j + 1] = temp;
         }
     }
 }
 
 function timeFormatter(number) {
-    const eventType = ITINERARY[number].type;
+    const eventType = itineraries[number].type;
 
-    if (eventType == '외박') return ITINERARY[number].date + "T08:00:00";
-    else if (eventType == '외출') return ITINERARY[number].date + "T08:00:00";
-    else if (eventType == '휴가') return ITINERARY[number].date + "T08:00:00";
-    else if (eventType == '전역') return ITINERARY[number].date + "T08:00:00";
-    else if (eventType == '복귀') return ITINERARY[number].date + "T21:00:00";
-    else if (eventType == '입대') return ITINERARY[number].date + "T14:00:00";
-    return ITINERARY[number].date + "T00:00:00";
+    if (eventType == '외박') return itineraries[number].date + "T08:00:00";
+    else if (eventType == '외출') return itineraries[number].date + "T08:00:00";
+    else if (eventType == '휴가') return itineraries[number].date + "T08:00:00";
+    else if (eventType == '전역') return itineraries[number].date + "T08:00:00";
+    else if (eventType == '복귀') return itineraries[number].date + "T21:00:00";
+    else if (eventType == '입대') return itineraries[number].date + "T14:00:00";
+    return itineraries[number].date + "T00:00:00";
 }
 
 const DAY_OF_WEEK = ['일', '월', '화', '수', '목', '금', '토'];
@@ -63,13 +60,13 @@ const DAY_OF_WEEK = ['일', '월', '화', '수', '목', '금', '토'];
 </div>
 */
 function addElements() {
-    for (let i = 0; i < parseInt((DATA.length + 1) / 2); i++) {
+    for (let i = 0; i < parseInt((members.length + 1) / 2); i++) {
         const newDiv = document.createElement("div");
         newDiv.setAttribute("class", "row");
         newDiv.setAttribute("id", "row" + i);
         document.getElementById("wrapper").insertBefore(newDiv, null);
     }
-    for (let i = 0; i < DATA.length; i++) addElement(i, parseInt(i / 2));
+    for (let i = 0; i < members.length; i++) addElement(i, parseInt(i / 2));
 }
 
 /*
@@ -77,7 +74,7 @@ function addElements() {
     <div class="card-header">
         <span>팽지원</span>
         <button type="button" data-toggle="collapse" data-target=".prediselement">말출</button>
-        <span class="float-right">D-480</span>
+        <button class="float-right">D-480</button>
     </div>
     <div class="card-body">
         <div class="progress mb-3">
@@ -96,48 +93,56 @@ function addElement(number, rowNumber) {
     document.getElementById("row" + rowNumber).insertBefore(colElement, null);
     // card div 추가
     const cardElement = document.createElement("div");
-    if (DATA[number].ANF == '해병') cardElement.setAttribute("class", "card bg-danger text-white");
-    else if (DATA[number].ANF == '공익') cardElement.setAttribute("class", "card bg-dark text-white");
-    else cardElement.setAttribute("class", "card");
+    let cardElementAttributeContent = 'card';
+    if (members[number].ANF == '해병') cardElementAttributeContent += ' text-white bg-danger';
+    if (members[number].ANF == '공익') cardElementAttributeContent += ' text-white bg-dark';
+    cardElement.setAttribute("class", cardElementAttributeContent);
     colElement.insertBefore(cardElement, null);
 
     // card header div 추가
     const cardHeaderElement = document.createElement("div");
-    cardHeaderElement.setAttribute("class", "card-header px-2 pt-2 pb-1");
+    cardHeaderElement.setAttribute("class", "card-header p-1");
     cardElement.insertBefore(cardHeaderElement, null);
 
     // img div 추가
     const imageElement = document.createElement("img");
-    if (DATA[number].isDischarged == 'true') imageElement.setAttribute("src", 'images/reserved.jpg');
-    else if (DATA[number].ANF == '공익' && DATA[number].rank != 'PV2.jpg' && DATA[number].rank != 'GEN.svg') imageElement.setAttribute("src", 'images/social.svg');
-    else imageElement.setAttribute("src", 'images/' + DATA[number].rank);
-    if (DATA[number].rank != 'LTG.svg' && DATA[number].rank != 'GEN.svg' && DATA[number].rank != 'AF_GEN.svg') imageElement.setAttribute("class", "img-thumbnail mr-1 p-0");
+    if (members[number].isDischarged == 'true') imageElement.setAttribute("src", 'images/reserved.jpg');
+    else if (members[number].ANF == '공익' && members[number].rank != 'PV2.jpg' && members[number].rank != 'GEN.svg') imageElement.setAttribute("src", 'images/social.svg');
+    else imageElement.setAttribute("src", 'images/' + members[number].rank);
+    if (members[number].rank != 'LTG.svg' && members[number].rank != 'GEN.svg' && members[number].rank != 'AF_GEN.svg') imageElement.setAttribute("class", "img-thumbnail mr-1 p-0");
     else imageElement.setAttribute("class", "img-thumbnail mr-1");
     imageElement.setAttribute("style", "height:21px;");
     cardHeaderElement.insertBefore(imageElement, null);
     
     // left span 추가
     const leftSpanElement = document.createElement("span");
-    leftSpanElement.innerHTML = DATA[number].name;
-    if (DATA[number].ANF == '해병') leftSpanElement.setAttribute("class", "font-weight-bold text-warning bg-danger rounded border border-warning");
-    else if (DATA[number].ANF == '공익') leftSpanElement.setAttribute("class", "font-weight-bold text-white bg-dark");
-    else if (DATA[number].ANF == '공군') leftSpanElement.setAttribute("class", "font-weight-bold text-primary");
-    else leftSpanElement.setAttribute("class", "font-weight-bold");
+    leftSpanElement.innerHTML = members[number].name;
+    let leftSpanElementContent = 'font-weight-bold';
+    if (members[number].ANF == '해병') leftSpanElementContent += " text-warning bg-danger rounded border border-warning";
+    if (members[number].ANF == '공익') leftSpanElementContent += " text-white bg-dark";
+    if (members[number].ANF == '공군') leftSpanElementContent += " text-primary";
+    leftSpanElement.setAttribute("class", leftSpanElementContent);
     cardHeaderElement.insertBefore(leftSpanElement, null);
 
-    // right span 추가
-    const rightSpanElement = document.createElement("span");
-    rightSpanElement.setAttribute("class", "font-weight-bold float-right");
-    let dayLeftTillDischarge = Math.floor((new Date(DATA[number].discharged + "T00:00:00").getTime() - new Date().getTime()) / 1000 / 60 / 60 / 24) + 1;
+    // right button 추가
+    const rightSpanElement = document.createElement("button");
+    let contentcontent = "btn font-weight-bold float-right btn-no-outline p-0";
+    if (members[number].ANF == '공익') contentcontent += ' text-white';
+    if (members[number].ANF == '해병') contentcontent += ' text-warning';
+    rightSpanElement.setAttribute("class", contentcontent);
+    rightSpanElement.setAttribute('type', 'button');
+    rightSpanElement.setAttribute('data-toggle', 'collapse');
+    rightSpanElement.setAttribute('data-target', '#collapsedData' + number);
+    let dayLeftTillDischarge = Math.floor((new Date(members[number].dates[4] + "T00:00:00").getTime() - new Date().getTime()) / 1000 / 60 / 60 / 24) + 1;
     if (dayLeftTillDischarge > 0) rightSpanElement.innerHTML = "D-" + dayLeftTillDischarge;
     else if (dayLeftTillDischarge == 0) rightSpanElement.innerHTML = "D-DAY";
     else rightSpanElement.innerHTML = "전역 " + (-dayLeftTillDischarge) + "일 차";
     cardHeaderElement.insertBefore(rightSpanElement, null);
     
     // 말출 button 추가
-    if (DATA[number].discharged != DATA[number].preDischarged) {
+    if (members[number].dates[4] != members[number].dates[5]) {
         let preDisDDay = '';
-        let dayLeftTillPreDis = Math.floor((new Date(DATA[number].preDischarged + "T00:00:00").getTime() - new Date().getTime()) / 1000 / 60 / 60 / 24) + 1;
+        let dayLeftTillPreDis = Math.floor((new Date(members[number].dates[5] + "T00:00:00").getTime() - new Date().getTime()) / 1000 / 60 / 60 / 24) + 1;
         if (dayLeftTillPreDis > 0) preDisDDay = "D-" + dayLeftTillPreDis;
         else if (dayLeftTillPreDis == 0) preDisDDay = "D-DAY";
         else preDisDDay = "말출 " + (-dayLeftTillPreDis) + "일 차";
@@ -174,7 +179,7 @@ function addElement(number, rowNumber) {
 
     // progress div 추가
     const progressElement = document.createElement("div");
-    if (DATA[number].discharged == DATA[number].preDischarged) progressElement.setAttribute("class", "progress");
+    if (members[number].dates[4] == members[number].dates[5]) progressElement.setAttribute("class", "progress");
     else progressElement.setAttribute("class", "progress prediselement collapse show");
     cardBodyElement.insertBefore(progressElement, null);
 
@@ -188,7 +193,7 @@ function addElement(number, rowNumber) {
     
     const preProgressElement = document.createElement("div");
     const preProgressBarElement = document.createElement("div");
-    if (DATA[number].discharged != DATA[number].preDischarged) {
+    if (members[number].dates[4] != members[number].dates[5]) {
         // progress div 추가
         // const preProgressElement = document.createElement("div");
         preProgressElement.setAttribute("class", "progress collapse prediselement");
@@ -226,17 +231,17 @@ function addElement(number, rowNumber) {
     collapseDivElement.insertBefore(secCardBodyElement, null);
 
     // <li class="list-group-item">2024년 09월 19일(목) 08시: 전역(480일 22시간 46분 10초)</li>
-    for (let i = 0; i < ITINERARY.length; i++) {
-        if (ITINERARY[i].name != DATA[number].name) continue;
-        const tempString = ITINERARY[i].type[3] + ITINERARY[i].type[4];
-        if (tempString != '입대' && tempString != '진급' && tempString != '전역' && ITINERARY[i].type[0] != '보' && ITINERARY[i].type[4] != '입') {
-            if (new Date(ITINERARY[i].date).getTime() < new Date().getTime()) continue;
+    for (let i = 0; i < itineraries.length; i++) {
+        if (itineraries[i].name != members[number].name) continue;
+        const tempString = itineraries[i].type[3] + itineraries[i].type[4];
+        if (tempString != '입대' && tempString != '진급' && tempString != '전역' && itineraries[i].type[0] != '보' && itineraries[i].type[4] != '입') {
+            if (new Date(itineraries[i].date).getTime() < new Date().getTime()) continue;
         }
         const scheduleElement = document.createElement("li");
-        if (ITINERARY[i].type == '한국 귀국') scheduleElement.setAttribute("class", "list-group-item font-weight-bold");
-        else if (ITINERARY[i].type == '유격 훈련') scheduleElement.setAttribute("class", "list-group-item font-weight-bold");
-        else if (DATA[number].ANF == '해병') scheduleElement.setAttribute("class", "bg-danger border-white list-group-item");
-        else if (DATA[number].ANF == '공익') scheduleElement.setAttribute("class", "bg-dark border-white list-group-item");
+        if (itineraries[i].type == '한국 귀국') scheduleElement.setAttribute("class", "list-group-item font-weight-bold");
+        else if (itineraries[i].type == '유격 훈련') scheduleElement.setAttribute("class", "list-group-item font-weight-bold");
+        else if (members[number].ANF == '해병') scheduleElement.setAttribute("class", "bg-danger border-warning list-group-item text-warning");
+        else if (members[number].ANF == '공익') scheduleElement.setAttribute("class", "bg-dark border-white list-group-item");
         else scheduleElement.setAttribute("class", "list-group-item");
         
         const x = setInterval(function() {
@@ -246,9 +251,8 @@ function addElement(number, rowNumber) {
             scheduleElement.innerText = target.getFullYear().toString() + "년 "
                 + ((target.getMonth() + 1 < 10) ? "0" : "") + (target.getMonth() + 1).toString() + "월 "
                 + ((target.getDate() < 10) ? "0" : "") + target.getDate().toString() + "일"
-                + "(" + DAY_OF_WEEK[target.getDay()] +") "
-                + ((target.getHours() < 10) ? "0" : "") + target.getHours() + "시: "
-                + ITINERARY[i].type + "\n("
+                + "(" + DAY_OF_WEEK[target.getDay()] +") : "
+                + itineraries[i].type + "\n("
                 + ((Math.floor(distance / (1000 * 60 * 60 * 24)) < 100) ? "0" : "") + ((Math.floor(distance / (1000 * 60 * 60 * 24)) < 10) ? "0" : "" ) + Math.floor(distance / (1000 * 60 * 60 * 24)) + "일 "
                 + ((Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) < 10) ? "0" : "") + Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) + "시간 "
                 + ((Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)) < 10) ? "0" : "") + Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)) + "분 "
@@ -257,9 +261,8 @@ function addElement(number, rowNumber) {
                 scheduleElement.innerText = target.getFullYear().toString() + "년 "
                 + ((target.getMonth() + 1 < 10) ? "0" : "") + (target.getMonth() + 1).toString() + "월 "
                 + ((target.getDate() < 10) ? "0" : "") + target.getDate().toString() + "일"
-                + "(" + DAY_OF_WEEK[target.getDay()] +") "
-                + ((target.getHours() < 10) ? "0" : "") + target.getHours() + "시: "
-                + ITINERARY[i].type;
+                + "(" + DAY_OF_WEEK[target.getDay()] +") : "
+                + itineraries[i].type;
                 clearInterval(x);
             }
         }, 10);
@@ -267,14 +270,14 @@ function addElement(number, rowNumber) {
         secCardBodyElement.insertBefore(scheduleElement, null);
     }
 
-    const dateObject = new Date(DATA[number].discharged + "T08:00:00");
+    const dateObject = new Date(members[number].dates[4] + "T08:00:00");
 
     const progressIntervalNumber = setInterval(function() {
         
         let now = new Date().getTime();        
         let distance = dateObject.getTime() - now;
 
-        let currentProgress = 100 * (now - new Date(DATA[number].enlisted + "T00:00:00").getTime()) / (new Date(DATA[number].discharged + "T00:00:00").getTime() - new Date(DATA[number].enlisted + "T00:00:00").getTime());
+        let currentProgress = 100 * (now - new Date(members[number].dates[0] + "T00:00:00").getTime()) / (new Date(members[number].dates[4] + "T00:00:00").getTime() - new Date(members[number].dates[0] + "T00:00:00").getTime());
         
         if (currentProgress > 100) {
             progressBarElement.innerText = "전역을 축하합니다!";
@@ -289,18 +292,18 @@ function addElement(number, rowNumber) {
         if (distance < 0)
         {
             clearInterval(progressIntervalNumber);
-            document.getElementById("timeDisplayer" + number).innerHTML = DATA[number].type + "까지 0일 0시간 0분 0초";
+            document.getElementById("timeDisplayer" + number).innerHTML = members[number].type + "까지 0일 0시간 0분 0초";
         }
     }, 10);
     
-    const preDateObject = new Date(DATA[number].preDischarged + "T08:00:00");
+    const preDateObject = new Date(members[number].dates[5] + "T08:00:00");
 
     const preProgressIntervalNumber = setInterval(function() {
         
         let now = new Date().getTime();        
         let distance = preDateObject.getTime() - now;
 
-        let currentProgress = 100 * (now - new Date(DATA[number].enlisted + "T00:00:00").getTime()) / (new Date(DATA[number].preDischarged + "T00:00:00").getTime() - new Date(DATA[number].enlisted + "T00:00:00").getTime());
+        let currentProgress = 100 * (now - new Date(members[number].dates[0] + "T00:00:00").getTime()) / (new Date(members[number].dates[5] + "T00:00:00").getTime() - new Date(members[number].dates[0] + "T00:00:00").getTime());
         
         if (currentProgress > 100) {
             preProgressBarElement.innerText = "말출을 축하합니다!";
@@ -315,7 +318,7 @@ function addElement(number, rowNumber) {
         if (distance < 0)
         {
             clearInterval(preProgressIntervalNumber);
-            document.getElementById("timeDisplayer" + number).innerHTML = DATA[number].type + "까지 0일 0시간 0분 0초";
+            document.getElementById("timeDisplayer" + number).innerHTML = members[number].type + "까지 0일 0시간 0분 0초";
         }
     }, 10);
 }
@@ -342,12 +345,10 @@ function renderTimer() {
     wrapperElement.setAttribute("id", "wrapper");
     document.getElementById("screen").insertBefore(wrapperElement, null);
     
-    /*
     // alarmDiv 추가
     const alarmDivElement = document.createElement("div");
-    alarmDivElement.setAttribute("class", "alert alert-warning alert-dismissable fade show");
-    const alertContent = document.createTextNode("외출, 외박, 휴가, 전역 : 08시 | 입대 : 14시 | 복귀 : 21시");
-    // const alertContent = document.createTextNode("모바일 경험을 우선하여 업데이트했습니다");
+    alarmDivElement.setAttribute("class", "alert alert-warning alert-dismissable fade show m-0 p-3");
+    const alertContent = document.createTextNode("남은 디데이를 클릭해 보세요!");
     alarmDivElement.appendChild(alertContent);
     wrapperElement.insertBefore(alarmDivElement, null);
     
@@ -362,7 +363,6 @@ function renderTimer() {
     const spanElement = document.createElement("span");
     spanElement.innerHTML = "&times;";
     buttonElement.insertBefore(spanElement, null);
-    */
 
     // <button class="btn btn-primary" type="btn" data-toggle="collapse" data-target=".multi-collapse">모두 펼쳐보기</button>
 
