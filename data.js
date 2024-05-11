@@ -2,6 +2,7 @@ let itineraries = [
     {name:'예지민', date:'2024-04-15', type:'한국 귀국'},
     {name:'김현서', date:'2024-09-12', type:'훈련소 수료'},
     {name:'팽지원', date:'2024-08-19', type:'말출'},
+    {name:'허채민', date:'2024-11-14', type:'수능'},
     {name:'이승우', date:'2024-12-17', type:'말출'},
     {name:'심우재', date:'2024-10-02', type:'하사 진급'}
 ];
