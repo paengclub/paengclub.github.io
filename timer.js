@@ -3,6 +3,11 @@ import {current_rendered_page} from "/app.js";
 
 const DAY_OF_WEEK = ['일', '월', '화', '수', '목', '금', '토'];
 
+function isDarkMode() {
+    if (document.documentElement.getAttribute("data-bs-theme") == "dark") return true;
+    return false;
+}
+
 function updater() {
     if (current_rendered_page != 0) return;
     for (let user_id = 0; user_id < members.length; user_id++) {
@@ -18,11 +23,12 @@ function updater() {
         if (dischargeCurrentProgress > 100) {
             progressBarElement.innerText = "전역을 축하합니다!";
             progressBarElement.setAttribute("style", "width:100%;");
-            progressBarElement.setAttribute("class", "progress-bar bg-success");
+            if (isDarkMode()) progressBarElement.setAttribute("class", "progress-bar bg-success-subtle");
+            else progressBarElement.setAttribute("class", "progress-bar bg-success");
         }
         else {
             progressBarElement.innerText = Math.floor(dischargeCurrentProgress * 1000000) / 1000000 + "%";
-            progressBarElement.setAttribute("style", "width:"+Math.max(Math.round(dischargeCurrentProgress), 0)+"%;");
+            progressBarElement.setAttribute("style", "width:"+Math.max(Math.ceil(dischargeCurrentProgress), 0)+"%;");
         }
         
         // 2. PreDischargement Progress
@@ -32,7 +38,8 @@ function updater() {
         if (preCurrentProgress > 100) {
             preProgressBarElement.innerText = "말출을 축하합니다!";
             preProgressBarElement.setAttribute("style", "width:100%;");
-            preProgressBarElement.setAttribute("class", "progress-bar bg-success");
+            if (isDarkMode()) preProgressBarElement.setAttribute("class", "progress-bar bg-success-subtle");
+            else preProgressBarElement.setAttribute("class", "progress-bar bg-success");
         }
         else {
             preProgressBarElement.innerText = Math.floor(preCurrentProgress * 1000000) / 1000000 + "%";
@@ -73,7 +80,7 @@ function createCollapse(upperElement, user_id) {
 
     // second card body element 추가
     const secCardBodyElement = document.createElement("ul");
-    secCardBodyElement.setAttribute("class", "list-group list-flush");
+    secCardBodyElement.setAttribute("class", "list-group list-group-flush");
     collapseDivElement.insertBefore(secCardBodyElement, null);
 
     // <li class="list-group-item">2024년 09월 19일(목) 08시: 전역(480일 22시간 46분 10초)</li>
@@ -158,7 +165,7 @@ function createUser(user_id, rowNumber) {
     // left span 추가
     const leftSpanElement = document.createElement("span");
     leftSpanElement.innerHTML = members[user_id].name;
-    let leftSpanElementContent = 'font-weight-bold';
+    let leftSpanElementContent = 'fw-bold';
     if (members[user_id].ANF == '해병') leftSpanElementContent += " text-warning bg-danger rounded border border-warning";
     if (members[user_id].ANF == '공군') leftSpanElementContent += " text-primary";
     leftSpanElement.setAttribute("class", leftSpanElementContent);
@@ -166,13 +173,13 @@ function createUser(user_id, rowNumber) {
 
     // right button 추가
     const rightSpanElement = document.createElement("button");
-    let contentcontent = "btn font-weight-bold float-right btn-no-outline p-0";
+    let contentcontent = "btn fw-bold float-end p-0";
     if (members[user_id].ANF == '공익') contentcontent += ' text-white';
     if (members[user_id].ANF == '해병') contentcontent += ' text-warning';
     rightSpanElement.setAttribute("class", contentcontent);
     rightSpanElement.setAttribute('type', 'button');
-    rightSpanElement.setAttribute('data-toggle', 'collapse');
-    rightSpanElement.setAttribute('data-target', '#collapsedData' + user_id);
+    rightSpanElement.setAttribute('data-bs-toggle', 'collapse');
+    rightSpanElement.setAttribute('data-bs-target', '#collapsedData' + user_id);
     let dayLeftTillDischarge = Math.floor((new Date(members[user_id].dates[4] + "T00:00:00").getTime() - new Date().getTime()) / 1000 / 60 / 60 / 24) + 1;
     if (dayLeftTillDischarge > 0) rightSpanElement.innerHTML = "D-" + dayLeftTillDischarge;
     else if (dayLeftTillDischarge == 0) rightSpanElement.innerHTML = "D-DAY";
@@ -189,17 +196,12 @@ function createUser(user_id, rowNumber) {
 
         const predisButton = document.createElement("button");
         predisButton.innerHTML = preDisDDay;
-        predisButton.setAttribute("class", "btn btn-sm btn-dark text-weight-bold float-right px-1 py-0 mr-2");
+        predisButton.setAttribute("class", "btn btn-sm btn-dark fw-bold float-end px-1 py-0 mr-2");
         predisButton.setAttribute("type", "button");
-        predisButton.setAttribute("data-toggle", "collapse");
-        predisButton.setAttribute("data-target", ".prediselement");
+        predisButton.setAttribute("data-bs-toggle", "collapse");
+        predisButton.setAttribute("data-bs-target", ".prediselement");
         cardHeaderElement.insertBefore(predisButton, null);
     }
-
-    /* <div class="card-body">
-        <div class="progress"><div class="progress-bar" style="width: 25%;" id="progressDisplayer0">25%</div></div>
-        [ COLLAPSE ELEMENT ]
-    </div> */
 
     // card body div 추가
     const cardBodyElement = document.createElement("div");
@@ -214,7 +216,8 @@ function createUser(user_id, rowNumber) {
 
     // progress bar div 추가
     const progressBarElement = document.createElement("div");
-    progressBarElement.setAttribute("class", "progress-bar"); // font-weight-bold
+    if (isDarkMode()) progressBarElement.setAttribute("class", "progress-bar bg-primary-subtle");
+    else progressBarElement.setAttribute("class", "progress-bar bg-primary");
     progressBarElement.setAttribute("style", "width: 0%;");
     progressBarElement.setAttribute("id", "progressDisplayer" + user_id);
     progressBarElement.innerHTML = "50%";
@@ -228,7 +231,8 @@ function createUser(user_id, rowNumber) {
         
         // progress bar div 추가
         const preProgressBarElement = document.createElement("div");
-        preProgressBarElement.setAttribute("class", "progress-bar bg-info"); // font-weight-bold
+        if (isDarkMode()) preProgressBarElement.setAttribute("class", "progress-bar bg-info-subtle");
+        else preProgressBarElement.setAttribute("class", "progress-bar bg-info");
         preProgressBarElement.setAttribute("style", "width: 0%;");
         preProgressBarElement.setAttribute("id", "preProgressDisplayer" + user_id);
         preProgressBarElement.innerHTML = "50%";
@@ -240,13 +244,17 @@ function createUser(user_id, rowNumber) {
 }
 
 function createOpenAll(upperElement) {
+    const buttonWrapper = document.createElement("div");
+    buttonWrapper.setAttribute("class", "d-grid gap-2");
+    upperElement.insertBefore(buttonWrapper, null);
+
     const collapseButtonElement = document.createElement("button");
-    collapseButtonElement.setAttribute("class", "btn btn-primary btn-block mt-3");
+    collapseButtonElement.setAttribute("class", "btn btn-primary mt-3");
     collapseButtonElement.setAttribute("type", "button");
-    collapseButtonElement.setAttribute("data-toggle", "collapse");
-    collapseButtonElement.setAttribute("data-target", ".multi-collapse");
+    collapseButtonElement.setAttribute("data-bs-toggle", "collapse");
+    collapseButtonElement.setAttribute("data-bs-target", ".multi-collapse");
     collapseButtonElement.innerText = "모두 펼쳐보기";
-    upperElement.insertBefore(collapseButtonElement, null);
+    buttonWrapper.insertBefore(collapseButtonElement, null);
 }
 
 function renderTimer() {
@@ -255,9 +263,6 @@ function renderTimer() {
     wrapperElement.setAttribute("class", "container");
     wrapperElement.setAttribute("id", "wrapper");
     document.getElementById("screen").insertBefore(wrapperElement, null);
-
-    // To create an Alarm
-    // createAlarm(wrapperElement);
     
     addElements();
 

@@ -29,27 +29,19 @@ function preprocessed() {
     }
 }
 
-function createAlarm(upperElement, alarmContent) {
-    // alarmDiv 추가
-    const alarmDivElement = document.createElement("div");
-    alarmDivElement.setAttribute("class", "alert alert-warning alert-dismissable fade show m-0 p-3");
-    alarmDivElement.appendChild(document.createTextNode(alarmContent));
-    upperElement.insertBefore(alarmDivElement, null);
-    
-    // button 추가
-    const buttonElement = document.createElement("button");
-    buttonElement.setAttribute("type", "button");
-    buttonElement.setAttribute("class", "close");
-    buttonElement.setAttribute("data-dismiss", "alert");
-    alarmDivElement.insertBefore(buttonElement, null);
-    
-    // span 추가
-    const spanElement = document.createElement("span");
-    spanElement.innerHTML = "&times;";
-    buttonElement.insertBefore(spanElement, null);
+const darkModeSwitcherClassContent = "btn position-absolute bottom-0 end-0 btn-sm p-3 m-2 border-white rounded-5 ";
+function switchDarkMode() {
+    let current_status = document.documentElement.getAttribute("data-bs-theme");
+    if (current_status == 'light') {
+        document.documentElement.setAttribute("data-bs-theme", "dark");
+        document.getElementById("colorSwitcher").setAttribute("class", darkModeSwitcherClassContent + "btn-light");
+    }
+    else {
+        document.documentElement.setAttribute("data-bs-theme", "light");
+        document.getElementById("colorSwitcher").setAttribute("class", darkModeSwitcherClassContent + "btn-dark");
+    }
+    myRenderFunction();
 }
-
-
 
 function onButtonClick(buttonContent) {
     current_rendered_page = Number(buttonContent);
@@ -64,6 +56,12 @@ function init() {
             onButtonClick(event.target.id);
         });
     }
+
+    document.getElementById('colorSwitcher').setAttribute("class", darkModeSwitcherClassContent + "btn-light");
+    document.getElementById('colorSwitcher').addEventListener("click", function() {
+        switchDarkMode();
+    });
+
     preprocessed();
     myRenderFunction();
 }

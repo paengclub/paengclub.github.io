@@ -67,7 +67,7 @@ function createItem(upperElement, itin_id) {
     // left span 추가
     const leftSpanElement = document.createElement("span");
     leftSpanElement.innerHTML = members[user_id].name;
-    let leftSpanElementContent = 'font-weight-bold';
+    let leftSpanElementContent = 'fw-bold';
     if (members[user_id].ANF == '해병') leftSpanElementContent += " text-warning bg-danger rounded border border-warning";
     if (members[user_id].ANF == '공군') leftSpanElementContent += " text-primary";
     leftSpanElement.setAttribute("class", leftSpanElementContent);
@@ -75,13 +75,13 @@ function createItem(upperElement, itin_id) {
 
     // right span 추가
     const rightSpanElement = document.createElement("span");
-    let contentcontent = "font-weight-bold float-right";
+    let contentcontent = "fw-bold float-end";
     if (members[user_id].ANF == '공익') contentcontent += ' text-white';
     if (members[user_id].ANF == '해병') contentcontent += ' text-warning';
     rightSpanElement.setAttribute("class", contentcontent);
     rightSpanElement.setAttribute('type', 'button');
-    rightSpanElement.setAttribute('data-toggle', 'collapse');
-    rightSpanElement.setAttribute('data-target', '#collapsedData' + user_id);
+    rightSpanElement.setAttribute('data-bs-toggle', 'collapse');
+    rightSpanElement.setAttribute('data-bs-target', '#collapsedData' + user_id);
     let dayLeftTillEvent = Math.floor((new Date(itineraries[itin_id].date + "T00:00:00").getTime() - new Date().getTime()) / 1000 / 60 / 60 / 24) + 1;
     if (dayLeftTillEvent > 0) rightSpanElement.innerHTML = "D-" + dayLeftTillEvent;
     else if (dayLeftTillEvent == 0) rightSpanElement.innerHTML = "D-DAY";
