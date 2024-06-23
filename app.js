@@ -1,9 +1,10 @@
 import {itineraries, members} from "/data.js";
 import {renderTimer} from "/timer.js";
 import {renderList} from "/itinlist.js";
+import {renderCalendar} from "/calendar.js";
 
 document.body.onload = init;
-let current_rendered_page = 0;
+let current_rendered_page = 3;
 
 const rankNameSet = ['일병 진급', '상병 진급', '병장 진급', '만기 전역'];
 const rankImageSet = ['PV2.jpg', 'PFC.jpg', 'CPL.jpg', 'SGT.jpg', 'GEN.svg', 'SSG.svg'];
@@ -75,6 +76,7 @@ function myRenderFunction() {
     if (current_rendered_page == 0) renderTimer();
     if (current_rendered_page == 1) renderList(false);
     if (current_rendered_page == 2) renderList(true);
+    if (current_rendered_page == 3) renderCalendar();
 }
 
 export {current_rendered_page, rankImageSet};
