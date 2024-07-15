@@ -149,7 +149,7 @@ function createUser(user_id, rowNumber) {
 
     // card header div 추가
     const cardHeaderElement = document.createElement("div");
-    cardHeaderElement.setAttribute("class", "card-header p-1");
+    cardHeaderElement.setAttribute("class", "card-header px-2");
     cardElement.insertBefore(cardHeaderElement, null);
 
     // img div 추가
@@ -157,8 +157,8 @@ function createUser(user_id, rowNumber) {
     if (members[user_id].isDischarged == 'true') imageElement.setAttribute("src", 'images/reserved.jpg');
     else if (members[user_id].ANF == '공익' && members[user_id].rank != 'PV2.jpg' && members[user_id].rank != 'GEN.svg') imageElement.setAttribute("src", 'images/social.svg');
     else imageElement.setAttribute("src", 'images/' + members[user_id].rank);
-    if (members[user_id].rank != 'LTG.svg' && members[user_id].rank != 'GEN.svg' && members[user_id].rank != 'AF_GEN.svg') imageElement.setAttribute("class", "img-thumbnail mr-1 p-0");
-    else imageElement.setAttribute("class", "img-thumbnail mr-1");
+    if (members[user_id].rank != 'LTG.svg' && members[user_id].rank != 'GEN.svg' && members[user_id].rank != 'AF_GEN.svg') imageElement.setAttribute("class", "img-thumbnail me-1 p-0");
+    else imageElement.setAttribute("class", "img-thumbnail me-1");
     imageElement.setAttribute("style", "height:21px;");
     cardHeaderElement.insertBefore(imageElement, null);
     
@@ -196,7 +196,7 @@ function createUser(user_id, rowNumber) {
 
         const predisButton = document.createElement("button");
         predisButton.innerHTML = preDisDDay;
-        predisButton.setAttribute("class", "btn btn-sm btn-dark fw-bold float-end px-1 py-0 mr-2");
+        predisButton.setAttribute("class", "btn btn-sm btn-dark fw-bold float-end px-1 py-0 me-2");
         predisButton.setAttribute("type", "button");
         predisButton.setAttribute("data-bs-toggle", "collapse");
         predisButton.setAttribute("data-bs-target", ".prediselement");
@@ -205,7 +205,7 @@ function createUser(user_id, rowNumber) {
 
     // card body div 추가
     const cardBodyElement = document.createElement("div");
-    cardBodyElement.setAttribute("class", "card-body p-1");
+    cardBodyElement.setAttribute("class", "card-body");
     cardElement.insertBefore(cardBodyElement, null);
 
     // progress div 추가

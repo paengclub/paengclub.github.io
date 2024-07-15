@@ -4,7 +4,7 @@ import {renderList} from "/itinlist.js";
 import {renderCalendar} from "/calendar.js";
 
 document.body.onload = init;
-let current_rendered_page = 3;
+let current_rendered_page = 0;
 
 const rankNameSet = ['일병 진급', '상병 진급', '병장 진급', '만기 전역'];
 const rankImageSet = ['PV2.jpg', 'PFC.jpg', 'CPL.jpg', 'SGT.jpg', 'GEN.svg', 'SSG.svg'];

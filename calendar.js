@@ -17,7 +17,7 @@ let leave_data = [
         list: [
             {start:[0, 6], end:[1, 2]},
             {start:[3, 1], end:[3, 5]},
-            {start:[5, 1], end:[6, 5]},
+            {start:[5, 0], end:[6, 5]},
         ]
     },
     {
