@@ -136,12 +136,12 @@ function createCollapse(upperElement, user_id) {
 function createUser(user_id, rowNumber) {
     // col div 추가
     const colElement = document.createElement("div");
-    colElement.setAttribute("class", "col-sm-6 mt-2");
+    colElement.setAttribute("class", "col-sm-6 mt-3");
     document.getElementById("row" + rowNumber).insertBefore(colElement, null);
 
     // card div 추가
     const cardElement = document.createElement("div");
-    let cardElementAttributeContent = 'card';
+    let cardElementAttributeContent = 'card shadow';
     if (members[user_id].ANF == '해병') cardElementAttributeContent += ' text-white bg-danger';
     if (members[user_id].ANF == '공익') cardElementAttributeContent += ' text-white bg-dark';
     cardElement.setAttribute("class", cardElementAttributeContent);
@@ -212,6 +212,7 @@ function createUser(user_id, rowNumber) {
     const progressElement = document.createElement("div");
     if (members[user_id].dates[4] == members[user_id].dates[5]) progressElement.setAttribute("class", "progress");
     else progressElement.setAttribute("class", "progress prediselement collapse show");
+    progressElement.setAttribute("style", "height:25px");
     cardBodyElement.insertBefore(progressElement, null);
 
     // progress bar div 추가
@@ -227,6 +228,7 @@ function createUser(user_id, rowNumber) {
         // progress div 추가
         const preProgressElement = document.createElement("div");
         preProgressElement.setAttribute("class", "progress collapse prediselement");
+        preProgressElement.setAttribute("style", "height:25px");
         cardBodyElement.insertBefore(preProgressElement, null);
         
         // progress bar div 추가
