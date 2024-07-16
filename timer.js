@@ -93,7 +93,7 @@ function createCollapse(upperElement, user_id) {
         const scheduleElement = document.createElement("li");
         let scheduleElementClass = "list-group-item";
         if (members[user_id].ANF == '해병') scheduleElementClass += " bg-danger border-warning text-warning";
-        if (members[user_id].ANF == '공익') scheduleElementClass += " bg-dark border-white";
+        if (members[user_id].ANF == '공익') scheduleElementClass += " bg-dark border-white text-white";
         scheduleElement.setAttribute("class", scheduleElementClass);
         
 

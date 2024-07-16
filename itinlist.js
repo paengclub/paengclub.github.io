@@ -53,7 +53,7 @@ function createItem(upperElement, itin_id) {
     }
     // card div 추가
     const cardElement = document.createElement("div");
-    let cardElementAttributeContent = 'card m-1';
+    let cardElementAttributeContent = 'card shadow m-2';
     if (members[user_id].ANF == '해병') cardElementAttributeContent += ' text-white bg-danger';
     if (members[user_id].ANF == '공익') cardElementAttributeContent += ' text-white bg-dark';
     cardElement.setAttribute("class", cardElementAttributeContent);
@@ -61,7 +61,7 @@ function createItem(upperElement, itin_id) {
 
     // card header div 추가
     const cardHeaderElement = document.createElement("div");
-    cardHeaderElement.setAttribute("class", "card-header p-1");
+    cardHeaderElement.setAttribute("class", "card-header p-2");
     cardElement.insertBefore(cardHeaderElement, null);
     
     // left span 추가
@@ -90,7 +90,7 @@ function createItem(upperElement, itin_id) {
 
     // card body div 추가
     const cardBodyElement = document.createElement("div");
-    cardBodyElement.setAttribute("class", "card-body p-1");
+    cardBodyElement.setAttribute("class", "card-body p-2");
     cardElement.insertBefore(cardBodyElement, null);
 
     createCardBodyContent(cardBodyElement, itin_id, user_id);

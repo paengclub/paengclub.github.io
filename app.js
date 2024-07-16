@@ -74,9 +74,9 @@ function myRenderFunction() {
     document.getElementById("screen").replaceChildren();
 
     if (current_rendered_page == 0) renderTimer();
-    if (current_rendered_page == 1) renderList(false);
-    if (current_rendered_page == 2) renderList(true);
-    if (current_rendered_page == 3) renderCalendar();
+    if (current_rendered_page == 1) renderCalendar();
+    if (current_rendered_page == 2) renderList(false);
+    if (current_rendered_page == 3) renderList(true);
 }
 
 export {current_rendered_page, rankImageSet};
