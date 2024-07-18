@@ -18,7 +18,7 @@ let itineraries = [
 // dates: [입대, 일병, 상병, 병장, 전역, 말출]
 let members = [
     {name:'예지민', rank:'SGT.jpg', dates:['2023-01-30', '2023-04-01', '2023-10-01', '2024-04-01', '2024-07-29', '2024-07-06'], ANF:'육군', isDischarged:'false', isNCO:'false'},
-    {name:'팽지원', rank:'CPL.jpg', dates:['2023-03-20', '2023-06-01', '2023-12-01', '2024-06-01', '2024-09-19', '2024-09-19'], ANF:'육군', isDischarged:'false', isNCO:'false'},
+    {name:'팽지원', rank:'CPL.jpg', dates:['2023-03-20', '2023-06-01', '2023-12-01', '2024-06-01', '2024-09-19', '2024-09-04'], ANF:'육군', isDischarged:'false', isNCO:'false'},
     {name:'심우재', rank:'CPL.jpg', dates:['2023-04-03', '2023-07-01', '2024-01-01', '2024-07-01', '2025-04-02', '2025-04-02'], ANF:'육군', isDischarged:'false', isNCO:'true'},
     {name:'최재우', rank:'CPL.jpg', dates:['2023-04-10', '2023-07-01', '2024-01-01', '2024-07-01', '2024-10-09', '2024-10-09'], ANF:'육군', isDischarged:'false', isNCO:'false'},
     {name:'이승우', rank:'CPL.jpg', dates:['2023-04-24', '2023-06-24', '2023-12-24', '2024-07-01', '2025-01-23', '2024-12-17'], ANF:'공군', isDischarged:'false', isNCO:'false'},

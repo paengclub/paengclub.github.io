@@ -47,7 +47,7 @@ function getStyle(ANF, isNCO, rank) {
         return return_style;
     }
 
-    if (ANF == "공군") {
+    if (ANF == "공군" || ANF == "공익") {
         return_style.left = PROGRESS_AF[rank - 1];
         return return_style;
     }
