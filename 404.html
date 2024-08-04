@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0;url=./index.html">
+  <script>
+    // For SPA (Single Page Application) redirect handling
+    // Get the current URL path
+    var path = window.location.pathname;
+    // Redirect to index.html with the path appended
+    window.location.href = window.location.origin + '/index.html?path=' + path;
+  </script>
+</head>
+<body>
+</body>
+</html>
