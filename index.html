@@ -484,8 +484,14 @@
       right: 15px;
       top: 45px;
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: 1fr 1fr 46px 1fr 1fr;
       gap: 10px;
+      align-items: start;
+    }
+
+    .window-gap {
+      width: 46px;
+      height: 38px;
     }
 
     .window {
@@ -554,7 +560,7 @@
       position: absolute;
       left: 50%;
       top: 40px;
-      width: 38px;
+      width: 34px;
       height: 62px;
       transform: translateX(-50%);
       border-radius: 9px;
@@ -764,6 +770,7 @@
               <div class="windows">
                 <div class="window"><div class="person"></div></div>
                 <div class="window"><div class="person"></div></div>
+                <div class="window-gap"></div>
                 <div class="window"></div>
                 <div class="window"><div class="person"></div></div>
               </div>
@@ -775,6 +782,7 @@
               <div class="windows">
                 <div class="window"><div class="person"></div></div>
                 <div class="window"><div class="person"></div></div>
+                <div class="window-gap"></div>
                 <div class="window"><div class="person"></div></div>
                 <div class="window"></div>
               </div>
