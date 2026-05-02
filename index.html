@@ -1,55 +1,1044 @@
 <!DOCTYPE html>
-<html lang = "ko" data-bs-theme = "light">
-    <head>
-        <meta charset="UTF-8" />
-        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-        <title>D-DAY</title>
-        <link rel="icon" href="images/favicon.ico">
-    </head>
-    <body>
-        <nav class="navbar navbar-expand-lg bg-body-tertiary">
-            <div class="container-fluid">
-            <a class="navbar-brand" href="">𝓟𝓪𝓮𝓷𝓰𝓒𝓵𝓾𝓫</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            
-            <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item">
-                        <button class = "btn nav-buttons" id = '0'>사람별로 모아보기</button>
-                    </li>
-                    <li class="nav-item">
-                        <button class = "btn nav-buttons" id = '1'>달력 보기</button>
-                    </li>
-                    <li class="nav-item">
-                        <button class = "btn nav-buttons" id = '2'>일정 모아보기</button>
-                    </li>
-                    <li class="nav-item">
-                        <button class = "btn nav-buttons" id = '3'>지난 일정 모아보기</button>
-                    </li>
-                    <li class="nav-item py-1">
-                        <a href="https://hits.seeyoufarm.com">
-                            <img src="https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fpaengclub.github.io&count_bg=%230D6EFD&title_bg=%230D6EFD&icon=&icon_color=%23E7E7E7&title=%EB%B0%A9%EB%AC%B8%EC%9E%90%EC%88%98&edge_flat=false"/>
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </nav>
-        <script type="module" src="app.js"></script>
-        <script type="module" src="data.js"></script>
-        <script type="module" src="timer.js"></script>
-        <script type="module" src="itinlist.js"></script>
-        <div id = "screen"></div>
-        <div class="fixed-bottom">
-            <button type="button" id = 'colorSwitcher'>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-moon" viewBox="0 0 16 16">
-                    <path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278M4.858 1.311A7.27 7.27 0 0 0 1.025 7.71c0 4.02 3.279 7.276 7.319 7.276a7.32 7.32 0 0 0 5.205-2.162q-.506.063-1.029.063c-4.61 0-8.343-3.714-8.343-8.29 0-1.167.242-2.278.681-3.286"/>
-                </svg>
-            </button>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>김현서 복무열차</title>
+  <style>
+    :root {
+      --line3: #ef7c1c;
+      --bg: #07101d;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --rail: #64748b;
+      --border: rgba(255,255,255,0.13);
+      --progress: 0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; min-height: 100%; }
+
+    body {
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: grid;
+      place-items: center;
+      color: var(--text);
+      font-family: Pretendard, Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(239,124,28,0.18), transparent 25%),
+        radial-gradient(circle at 80% 20%, rgba(56,189,248,0.11), transparent 28%),
+        linear-gradient(180deg, #08111f, #111827 56%, #050914);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 38px 38px;
+      pointer-events: none;
+      mask-image: radial-gradient(circle at center, black, transparent 78%);
+    }
+
+    .app {
+      position: relative;
+      width: min(1180px, calc(100vw - 24px));
+      min-height: 760px;
+      margin: 12px auto;
+      border-radius: 34px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(15,23,42,0.82), rgba(15,23,42,0.46));
+      box-shadow: 0 34px 90px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08);
+      backdrop-filter: blur(18px);
+    }
+
+    .top {
+      padding: 26px 28px 16px;
+      z-index: 10;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    h1 {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: clamp(34px, 5vw, 68px);
+      line-height: 0.95;
+      letter-spacing: -0.075em;
+      font-weight: 950;
+      text-shadow: 0 12px 34px rgba(0,0,0,0.32);
+    }
+
+    h1 span:first-child { color: var(--line3); }
+    h1 span:last-child { color: var(--text); }
+
+    .percent-card { text-align: right; min-width: 390px; }
+
+    .percent-label {
+      color: #fed7aa;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.18em;
+      margin-bottom: 8px;
+    }
+
+    .percent {
+      font-size: clamp(38px, 5vw, 72px);
+      line-height: 0.95;
+      font-weight: 950;
+      letter-spacing: -0.07em;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .percent small {
+      color: var(--line3);
+      font-size: 0.42em;
+      letter-spacing: 0;
+      margin-left: 5px;
+    }
+
+    .meta {
+      margin-top: 12px;
+      display: flex;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.10);
+      color: #e2e8f0;
+      font-size: 13px;
+      font-weight: 800;
+      backdrop-filter: blur(12px);
+    }
+
+    .scene-wrap {
+      margin: 0 28px 18px;
+      border-radius: 28px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.035);
+    }
+
+    .scene {
+      position: relative;
+      height: 510px;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, transparent 0 48%, rgba(0,0,0,0.2) 48% 100%),
+        radial-gradient(circle at 50% 26%, rgba(255,255,255,0.05), transparent 24%);
+    }
+
+    .tunnel {
+      position: absolute;
+      inset: 0;
+      opacity: 0.9;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .tunnel::before,
+    .tunnel::after {
+      content: "";
+      position: absolute;
+      left: -10%;
+      right: -10%;
+      height: 2px;
+      background: rgba(255,255,255,0.12);
+      animation: tunnelLine 1.8s linear infinite;
+    }
+
+    .tunnel::before { top: 20%; }
+    .tunnel::after { top: 27%; animation-delay: -0.9s; }
+
+    @keyframes tunnelLine {
+      from { transform: translateX(0); opacity: 0.15; }
+      50% { opacity: 0.55; }
+      to { transform: translateX(-130px); opacity: 0.15; }
+    }
+
+    .tunnel-light {
+      position: absolute;
+      top: 70px;
+      width: 180px;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.18);
+      filter: blur(1px);
+      animation: lightMove linear infinite;
+    }
+
+    .tunnel-light:nth-child(1) { left: 4%; animation-duration: 2.2s; animation-delay: -0.5s; }
+    .tunnel-light:nth-child(2) { left: 31%; animation-duration: 2.7s; animation-delay: -1.5s; }
+    .tunnel-light:nth-child(3) { left: 61%; animation-duration: 2.35s; animation-delay: -0.9s; }
+    .tunnel-light:nth-child(4) { left: 83%; animation-duration: 2.6s; animation-delay: -1.9s; }
+
+    @keyframes lightMove {
+      from { transform: translateX(55vw); opacity: 0; }
+      20%, 80% { opacity: 0.7; }
+      to { transform: translateX(-65vw); opacity: 0; }
+    }
+
+    .trackside-layer {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 120px;
+      height: 230px;
+      z-index: 3;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .marker-lane {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 100%;
+      will-change: contents;
+    }
+
+    .sign-marker {
+      position: absolute;
+      bottom: 4px;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .sign-marker .board {
+      min-width: 86px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      text-align: center;
+      color: white;
+      background: rgba(15,23,42,0.78);
+      border: 2px solid rgba(239,124,28,0.72);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.30);
+      font-size: 12px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+      backdrop-filter: blur(8px);
+      white-space: nowrap;
+    }
+
+    .sign-marker .pole {
+      width: 5px;
+      height: 80px;
+      margin-top: 7px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #cbd5e1, #64748b);
+    }
+
+    .sign-marker .base {
+      width: 26px;
+      height: 8px;
+      margin-top: 5px;
+      border-radius: 999px;
+      background: #475569;
+    }
+
+    .station-marker {
+      position: absolute;
+      bottom: 0;
+      transform: translateX(-50%);
+      width: 250px;
+      height: 215px;
+      z-index: 1;
+    }
+
+    .station-roof {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 16px;
+      height: 22px;
+      border-radius: 18px 18px 6px 6px;
+      background: linear-gradient(180deg, #f8fafc, #cbd5e1);
+      border: 1px solid rgba(255,255,255,0.38);
+      box-shadow: 0 8px 18px rgba(0,0,0,0.24);
+    }
+
+    .station-nameboard {
+      position: absolute;
+      left: 50%;
+      top: 45px;
+      transform: translateX(-50%);
+      width: 185px;
+      padding: 9px 12px;
+      border-radius: 10px;
+      background: #f8fafc;
+      color: #111827;
+      border: 5px solid var(--line3);
+      text-align: center;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.28);
+    }
+
+    .station-title {
+      font-size: 16px;
+      line-height: 1;
+      font-weight: 950;
+      letter-spacing: -0.04em;
+      white-space: nowrap;
+    }
+
+    .station-sub {
+      margin-top: 5px;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+    }
+
+    .station-platform {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 28px;
+      height: 46px;
+      border-radius: 10px 10px 4px 4px;
+      background:
+        repeating-linear-gradient(90deg, rgba(15,23,42,0.28) 0 16px, transparent 16px 28px),
+        linear-gradient(180deg, rgba(255,255,255,0.20), rgba(255,255,255,0.08));
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .station-platform::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: -9px;
+      height: 8px;
+      background: repeating-linear-gradient(90deg, #facc15 0 16px, #111827 16px 32px);
+      border-radius: 999px;
+    }
+
+    .station-pillar {
+      position: absolute;
+      top: 38px;
+      bottom: 25px;
+      width: 8px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #e2e8f0, #64748b);
+    }
+
+    .station-pillar.left { left: 32px; }
+    .station-pillar.right { right: 32px; }
+
+    .floor {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 176px;
+      z-index: 4;
+      background:
+        linear-gradient(180deg, transparent 0 28%, rgba(0,0,0,0.18) 28% 100%),
+        linear-gradient(90deg, rgba(255,255,255,0.04), transparent 30%, rgba(255,255,255,0.04));
+    }
+
+    .rails {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 68px;
+      height: 56px;
+      z-index: 6;
+      overflow: hidden;
+    }
+
+    .rails::before,
+    .rails::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 5px;
+      border-radius: 999px;
+      background: var(--rail);
+      box-shadow: 0 2px 0 rgba(255,255,255,0.09) inset;
+    }
+
+    .rails::before { top: 12px; }
+    .rails::after { bottom: 10px; }
+
+    .sleepers {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -228px;
+      right: -228px;
+      background: repeating-linear-gradient(90deg, transparent 0 20px, #3f3f46 20px 36px, transparent 36px 76px);
+      transform: translateX(0);
+      will-change: transform;
+    }
+
+    .train-wrap {
+      position: absolute;
+      left: 50%;
+      bottom: 86px;
+      transform: translateX(-50%);
+      z-index: 10;
+    }
+
+    .train {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .car {
+      position: relative;
+      width: 265px;
+      height: 112px;
+      border-radius: 24px 24px 16px 16px;
+      border: 2px solid rgba(255,255,255,0.45);
+      background: linear-gradient(180deg, #f8fafc 0 26%, #e5e7eb 26% 100%);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.36);
+      overflow: hidden;
+    }
+
+    .car::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 24px;
+      height: 13px;
+      background: var(--line3);
+      box-shadow: 0 33px 0 rgba(239,124,28,0.13);
+    }
+
+    .car.front::after {
+      content: "";
+      position: absolute;
+      right: -12px;
+      top: 40px;
+      width: 24px;
+      height: 26px;
+      border-radius: 0 18px 18px 0;
+      background: #d1d5db;
+    }
+
+    .car.rear::after {
+      content: "";
+      position: absolute;
+      left: -12px;
+      top: 40px;
+      width: 24px;
+      height: 26px;
+      border-radius: 18px 0 0 18px;
+      background: #d1d5db;
+    }
+
+    .car-head {
+      position: absolute;
+      left: 13px;
+      top: 7px;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .line-badge {
+      width: 27px;
+      height: 27px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: white;
+      background: var(--line3);
+      font-size: 15px;
+      font-weight: 950;
+      box-shadow: 0 4px 10px rgba(239,124,28,0.35);
+    }
+
+    .car-label {
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.84);
+      color: #334155;
+      font-size: 11px;
+      font-weight: 950;
+    }
+
+    .windows {
+      position: absolute;
+      left: 15px;
+      right: 15px;
+      top: 45px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .window {
+      position: relative;
+      height: 38px;
+      border-radius: 9px;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(186,230,253,0.95), rgba(59,130,246,0.35));
+      border: 2px solid rgba(255,255,255,0.62);
+    }
+
+    .window::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(115deg, transparent 0 38%, rgba(255,255,255,0.36) 44%, transparent 52% 100%);
+      animation: windowShine 2.2s linear infinite;
+    }
+
+    @keyframes windowShine {
+      from { transform: translateX(-90%); }
+      to { transform: translateX(90%); }
+    }
+
+    .person {
+      position: absolute;
+      left: 50%;
+      bottom: 2px;
+      width: 18px;
+      height: 28px;
+      transform: translateX(-50%);
+      z-index: 2;
+      animation: passengerBob 1.4s ease-in-out infinite;
+    }
+
+    .person::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 9px;
+      height: 9px;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: #111827;
+    }
+
+    .person::after {
+      content: "";
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      width: 14px;
+      height: 18px;
+      transform: translateX(-50%);
+      border-radius: 8px 8px 4px 4px;
+      background: #1f2937;
+    }
+
+    @keyframes passengerBob {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(2px); }
+    }
+
+    .door {
+      position: absolute;
+      left: 50%;
+      top: 40px;
+      width: 38px;
+      height: 62px;
+      transform: translateX(-50%);
+      border-radius: 9px;
+      background: rgba(203,213,225,0.66);
+      border: 2px solid rgba(255,255,255,0.60);
+      z-index: 3;
+    }
+
+    .door::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 2px;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.65);
+    }
+
+    .wheels {
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      bottom: -10px;
+      z-index: 5;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .wheel {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #111827;
+      border: 5px solid #94a3b8;
+      animation: wheel 0.48s linear infinite;
+    }
+
+    @keyframes wheel { to { transform: rotate(360deg); } }
+
+    .progress-panel {
+      margin: 0 28px 28px;
+      padding: 16px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+
+    .progress-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 850;
+    }
+
+    .timeline-mini {
+      position: relative;
+      height: 18px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .timeline-fill {
+      height: 100%;
+      width: calc(var(--progress) * 1%);
+      background: linear-gradient(90deg, var(--line3), #f59e0b, #facc15);
+      box-shadow: 0 0 18px rgba(239,124,28,0.55);
+      transition: width 0.04s linear;
+    }
+
+    .timeline-now {
+      position: absolute;
+      top: 50%;
+      left: calc(var(--progress) * 1%);
+      width: 8px;
+      height: 26px;
+      transform: translate(-50%, -50%);
+      border-radius: 999px;
+      background: #fff7ed;
+      box-shadow: 0 0 18px rgba(255,255,255,0.8);
+      transition: left 0.04s linear;
+    }
+
+    .bottom-hud {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .hud-card {
+      padding: 15px 16px;
+      border-radius: 18px;
+      background: rgba(15,23,42,0.74);
+      border: 1px solid rgba(255,255,255,0.11);
+      backdrop-filter: blur(12px);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.07);
+    }
+
+    .hud-card .k {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 850;
+      margin-bottom: 7px;
+    }
+
+    .hud-card .v {
+      font-size: clamp(20px, 2.2vw, 31px);
+      font-weight: 950;
+      letter-spacing: -0.04em;
+      font-variant-numeric: tabular-nums;
+      word-break: keep-all;
+    }
+
+    @media (max-width: 900px) {
+      body { display: block; overflow-y: auto; }
+      .app { width: calc(100vw - 16px); min-height: auto; margin: 8px auto; }
+      .top { padding: 22px; flex-direction: column; }
+      .percent-card { min-width: 0; width: 100%; text-align: left; }
+      .meta { justify-content: flex-start; }
+      .scene-wrap { margin: 0 22px 16px; }
+      .scene { height: 400px; }
+      .trackside-layer { bottom: 112px; height: 205px; }
+      .train { transform: scale(0.82); transform-origin: center bottom; }
+      .progress-panel { margin: 0 22px 22px; }
+      .bottom-hud { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 600px) {
+      .app { width: calc(100vw - 10px); margin: 5px auto; border-radius: 22px; }
+      .top { padding: 18px 16px 12px; }
+      h1 { gap: 7px; font-size: 42px; }
+      .percent { font-size: 34px; }
+      .percent-label { font-size: 11px; }
+      .pill { font-size: 12px; padding: 8px 10px; }
+      .scene-wrap { margin: 0 14px 12px; border-radius: 20px; }
+      .scene { height: 300px; }
+      .trackside-layer { bottom: 86px; height: 160px; }
+      .sign-marker { bottom: 8px; }
+      .sign-marker .board { min-width: 58px; padding: 6px 7px; font-size: 10px; border-radius: 9px; }
+      .sign-marker .pole { height: 42px; width: 4px; margin-top: 6px; }
+      .sign-marker .base { width: 20px; height: 6px; }
+      .station-marker { width: 152px; height: 136px; }
+      .station-roof { top: 10px; height: 16px; border-radius: 12px 12px 5px 5px; }
+      .station-nameboard { top: 31px; width: 116px; padding: 6px 8px; border-width: 3px; border-radius: 8px; }
+      .station-title { font-size: 11px; }
+      .station-sub { font-size: 9px; margin-top: 3px; }
+      .station-platform { left: 8px; right: 8px; bottom: 18px; height: 30px; }
+      .station-platform::before { top: -7px; height: 6px; }
+      .station-pillar { top: 27px; bottom: 16px; width: 6px; }
+      .station-pillar.left { left: 20px; }
+      .station-pillar.right { right: 20px; }
+      .tunnel-light { top: 48px; }
+      .floor { height: 136px; }
+      .rails { bottom: 54px; height: 48px; }
+      .train-wrap { bottom: 62px; }
+      .train { transform: scale(0.58); }
+      .progress-panel { margin: 0 14px 14px; padding: 13px; border-radius: 18px; }
+      .progress-head { font-size: 11px; }
+      .bottom-hud { grid-template-columns: 1fr 1fr; gap: 9px; }
+      .hud-card { padding: 12px; border-radius: 14px; }
+      .hud-card .k { font-size: 11px; }
+      .hud-card .v { font-size: 17px; }
+    }
+
+    @media (max-width: 420px) {
+      .bottom-hud { grid-template-columns: 1fr; }
+      .progress-head { flex-direction: column; gap: 5px; }
+      .scene { height: 270px; }
+      .train { transform: scale(0.48); }
+      .train-wrap { bottom: 58px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" id="app">
+    <section class="top">
+      <h1><span>김현서</span><span>복무열차</span></h1>
+      <div class="percent-card">
+        <div class="percent-label">SERVICE COMPLETION</div>
+        <div class="percent"><span id="percentNumber">0.0000000000</span><small>%</small></div>
+        <div class="meta"><div class="pill">3호선 사회복무요원</div></div>
+      </div>
+    </section>
+
+    <section class="scene-wrap">
+      <div class="scene">
+        <div class="tunnel">
+          <span class="tunnel-light"></span>
+          <span class="tunnel-light"></span>
+          <span class="tunnel-light"></span>
+          <span class="tunnel-light"></span>
         </div>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-    </body>
+        <div class="trackside-layer"><div class="marker-lane" id="markerLane"></div></div>
+        <div class="floor"></div>
+        <div class="rails"><div class="sleepers"></div></div>
+        <div class="train-wrap">
+          <div class="train">
+            <div class="car rear">
+              <div class="car-head"><div class="line-badge">3</div><div class="car-label">복무열차</div></div>
+              <div class="windows">
+                <div class="window"><div class="person"></div></div>
+                <div class="window"><div class="person"></div></div>
+                <div class="window"></div>
+                <div class="window"><div class="person"></div></div>
+              </div>
+              <div class="door"></div>
+              <div class="wheels"><div class="wheel"></div><div class="wheel"></div></div>
+            </div>
+            <div class="car front">
+              <div class="car-head"><div class="line-badge">3</div><div class="car-label">소집해제행</div></div>
+              <div class="windows">
+                <div class="window"><div class="person"></div></div>
+                <div class="window"><div class="person"></div></div>
+                <div class="window"><div class="person"></div></div>
+                <div class="window"></div>
+              </div>
+              <div class="door"></div>
+              <div class="wheels"><div class="wheel"></div><div class="wheel"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="progress-panel">
+      <div class="progress-head">
+        <span>2024.08.22 입대</span>
+        <span id="progressCenterText">-</span>
+        <span>2026.05.21 소집해제</span>
+      </div>
+      <div class="timeline-mini"><div class="timeline-fill"></div><div class="timeline-now"></div></div>
+      <div class="bottom-hud">
+        <div class="hud-card"><div class="k">복무 시작</div><div class="v">2024.08.22</div></div>
+        <div class="hud-card"><div class="k">소집해제일</div><div class="v">2026.05.21</div></div>
+        <div class="hud-card"><div class="k">복무 경과</div><div class="v" id="servedText">-</div></div>
+        <div class="hud-card"><div class="k">남은 시간</div><div class="v" id="remainText">-</div></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    const ENLIST_DATE = new Date(2024, 7, 22, 0, 0, 0, 0);
+    const DISCHARGE_DATE = new Date(2026, 4, 21, 0, 0, 0, 0);
+    const DAY = 24 * 60 * 60 * 1000;
+    const totalMs = DISCHARGE_DATE.getTime() - ENLIST_DATE.getTime();
+    const DECIMALS = 10;
+    const TRACK_TILE_WIDTH = 76;
+    const TRACK_SCROLL_SPEED = 82.6;
+    const PROGRESS_PER_SECOND = 100 / (totalMs / 1000);
+
+    const app = document.getElementById("app");
+    const percentNumber = document.getElementById("percentNumber");
+    const servedText = document.getElementById("servedText");
+    const remainText = document.getElementById("remainText");
+    const progressCenterText = document.getElementById("progressCenterText");
+    const markerLane = document.getElementById("markerLane");
+    const sleepers = document.querySelector(".sleepers");
+
+    let latestProgress = 0;
+    let lastMarkerSignature = "";
+    let lastLayoutWidth = 0;
+    let cachedMarkerElements = [];
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function decimalsForStep(step) {
+      const text = step.toString();
+      if (!text.includes(".")) return 0;
+      return text.split(".")[1].length;
+    }
+
+    function formatExact(value, step) {
+      return value.toFixed(decimalsForStep(step));
+    }
+
+    function floorToStep(value, step) {
+      return Math.floor(value / step) * step;
+    }
+
+    function ceilToStep(value, step) {
+      return Math.ceil(value / step) * step;
+    }
+
+    function isMultipleOf(value, step) {
+      const ratio = value / step;
+      return Math.abs(ratio - Math.round(ratio)) < 1e-6;
+    }
+
+    function formatSignedDuration(ms) {
+      const sign = ms < 0 ? "-" : "";
+      const absMs = Math.abs(ms);
+      const days = Math.floor(absMs / DAY);
+      const hours = Math.floor((absMs % DAY) / (60 * 60 * 1000));
+      const minutes = Math.floor((absMs % (60 * 60 * 1000)) / (60 * 1000));
+      const seconds = Math.floor((absMs % (60 * 1000)) / 1000);
+      return `${sign}${days}일 ${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    function chooseStep(baseStep, pxPerPercent, minSpacingPx) {
+      const candidates = [
+        0.000001, 0.000002, 0.000005,
+        0.00001, 0.00002, 0.00005,
+        0.0001, 0.0002, 0.0005,
+        0.001, 0.002, 0.005,
+        0.01, 0.02, 0.05,
+        0.1, 0.2, 0.5, 1
+      ].filter(step => step >= baseStep);
+      return candidates.find(step => step * pxPerPercent >= minSpacingPx) || candidates[candidates.length - 1];
+    }
+
+    function getTickerConfig() {
+      const width = markerLane.parentElement?.getBoundingClientRect().width || window.innerWidth;
+      const pxPerPercent = TRACK_SCROLL_SPEED / PROGRESS_PER_SECOND;
+      const isMobile = width <= 600;
+      const signMinSpacing = isMobile ? 150 : width <= 900 ? 170 : 145;
+      const stationVisualWidth = isMobile ? 152 : 250;
+      const signStep = chooseStep(0.000001, pxPerPercent, signMinSpacing);
+      const stationStep = 0.0001;
+      const renderPadding = Math.max(520, width * 0.8);
+      const rangePercent = (width + renderPadding * 2) / pxPerPercent;
+      const stationClearancePercent = ((stationVisualWidth / 2) + 52) / pxPerPercent;
+
+      return {
+        width,
+        centerX: width / 2,
+        signStep,
+        stationStep,
+        pxPerPercent,
+        renderPadding,
+        rangePercent,
+        stationClearancePercent
+      };
+    }
+
+    function distanceToNearestStation(value, stationStep) {
+      const nearest = Math.round(value / stationStep) * stationStep;
+      return Math.abs(value - nearest);
+    }
+
+    function isInsideStationZone(value, stationStep, clearancePercent) {
+      return distanceToNearestStation(value, stationStep) < clearancePercent;
+    }
+
+    function createSignMarker(value, label) {
+      const el = document.createElement("div");
+      el.className = "sign-marker";
+      el.dataset.value = String(value);
+      el.innerHTML = `
+        <div class="board">${label}%</div>
+        <div class="pole"></div>
+        <div class="base"></div>
+      `;
+      return el;
+    }
+
+    function createStationMarker(value, label) {
+      const el = document.createElement("div");
+      el.className = "station-marker";
+      el.dataset.value = String(value);
+      el.innerHTML = `
+        <div class="station-roof"></div>
+        <div class="station-pillar left"></div>
+        <div class="station-pillar right"></div>
+        <div class="station-nameboard">
+          <div class="station-title">${label}% 역</div>
+          <div class="station-sub">Line 3</div>
+        </div>
+        <div class="station-platform"></div>
+      `;
+      return el;
+    }
+
+    function rebuildMarkersIfNeeded(centerProgress, config) {
+      const start = centerProgress - config.rangePercent / 2;
+      const end = centerProgress + config.rangePercent / 2;
+      const stationStart = floorToStep(start, config.stationStep);
+      const stationEnd = ceilToStep(end, config.stationStep);
+      const signStart = floorToStep(start, config.signStep);
+      const signEnd = ceilToStep(end, config.signStep);
+      const signature = [
+        Math.round(config.width),
+        config.signStep,
+        config.stationStep,
+        signStart,
+        signEnd,
+        stationStart,
+        stationEnd
+      ].join("|");
+
+      if (signature === lastMarkerSignature && Math.abs(config.width - lastLayoutWidth) < 1) return;
+
+      const frag = document.createDocumentFragment();
+      const elements = [];
+      const signDecimals = decimalsForStep(config.signStep);
+
+      for (let p = signStart; p <= signEnd + config.signStep / 2; p += config.signStep) {
+        const value = +p.toFixed(signDecimals + 2);
+        if (value < 0) continue;
+        if (isInsideStationZone(value, config.stationStep, config.stationClearancePercent)) continue;
+        const el = createSignMarker(value, formatExact(value, config.signStep));
+        frag.appendChild(el);
+        elements.push(el);
+      }
+
+      const stationDecimals = decimalsForStep(config.stationStep);
+      for (let p = stationStart; p <= stationEnd + config.stationStep / 2; p += config.stationStep) {
+        const value = +p.toFixed(stationDecimals + 2);
+        if (value < 0) continue;
+        const el = createStationMarker(value, formatExact(value, config.stationStep));
+        frag.appendChild(el);
+        elements.push(el);
+      }
+
+      markerLane.replaceChildren(frag);
+      cachedMarkerElements = elements;
+      lastMarkerSignature = signature;
+      lastLayoutWidth = config.width;
+    }
+
+    function renderTrackside() {
+      const config = getTickerConfig();
+      const centerProgress = latestProgress;
+      rebuildMarkersIfNeeded(centerProgress, config);
+
+      for (const el of cachedMarkerElements) {
+        const value = Number(el.dataset.value);
+        const x = config.centerX + (value - centerProgress) * config.pxPerPercent;
+        el.style.left = `${x}px`;
+      }
+
+      if (sleepers) {
+        const trackOffset = ((centerProgress * config.pxPerPercent) % TRACK_TILE_WIDTH + TRACK_TILE_WIDTH) % TRACK_TILE_WIDTH;
+        sleepers.style.transform = `translateX(${-trackOffset}px)`;
+      }
+
+      requestAnimationFrame(renderTrackside);
+    }
+
+    function updateProgressData(now = new Date()) {
+      const elapsedMs = now.getTime() - ENLIST_DATE.getTime();
+      const remainingMs = DISCHARGE_DATE.getTime() - now.getTime();
+      const progress = (elapsedMs / totalMs) * 100;
+      const servedDays = elapsedMs <= 0 ? 0 : Math.floor(elapsedMs / DAY) + 1;
+
+      latestProgress = progress;
+      app.style.setProperty("--progress", progress.toFixed(DECIMALS));
+      percentNumber.textContent = progress.toFixed(DECIMALS);
+      servedText.textContent = `${servedDays}일`;
+      remainText.textContent = formatSignedDuration(remainingMs);
+      progressCenterText.textContent = `${progress.toFixed(6)}%`;
+      return { progress, servedDays, remainingMs };
+    }
+
+    function runTests() {
+      console.assert(totalMs > 0, "totalMs should be positive");
+      console.assert(formatExact(97.2034, 0.0001) === "97.2034", "formatExact should preserve station precision");
+      console.assert(formatSignedDuration(-1000).startsWith("-"), "negative remaining time should show minus sign");
+
+      const enlistNoon = new Date(2024, 7, 22, 12, 0, 0, 0);
+      const result = updateProgressData(enlistNoon);
+      console.assert(result.servedDays === 1, "enlistment day should count as day 1");
+    }
+
+    runTests();
+    updateProgressData();
+    renderTrackside();
+    setInterval(updateProgressData, 10);
+
+    window.addEventListener("resize", () => {
+      lastMarkerSignature = "";
+      lastLayoutWidth = 0;
+      cachedMarkerElements = [];
+    });
+  </script>
+</body>
 </html>
