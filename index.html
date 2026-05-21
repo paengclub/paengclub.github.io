@@ -6,7 +6,7 @@
   <title>팽클럽</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after {
       box-sizing: border-box;
@@ -18,7 +18,7 @@
       background-color: #111111;
       color: #d4d4d4;
       font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
-      font-weight: 300;
+      font-weight: 400;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -30,15 +30,15 @@
     }
 
     h1 {
-      font-size: 2.4rem;
-      font-weight: 300;
+      font-size: 4.5rem;
+      font-weight: 400;
       color: #e8e8e8;
       margin-bottom: 1.8rem;
       letter-spacing: -0.01em;
     }
 
     .info p {
-      font-size: 0.9rem;
+      font-size: 1.375rem;
       color: #aaaaaa;
       line-height: 1.9;
       letter-spacing: 0.01em;
@@ -108,7 +108,7 @@
   </div>
 
   <script>
-    const TOTAL_SECONDS = 31 * 24 * 60 * 60;
+    const TOTAL_SECONDS = 31 * 86400 + 2 * 3600 + 8 * 60 + 24;
     let remaining = TOTAL_SECONDS;
 
     function pad(n) {
