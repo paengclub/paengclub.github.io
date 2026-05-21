@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>팽클럽</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #111111;
+      color: #d4d4d4;
+      font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
+      font-weight: 300;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2.4rem;
+      font-weight: 300;
+      color: #e8e8e8;
+      margin-bottom: 1.8rem;
+      letter-spacing: -0.01em;
+    }
+
+    .info p {
+      font-size: 0.9rem;
+      color: #aaaaaa;
+      line-height: 1.9;
+      letter-spacing: 0.01em;
+    }
+
+    .countdown {
+      display: flex;
+      gap: 2.8rem;
+      margin-top: 2.8rem;
+      justify-content: center;
+    }
+
+    .time-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.55rem;
+    }
+
+    .time-number {
+      background-color: #3b3b3b;
+      color: #d4d4d4;
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.35rem;
+      font-weight: 400;
+      letter-spacing: 0.02em;
+    }
+
+    .time-label {
+      font-size: 0.82rem;
+      color: #888888;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>팽클럽 신규 서비스 준비 중</h1>
+    <div class="info">
+      <p>2023년 3월 19일 - 2026년 5월 21일</p>
+      <p>그동안 이용해 주셔서 정말 감사합니다.</p>
+      <p>곧 신규 서비스와 함께 다시 돌아오겠습니다.</p>
+    </div>
+
+    <div class="countdown">
+      <div class="time-unit">
+        <div class="time-number" id="days">31</div>
+        <div class="time-label">일</div>
+      </div>
+      <div class="time-unit">
+        <div class="time-number" id="hours">00</div>
+        <div class="time-label">시</div>
+      </div>
+      <div class="time-unit">
+        <div class="time-number" id="minutes">00</div>
+        <div class="time-label">분</div>
+      </div>
+      <div class="time-unit">
+        <div class="time-number" id="seconds">00</div>
+        <div class="time-label">초</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const TOTAL_SECONDS = 31 * 24 * 60 * 60;
+    let remaining = TOTAL_SECONDS;
+
+    function pad(n) {
+      return String(n).padStart(2, '0');
+    }
+
+    function update() {
+      const d = Math.floor(remaining / 86400);
+      const h = Math.floor((remaining % 86400) / 3600);
+      const m = Math.floor((remaining % 3600) / 60);
+      const s = remaining % 60;
+
+      document.getElementById('days').textContent = pad(d);
+      document.getElementById('hours').textContent = pad(h);
+      document.getElementById('minutes').textContent = pad(m);
+      document.getElementById('seconds').textContent = pad(s);
+    }
+
+    update();
+
+    const timer = setInterval(() => {
+      if (remaining > 0) {
+        remaining--;
+        update();
+      } else {
+        clearInterval(timer);
+      }
+    }, 1000);
+  </script>
+</body>
+</html>
