@@ -3,6 +3,7 @@ import {renderTimer} from "/timer.js";
 import {initBoardAuth, renderBoard} from "/board.js";
 import {renderPixelBoard} from "/canvas.js";
 import {cleanupGames, renderGames} from "/games.js";
+import {cleanupWeightTracker, renderWeightTracker} from "/weight.js";
 
 document.body.onload = init;
 let current_rendered_page = 0;
@@ -96,6 +97,7 @@ function myRenderFunction() {
     // 1. delete all rendered elements
     // 2. add all new elements according to PAGE_YOURE_LOOKING_AT
     if (current_rendered_page != 1) cleanupGames();
+    if (current_rendered_page != 4) cleanupWeightTracker();
     document.getElementById("screen").replaceChildren();
     setActiveNavButton();
 
@@ -103,6 +105,7 @@ function myRenderFunction() {
     if (current_rendered_page == 1) renderGames();
     if (current_rendered_page == 2) renderPixelBoard();
     if (current_rendered_page == 3) renderTimer();
+    if (current_rendered_page == 4) renderWeightTracker();
 }
 
 export {current_rendered_page, rankImageSet};

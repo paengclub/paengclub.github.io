@@ -31,4 +31,47 @@ let members = [
     {name:'허채민', rank:'PFC.svg', dates:['2022-10-04', '2023-01-01', '2023-08-01', '2024-02-01', '2024-04-03', '2024-04-03'], ANF:'육군', isDischarged:'true'}
 ];
 
-export {itineraries, members};
+const weightData = [
+    {
+        id: "paeng",
+        name: "paeng",
+        goal: "loss",
+        color: "#2f7dd3",
+        records: [
+            { date: "2024-08-07", weight: 67.4 },
+            { date: "2024-11-15", weight: 68.5 },
+            { date: "2025-06-13", weight: 65.2 },
+            { date: "2026-01-12", weight: 73.4 },
+            { date: "2026-04-26", weight: 70.6 },
+            { date: "2026-05-12", weight: 70.1 },
+            { date: "2026-05-16", weight: 70.3 },
+            { date: "2026-05-28", weight: 69.6 },
+            { date: "2026-05-29", weight: 69.7 },
+            { date: "2026-06-01", weight: 70.3 },
+            { date: "2026-06-05", weight: 69.5 },
+            { date: "2026-06-10", weight: 70.1 },
+        ],
+    },
+    {
+        id: "okh",
+        name: "okh",
+        goal: "gain",
+        color: "#d16a45",
+        records: [
+            { date: "2024-08-07", weight: 59.0 },
+            { date: "2024-11-15", weight: 61.0 },
+            { date: "2025-06-13", weight: 61.5 },
+            { date: "2026-01-12", weight: 66.0 },
+            { date: "2026-04-26", weight: 66.5 },
+            { date: "2026-05-12", weight: 67.6 },
+            { date: "2026-05-16", weight: 66.8 },
+            { date: "2026-05-28", weight: 66.2 },
+            { date: "2026-05-29", weight: 67.2 },
+            { date: "2026-06-01", weight: 66.4 },
+            { date: "2026-06-05", weight: 66.7 },
+            { date: "2026-06-10", weight: 66.5 },
+        ],
+    },
+];
+
+export {itineraries, members, weightData};

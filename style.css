@@ -347,6 +347,10 @@ button {
     max-width: 980px;
 }
 
+.weight-shell {
+    max-width: 1040px;
+}
+
 .profile-shell {
     max-width: 680px;
 }
@@ -400,6 +404,135 @@ button {
 
 .profile-status.danger {
     color: var(--app-danger);
+}
+
+.weight-panel {
+    padding-bottom: 24px;
+}
+
+.weight-header {
+    align-items: flex-start;
+}
+
+.weight-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    justify-content: flex-end;
+}
+
+.weight-controls button {
+    min-height: 34px;
+    padding: 0 12px;
+    border: 1px solid var(--app-line);
+    border-radius: 999px;
+    color: var(--app-text);
+    background: transparent;
+    font-size: 0.88rem;
+    font-weight: 680;
+}
+
+.weight-controls button:hover {
+    background: color-mix(in srgb, var(--app-surface-strong) 82%, transparent);
+}
+
+.weight-controls button[aria-pressed="true"] {
+    color: #ffffff;
+    border-color: var(--app-primary);
+    background: var(--app-primary);
+}
+
+.weight-controls .icon-button {
+    display: grid;
+    width: 34px;
+    place-items: center;
+    padding: 0;
+}
+
+.weight-chart-shell {
+    position: relative;
+    margin: 0 24px;
+    padding: 16px;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius);
+    background: var(--app-surface-strong);
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    min-height: 22px;
+    margin-bottom: 12px;
+    color: var(--app-muted);
+    font-size: 0.9rem;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.swatch {
+    width: 11px;
+    height: 11px;
+    border-radius: 999px;
+}
+
+.chart-wrap {
+    position: relative;
+    height: 460px;
+}
+
+#weightChart {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+#weightChart.is-dragging {
+    cursor: grabbing;
+}
+
+.tooltip {
+    position: absolute;
+    z-index: 2;
+    min-width: 148px;
+    padding: 10px 12px;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius);
+    color: var(--app-text);
+    background: color-mix(in srgb, var(--app-surface-strong) 96%, transparent);
+    box-shadow: var(--app-shadow);
+    font-size: 0.82rem;
+    line-height: 1.45;
+    pointer-events: none;
+    transform: translate(-50%, calc(-100% - 12px));
+    white-space: nowrap;
+}
+
+.tooltip[hidden],
+.empty[hidden] {
+    display: none;
+}
+
+.tooltip strong {
+    display: block;
+    margin-bottom: 2px;
+}
+
+.empty {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: var(--app-muted);
+    font-size: 0.95rem;
 }
 
 .board-panel {
@@ -902,19 +1035,25 @@ button {
 
     .nav-tabs {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         flex: 1;
         border-radius: var(--app-radius);
     }
 
     .nav-buttons {
         min-height: 32px;
-        padding: 0 6px;
-        font-size: 0.82rem;
+        padding: 0 3px;
+        font-size: 0.76rem;
     }
 
     .auth-area {
         justify-content: flex-end;
+    }
+
+    .auth-area .auth-button:not(.secondary) {
+        min-height: 32px;
+        padding: 0 9px;
+        font-size: 0.78rem;
     }
 
     .auth-button.secondary {
@@ -946,6 +1085,30 @@ button {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         border-radius: var(--app-radius);
+    }
+
+    .weight-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .weight-controls {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        justify-content: stretch;
+    }
+
+    .weight-controls button:not(.icon-button) {
+        grid-column: span 2;
+    }
+
+    .weight-chart-shell {
+        margin: 0 14px;
+        padding: 12px;
+    }
+
+    .chart-wrap {
+        height: 360px;
     }
 
     .game-layout {
