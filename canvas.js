@@ -3,19 +3,30 @@ import { supabase } from "/supabaseClient.js";
 const GRID_WIDTH = 64;
 const GRID_HEIGHT = 48;
 const CANVAS_SCALE = 10;
+const FILL_COLOR = "#111111";
+const EMPTY_COLOR = "#ffffff";
+const FLUSH_DELAY = 120;
+const RECONCILE_INTERVAL = 10000;
+const PAGE_SIZE = 1000;
+
+// Local render state: a key "x,y" is present iff that cell is filled.
 const pixels = new Set();
+// Writes queued for the next flush, and writes currently committing.
+const pendingDraws = new Map();
+const pendingErases = new Map();
+const inflightKeys = new Set();
+// Bumped on every local edit so an in-flight full read that raced a stroke
+// can be discarded instead of clobbering the optimistic state.
+let writeEpoch = 0;
 
 let canvasElement = null;
 let context = null;
 let currentTool = "pen";
 let isDrawing = false;
+let lastCell = null;
 let flushTimer = null;
+let reconcileTimer = null;
 let pixelChannel = null;
-let refreshTimer = null;
-const pendingDraws = new Map();
-const pendingErases = new Map();
-const inflightKeys = new Set();
-let writeEpoch = 0;
 
 function keyOf(x, y) {
     return `${x},${y}`;
@@ -47,53 +58,78 @@ function setTool(tool) {
     });
 }
 
-function drawCanvas() {
-    if (!context) return;
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, canvasElement.width, canvasElement.height);
-    context.fillStyle = "#111111";
+// --- rendering (incremental) ---
 
+function paintCell(x, y, filled) {
+    if (!context) return;
+    context.fillStyle = filled ? FILL_COLOR : EMPTY_COLOR;
+    context.fillRect(x * CANVAS_SCALE, y * CANVAS_SCALE, CANVAS_SCALE, CANVAS_SCALE);
+}
+
+function redrawAll() {
+    if (!context) return;
+    context.fillStyle = EMPTY_COLOR;
+    context.fillRect(0, 0, canvasElement.width, canvasElement.height);
+    context.fillStyle = FILL_COLOR;
     for (const key of pixels) {
         const [x, y] = parseKey(key);
         context.fillRect(x * CANVAS_SCALE, y * CANVAS_SCALE, CANVAS_SCALE, CANVAS_SCALE);
     }
 }
 
-function getPixelFromEvent(event) {
-    const rect = canvasElement.getBoundingClientRect();
-    const x = Math.floor(((event.clientX - rect.left) / rect.width) * GRID_WIDTH);
-    const y = Math.floor(((event.clientY - rect.top) / rect.height) * GRID_HEIGHT);
+// --- local (optimistic) edits ---
 
-    if (x < 0 || x >= GRID_WIDTH || y < 0 || y >= GRID_HEIGHT) return null;
-    return { x, y };
-}
-
-function queuePixel(x, y) {
+// Returns true if the cell state actually changed.
+function applyLocal(x, y, filled) {
+    if (x < 0 || x >= GRID_WIDTH || y < 0 || y >= GRID_HEIGHT) return false;
     const key = keyOf(x, y);
-    if (currentTool === "pen") {
+    if (filled) {
+        if (pixels.has(key)) return false;
         pixels.add(key);
         pendingErases.delete(key);
         pendingDraws.set(key, { x, y });
     } else {
+        if (!pixels.has(key)) return false;
         pixels.delete(key);
         pendingDraws.delete(key);
         pendingErases.set(key, { x, y });
     }
-
     writeEpoch++;
-    drawCanvas();
-    scheduleFlush();
+    paintCell(x, y, filled);
+    return true;
 }
 
-function drawFromEvent(event) {
-    const pixel = getPixelFromEvent(event);
-    if (!pixel) return;
-    queuePixel(pixel.x, pixel.y);
+// Fill every cell along the line so fast drags leave no gaps (Bresenham).
+function strokeLine(x0, y0, x1, y1, filled) {
+    const dx = Math.abs(x1 - x0);
+    const dy = Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1;
+    const sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy;
+    let changed = false;
+    while (true) {
+        if (applyLocal(x0, y0, filled)) changed = true;
+        if (x0 === x1 && y0 === y1) break;
+        const e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; x0 += sx; }
+        if (e2 < dx) { err += dx; y0 += sy; }
+    }
+    if (changed) scheduleFlush();
 }
+
+function cellFromEvent(event) {
+    const rect = canvasElement.getBoundingClientRect();
+    const x = Math.floor(((event.clientX - rect.left) / rect.width) * GRID_WIDTH);
+    const y = Math.floor(((event.clientY - rect.top) / rect.height) * GRID_HEIGHT);
+    if (x < 0 || x >= GRID_WIDTH || y < 0 || y >= GRID_HEIGHT) return null;
+    return { x, y };
+}
+
+// --- persistence (batched) ---
 
 function scheduleFlush() {
     if (flushTimer) return;
-    flushTimer = window.setTimeout(flushChanges, 150);
+    flushTimer = window.setTimeout(flushChanges, FLUSH_DELAY);
 }
 
 async function flushChanges() {
@@ -102,9 +138,10 @@ async function flushChanges() {
     const erases = Array.from(pendingErases.values());
     pendingDraws.clear();
     pendingErases.clear();
+    if (draws.length === 0 && erases.length === 0) return;
 
-    // Keep these writes marked in-flight so a poll can't reload stale DB
-    // state and wipe them before the upsert/delete has committed.
+    // Mark in-flight so a reconcile can't reload state that predates these
+    // writes and undo them before they commit.
     for (const pixel of draws) inflightKeys.add(keyOf(pixel.x, pixel.y));
     for (const pixel of erases) inflightKeys.add(keyOf(pixel.x, pixel.y));
 
@@ -113,15 +150,96 @@ async function flushChanges() {
             const { error } = await supabase.from("canvas_pixels").upsert(draws, { onConflict: "x,y" });
             if (error) showCanvasStatus(error.message, "danger");
         }
-
-        for (const pixel of erases) {
-            const { error } = await supabase.from("canvas_pixels").delete().eq("x", pixel.x).eq("y", pixel.y);
+        if (erases.length > 0) {
+            const filter = erases.map((pixel) => `and(x.eq.${pixel.x},y.eq.${pixel.y})`).join(",");
+            const { error } = await supabase.from("canvas_pixels").delete().or(filter);
             if (error) showCanvasStatus(error.message, "danger");
         }
     } finally {
         for (const pixel of draws) inflightKeys.delete(keyOf(pixel.x, pixel.y));
         for (const pixel of erases) inflightKeys.delete(keyOf(pixel.x, pixel.y));
     }
+}
+
+// --- live sync ---
+
+function subscribePixels() {
+    if (pixelChannel) return;
+    pixelChannel = supabase
+        .channel("shared-pixel-board")
+        .on("postgres_changes", { event: "*", schema: "public", table: "canvas_pixels" }, (payload) => {
+            const filled = payload.eventType !== "DELETE";
+            const row = filled ? payload.new : payload.old;
+            if (!row) return;
+            const key = keyOf(row.x, row.y);
+            // Our own edits are already reflected optimistically; skip echoes.
+            if (inflightKeys.has(key) || pendingDraws.has(key) || pendingErases.has(key)) return;
+            if (filled === pixels.has(key)) return;
+            if (filled) pixels.add(key);
+            else pixels.delete(key);
+            paintCell(row.x, row.y, filled);
+        })
+        .subscribe();
+}
+
+async function fetchAll(showErrors) {
+    const rows = [];
+    for (let from = 0; ; from += PAGE_SIZE) {
+        const { data, error } = await supabase
+            .from("canvas_pixels")
+            .select("x,y")
+            .order("x", { ascending: true })
+            .order("y", { ascending: true })
+            .range(from, from + PAGE_SIZE - 1);
+        if (error) {
+            if (showErrors) showCanvasStatus(error.message, "danger");
+            return null;
+        }
+        rows.push(...(data || []));
+        if (!data || data.length < PAGE_SIZE) break;
+    }
+    return rows;
+}
+
+async function loadInitial() {
+    const rows = await fetchAll(true);
+    if (!rows) return;
+    // Union so any strokes drawn during the load survive.
+    for (const pixel of rows) pixels.add(keyOf(pixel.x, pixel.y));
+    redrawAll();
+}
+
+// Periodic self-heal: pull the full board and apply only the genuine
+// differences (never a destructive full replace), so missed realtime events
+// converge without flicker.
+async function reconcile() {
+    if (document.hidden) return;
+    if (pendingDraws.size > 0 || pendingErases.size > 0 || inflightKeys.size > 0) return;
+    const epochAtRequest = writeEpoch;
+    const rows = await fetchAll(false);
+    if (!rows) return;
+    if (writeEpoch !== epochAtRequest || pendingDraws.size > 0 || pendingErases.size > 0 || inflightKeys.size > 0) return;
+
+    const serverSet = new Set(rows.map((pixel) => keyOf(pixel.x, pixel.y)));
+    for (const key of serverSet) {
+        if (!pixels.has(key)) {
+            pixels.add(key);
+            const [x, y] = parseKey(key);
+            paintCell(x, y, true);
+        }
+    }
+    for (const key of Array.from(pixels)) {
+        if (!serverSet.has(key)) {
+            pixels.delete(key);
+            const [x, y] = parseKey(key);
+            paintCell(x, y, false);
+        }
+    }
+}
+
+function startReconcile() {
+    if (reconcileTimer) window.clearInterval(reconcileTimer);
+    reconcileTimer = window.setInterval(reconcile, RECONCILE_INTERVAL);
 }
 
 function showCanvasStatus(message, type = "secondary") {
@@ -131,63 +249,7 @@ function showCanvasStatus(message, type = "secondary") {
     target.textContent = message;
 }
 
-async function loadPixels(showErrors = true) {
-    if (pendingDraws.size > 0 || pendingErases.size > 0 || inflightKeys.size > 0) return;
-    const epochAtRequest = writeEpoch;
-
-    // The board holds up to 64*48 = 3072 pixels, but a Supabase select returns
-    // at most 1000 rows (the API "max rows" cap). Fetch every row in ordered
-    // pages so the snapshot is complete — otherwise each poll rebuilds from a
-    // different 1000-row subset and existing pixels flicker away.
-    const pageSize = 1000;
-    const rows = [];
-    for (let from = 0; ; from += pageSize) {
-        const { data, error } = await supabase
-            .from("canvas_pixels")
-            .select("x,y")
-            .order("x", { ascending: true })
-            .order("y", { ascending: true })
-            .range(from, from + pageSize - 1);
-        if (error) {
-            if (showErrors) showCanvasStatus(error.message, "danger");
-            return;
-        }
-        rows.push(...(data || []));
-        if (!data || data.length < pageSize) break;
-    }
-
-    // If any local drawing happened while this snapshot was in flight, the
-    // snapshot may predate those strokes — discard it instead of wiping them.
-    if (writeEpoch !== epochAtRequest || pendingDraws.size > 0 || pendingErases.size > 0 || inflightKeys.size > 0) return;
-
-    pixels.clear();
-    for (const pixel of rows) pixels.add(keyOf(pixel.x, pixel.y));
-    drawCanvas();
-}
-
-function subscribePixels() {
-    if (pixelChannel) return;
-
-    pixelChannel = supabase
-        .channel("shared-pixel-board")
-        .on("postgres_changes", { event: "*", schema: "public", table: "canvas_pixels" }, (payload) => {
-            const row = payload.eventType === "DELETE" ? payload.old : payload.new;
-            if (!row) return;
-            const key = keyOf(row.x, row.y);
-            if (payload.eventType === "DELETE") pixels.delete(key);
-            else pixels.add(key);
-            drawCanvas();
-        })
-        .subscribe();
-}
-
-function startPolling() {
-    if (refreshTimer) window.clearInterval(refreshTimer);
-    refreshTimer = window.setInterval(() => {
-        if (document.hidden) return;
-        loadPixels(false);
-    }, 1200);
-}
+// --- toolbar / events ---
 
 function createToolbar() {
     const penButton = el("button", {
@@ -212,27 +274,56 @@ function createToolbar() {
 
 function bindCanvasEvents() {
     canvasElement.addEventListener("pointerdown", (event) => {
+        const cell = cellFromEvent(event);
+        if (!cell) return;
         isDrawing = true;
-        canvasElement.setPointerCapture(event.pointerId);
-        drawFromEvent(event);
+        try { canvasElement.setPointerCapture(event.pointerId); } catch (e) { /* ignore */ }
+        const filled = currentTool === "pen";
+        if (applyLocal(cell.x, cell.y, filled)) scheduleFlush();
+        lastCell = cell;
     });
 
     canvasElement.addEventListener("pointermove", (event) => {
         if (!isDrawing) return;
-        drawFromEvent(event);
+        const cell = cellFromEvent(event);
+        if (!cell) return;
+        const filled = currentTool === "pen";
+        if (lastCell) strokeLine(lastCell.x, lastCell.y, cell.x, cell.y, filled);
+        else if (applyLocal(cell.x, cell.y, filled)) scheduleFlush();
+        lastCell = cell;
     });
 
-    canvasElement.addEventListener("pointerup", async () => {
+    async function endStroke() {
         isDrawing = false;
+        lastCell = null;
         if (flushTimer) {
             window.clearTimeout(flushTimer);
+            flushTimer = null;
             await flushChanges();
         }
-    });
+    }
 
-    canvasElement.addEventListener("pointercancel", () => {
-        isDrawing = false;
-    });
+    canvasElement.addEventListener("pointerup", endStroke);
+    canvasElement.addEventListener("pointercancel", endStroke);
+}
+
+export function cleanupPixelBoard() {
+    if (flushTimer) {
+        window.clearTimeout(flushTimer);
+        flushTimer = null;
+    }
+    if (reconcileTimer) {
+        window.clearInterval(reconcileTimer);
+        reconcileTimer = null;
+    }
+    if (pixelChannel) {
+        supabase.removeChannel(pixelChannel);
+        pixelChannel = null;
+    }
+    isDrawing = false;
+    lastCell = null;
+    context = null;
+    canvasElement = null;
 }
 
 export async function renderPixelBoard() {
@@ -259,10 +350,11 @@ export async function renderPixelBoard() {
     wrapper.appendChild(panel);
     root.appendChild(wrapper);
 
+    pixels.clear();
     bindCanvasEvents();
     setTool(currentTool);
-    drawCanvas();
+    redrawAll();
     subscribePixels();
-    startPolling();
-    await loadPixels();
+    startReconcile();
+    await loadInitial();
 }
