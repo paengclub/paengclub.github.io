@@ -4,7 +4,7 @@ import { getCurrentPlayerName, getCurrentSession } from "/board.js";
 const GAMES = {
     reaction: {
         title: "반응속도",
-        unit: "점",
+        unit: "ms",
         description: "초록색이 되면 바로 누르기"
     },
     taprush: {
@@ -87,14 +87,15 @@ async function submitScore(score, metadata = {}) {
         return;
     }
 
-    setStatus(`${score}${gameInfo().unit} 기록 완료`, "success");
+    const label = activeGame === "reaction" && metadata.ms ? `${metadata.ms}ms` : `${score}${gameInfo().unit}`;
+    setStatus(`${label} 기록 완료`, "success");
     await refreshGameData();
 }
 
 async function loadLeaderboard() {
     const { data, error } = await supabase
         .from("game_scores")
-        .select("player_name, score, created_at")
+        .select("player_name, score, metadata, created_at")
         .eq("game_id", activeGame)
         .order("score", { ascending: false })
         .order("created_at", { ascending: true })
@@ -131,9 +132,17 @@ function renderLeaderboard(rows) {
         list.appendChild(el("div", { class: "leader-row" }, [
             el("span", { class: "leader-rank", text: String(index + 1) }),
             el("span", { class: "leader-name", text: row.player_name }),
-            el("span", { class: "leader-score", text: `${row.score}${gameInfo().unit}` })
+            el("span", { class: "leader-score", text: scoreLabel(row) })
         ]));
     });
+}
+
+function scoreLabel(row) {
+    if (row.game_id === "reaction" || activeGame === "reaction") {
+        const ms = row.metadata?.ms;
+        return ms ? `${ms}ms` : `${Math.max(0, 1200 - row.score)}ms`;
+    }
+    return `${row.score}${GAMES[row.game_id || activeGame]?.unit || ""}`;
 }
 
 function renderStats(rows) {
@@ -154,9 +163,10 @@ function renderStats(rows) {
     for (const [gameId, info] of Object.entries(GAMES)) {
         const scores = rows.filter((row) => row.game_id === gameId).map((row) => row.score);
         const best = scores.length ? Math.max(...scores) : 0;
+        const bestLabel = gameId === "reaction" ? `${Math.max(0, 1200 - best)}ms` : `${best}${info.unit}`;
         stats.appendChild(el("div", { class: "stat-row" }, [
             el("span", { text: info.title }),
-            el("strong", { text: scores.length ? `${best}${info.unit} · ${scores.length}회` : "-" })
+            el("strong", { text: scores.length ? `${bestLabel} · ${scores.length}회` : "-" })
         ]));
     }
 }

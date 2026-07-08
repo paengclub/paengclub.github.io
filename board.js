@@ -78,7 +78,7 @@ function renderAuthArea() {
         area.appendChild(el("button", {
             class: "auth-button",
             type: "button",
-            text: "Google 로그인",
+            text: "로그인",
             onclick: signInWithGoogle
         }));
         return;
@@ -93,11 +93,6 @@ function renderAuthArea() {
             alt: ""
         }));
     }
-    area.appendChild(el("span", {
-        class: "auth-name small text-truncate",
-        text: userName(user),
-        title: userName(user)
-    }));
     area.appendChild(el("button", {
         class: "auth-button secondary",
         type: "button",

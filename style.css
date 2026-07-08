@@ -1,4 +1,5 @@
 :root {
+    color-scheme: light;
     --app-bg: #f6f7f3;
     --app-surface: rgba(255, 255, 255, 0.86);
     --app-surface-strong: #ffffff;
@@ -13,6 +14,7 @@
 }
 
 [data-bs-theme="dark"] {
+    color-scheme: dark;
     --app-bg: #161814;
     --app-surface: rgba(31, 34, 29, 0.88);
     --app-surface-strong: #22251f;
@@ -57,12 +59,16 @@ textarea {
     letter-spacing: 0;
 }
 
+button {
+    white-space: nowrap;
+}
+
 .app-nav {
     position: sticky;
     top: 0;
     z-index: 10;
     padding: 18px 20px 10px;
-    background: color-mix(in srgb, var(--app-bg) 86%, transparent);
+    background: transparent;
     backdrop-filter: blur(18px);
 }
 
@@ -83,27 +89,14 @@ textarea {
 .brand {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
     min-width: max-content;
-    padding: 0 10px 0 4px;
+    padding: 0 10px;
     color: var(--app-text);
     text-decoration: none;
 }
 
 .brand:hover {
     color: var(--app-text);
-}
-
-.brand-mark {
-    display: grid;
-    width: 36px;
-    height: 36px;
-    place-items: center;
-    border-radius: 50%;
-    color: #ffffff;
-    background: var(--app-primary);
-    font-weight: 800;
-    line-height: 1;
 }
 
 .brand-name {
@@ -156,11 +149,6 @@ textarea {
     align-items: center;
     gap: 8px;
     min-height: 36px;
-}
-
-.auth-name {
-    max-width: 180px;
-    color: var(--app-muted);
 }
 
 .avatar {
@@ -478,6 +466,11 @@ textarea {
 
 .comment-input-row .form-control {
     min-width: 0;
+}
+
+.comment-input-row .secondary-button {
+    flex: 0 0 auto;
+    min-width: 64px;
 }
 
 .text-action {
@@ -807,35 +800,45 @@ textarea {
 
 @media (max-width: 760px) {
     .app-nav {
-        padding: 10px 12px 6px;
+        padding: 6px 8px 4px;
     }
 
     .app-nav-inner {
         align-items: stretch;
         border-radius: var(--app-radius);
-        flex-direction: column;
-        gap: 10px;
+        padding: 6px;
+        gap: 6px;
+    }
+
+    .brand {
+        display: none;
     }
 
     .nav-actions {
         align-items: stretch;
-        flex-direction: column;
-        gap: 8px;
+        width: 100%;
+        gap: 6px;
     }
 
     .nav-tabs {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
+        flex: 1;
         border-radius: var(--app-radius);
     }
 
     .nav-buttons {
-        padding: 0 8px;
-        font-size: 0.86rem;
+        min-height: 32px;
+        padding: 0 6px;
+        font-size: 0.82rem;
     }
 
     .auth-area {
         justify-content: flex-end;
+    }
+
+    .auth-button.secondary {
+        display: none;
     }
 
     .app-main {

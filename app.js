@@ -41,11 +41,13 @@ function setTheme(theme) {
 function initTheme() {
     localStorage.removeItem("paengclub-theme");
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    setTheme(mediaQuery.matches ? "dark" : "light");
-    mediaQuery.addEventListener("change", function(event) {
+    const syncTheme = function(event) {
         if (manualTheme) return;
         setTheme(event.matches ? "dark" : "light");
-    });
+    };
+    setTheme(mediaQuery.matches ? "dark" : "light");
+    if (mediaQuery.addEventListener) mediaQuery.addEventListener("change", syncTheme);
+    else if (mediaQuery.addListener) mediaQuery.addListener(syncTheme);
 }
 
 function switchDarkMode() {
@@ -83,7 +85,7 @@ function init() {
     });
 
     initBoardAuth(function() {
-        if (current_rendered_page == 1 || current_rendered_page == 2) myRenderFunction();
+        if (current_rendered_page == 0 || current_rendered_page == 1) myRenderFunction();
     });
     preprocessed();
     myRenderFunction();
@@ -93,13 +95,13 @@ function myRenderFunction() {
     // what to do in this function
     // 1. delete all rendered elements
     // 2. add all new elements according to PAGE_YOURE_LOOKING_AT
-    if (current_rendered_page != 2) cleanupGames();
+    if (current_rendered_page != 1) cleanupGames();
     document.getElementById("screen").replaceChildren();
     setActiveNavButton();
 
-    if (current_rendered_page == 0) renderPixelBoard();
-    if (current_rendered_page == 1) renderBoard();
-    if (current_rendered_page == 2) renderGames();
+    if (current_rendered_page == 0) renderBoard();
+    if (current_rendered_page == 1) renderGames();
+    if (current_rendered_page == 2) renderPixelBoard();
     if (current_rendered_page == 3) renderTimer();
 }
 
