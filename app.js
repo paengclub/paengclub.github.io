@@ -30,12 +30,11 @@ function preprocessed() {
     }
 }
 
-const darkModeSwitcherClassContent = "btn position-absolute bottom-0 end-0 btn-sm p-3 m-2 border-white rounded-5 ";
 let manualTheme = null;
 
 function setTheme(theme) {
     document.documentElement.setAttribute("data-bs-theme", theme);
-    document.getElementById("colorSwitcher").setAttribute("class", darkModeSwitcherClassContent + (theme == "dark" ? "btn-light" : "btn-dark"));
+    document.getElementById("colorSwitcher").classList.toggle("is-dark", theme == "dark");
 }
 
 function initTheme() {
@@ -63,8 +62,8 @@ function onButtonClick(buttonContent) {
 function setActiveNavButton() {
     const buttonList = document.querySelectorAll('.nav-buttons');
     for (let i = 0; i < buttonList.length; i++) {
-        if (Number(buttonList[i].id) == current_rendered_page) buttonList[i].classList.add("active", "fw-semibold");
-        else buttonList[i].classList.remove("active", "fw-semibold");
+        if (Number(buttonList[i].id) == current_rendered_page) buttonList[i].classList.add("active");
+        else buttonList[i].classList.remove("active");
     }
 }
 

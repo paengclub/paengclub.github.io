@@ -114,7 +114,7 @@ async function flushChanges() {
 function showCanvasStatus(message, type = "secondary") {
     const target = document.getElementById("canvasStatus");
     if (!target) return;
-    target.className = `canvas-status small text-${type}`;
+    target.className = `canvas-status canvas-status-${type}`;
     target.textContent = message;
 }
 
@@ -157,22 +157,22 @@ function startPolling() {
 
 function createToolbar() {
     const penButton = el("button", {
-        class: "btn btn-outline-secondary active",
+        class: "tool-button active",
         type: "button",
         "data-canvas-tool": "pen",
         text: "펜",
         onclick: () => setTool("pen")
     });
     const eraserButton = el("button", {
-        class: "btn btn-outline-secondary",
+        class: "tool-button",
         type: "button",
         "data-canvas-tool": "eraser",
         text: "지우개",
         onclick: () => setTool("eraser")
     });
-    return el("div", { class: "canvas-toolbar d-flex align-items-center flex-wrap gap-2 mb-3" }, [
-        el("div", { class: "btn-group", role: "group", "aria-label": "그림판 도구" }, [penButton, eraserButton]),
-        el("span", { id: "canvasStatus", class: "canvas-status small text-danger", text: "" })
+    return el("div", { class: "canvas-toolbar" }, [
+        el("div", { class: "tool-group", role: "group", "aria-label": "그림판 도구" }, [penButton, eraserButton]),
+        el("span", { id: "canvasStatus", class: "canvas-status canvas-status-danger", text: "" })
     ]);
 }
 
@@ -206,9 +206,10 @@ export async function renderPixelBoard() {
     if (!root) return;
 
     root.replaceChildren();
-    const wrapper = el("div", { class: "container pixel-shell mt-3" });
-    const header = el("div", { class: "pixel-header mb-3" }, [
-        el("h1", { class: "h4 mb-1", text: "공유 그림판" })
+    const wrapper = el("section", { class: "page-shell pixel-shell" });
+    const panel = el("div", { class: "app-panel pixel-panel" });
+    const header = el("div", { class: "section-header" }, [
+        el("h1", { class: "section-title", text: "공유 그림판" })
     ]);
 
     canvasElement = el("canvas", {
@@ -220,7 +221,8 @@ export async function renderPixelBoard() {
     context = canvasElement.getContext("2d");
     context.imageSmoothingEnabled = false;
 
-    wrapper.append(header, createToolbar(), el("div", { class: "pixel-canvas-frame" }, [canvasElement]));
+    panel.append(header, createToolbar(), el("div", { class: "pixel-canvas-frame" }, [canvasElement]));
+    wrapper.appendChild(panel);
     root.appendChild(wrapper);
 
     bindCanvasEvents();

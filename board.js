@@ -76,7 +76,7 @@ function renderAuthArea() {
 
     if (!currentSession) {
         area.appendChild(el("button", {
-            class: "btn btn-outline-primary btn-sm",
+            class: "auth-button",
             type: "button",
             text: "Google 로그인",
             onclick: signInWithGoogle
@@ -88,7 +88,7 @@ function renderAuthArea() {
     const avatar = userAvatar(user);
     if (avatar) {
         area.appendChild(el("img", {
-            class: "board-avatar",
+            class: "avatar",
             src: avatar,
             alt: ""
         }));
@@ -99,7 +99,7 @@ function renderAuthArea() {
         title: userName(user)
     }));
     area.appendChild(el("button", {
-        class: "btn btn-outline-secondary btn-sm",
+        class: "auth-button secondary",
         type: "button",
         text: "로그아웃",
         onclick: signOut
@@ -134,7 +134,7 @@ function showBoardAlert(message, type = "info") {
 function renderLoginPrompt(parent) {
     const prompt = el("div", { class: "board-login-bar mb-3" }, [
         el("button", {
-            class: "btn btn-primary btn-sm",
+            class: "primary-button compact",
             type: "button",
             text: "Google 로그인",
             onclick: signInWithGoogle
@@ -144,17 +144,17 @@ function renderLoginPrompt(parent) {
 }
 
 function renderComposer(parent) {
-    const form = el("form", { class: "card shadow-sm mb-3" });
-    const body = el("div", { class: "card-body" });
+    const form = el("form", { class: "composer" });
+    const body = el("div", { class: "composer-body" });
     const titleInput = el("input", {
-        class: "form-control mb-2",
+        class: "form-control",
         name: "title",
         maxlength: "120",
         required: "",
         placeholder: "제목"
     });
     const bodyInput = el("textarea", {
-        class: "form-control mb-2",
+        class: "form-control",
         name: "body",
         rows: "4",
         maxlength: "5000",
@@ -162,7 +162,7 @@ function renderComposer(parent) {
         placeholder: "내용"
     });
     const submit = el("button", {
-        class: "btn btn-primary",
+        class: "primary-button",
         type: "submit",
         text: "글 쓰기"
     });
@@ -194,7 +194,7 @@ function renderComposer(parent) {
         await renderBoard();
     });
 
-    body.append(titleInput, bodyInput, submit);
+    body.append(titleInput, bodyInput, el("div", { class: "composer-actions" }, [submit]));
     form.appendChild(body);
     parent.appendChild(form);
 }
@@ -230,7 +230,7 @@ function renderPostActions(post, container) {
     if (currentSession?.user?.id !== post.author_id) return;
 
     container.appendChild(el("button", {
-        class: "btn btn-outline-danger btn-sm",
+        class: "text-action danger",
         type: "button",
         text: "삭제",
         onclick: async () => {
@@ -245,8 +245,8 @@ function renderPostActions(post, container) {
 function renderCommentForm(post, parent) {
     if (!currentSession) return;
 
-    const form = el("form", { class: "mt-3" });
-    const row = el("div", { class: "input-group" });
+    const form = el("form", { class: "comment-form" });
+    const row = el("div", { class: "comment-input-row" });
     const input = el("input", {
         class: "form-control",
         maxlength: "1000",
@@ -254,7 +254,7 @@ function renderCommentForm(post, parent) {
         placeholder: "댓글 쓰기"
     });
     const submit = el("button", {
-        class: "btn btn-outline-primary",
+        class: "secondary-button",
         type: "submit",
         text: "댓글"
     });
@@ -284,28 +284,28 @@ function renderCommentForm(post, parent) {
 
 function renderComment(comment) {
     const profile = comment.profiles || {};
-    const item = el("div", { class: "border-top py-2" });
-    const header = el("div", { class: "d-flex align-items-center gap-2 mb-1" });
+    const item = el("div", { class: "comment-item" });
+    const header = el("div", { class: "comment-meta" });
 
     if (profile.avatar_url) {
         header.appendChild(el("img", {
-            class: "board-avatar",
+            class: "avatar small",
             src: profile.avatar_url,
             alt: ""
         }));
     }
     header.appendChild(el("span", {
-        class: "fw-semibold small",
+        class: "comment-author",
         text: profile.display_name || "Paengclub member"
     }));
     header.appendChild(el("span", {
-        class: "text-body-secondary board-muted",
+        class: "muted-text",
         text: formatDate(comment.created_at)
     }));
 
     if (currentSession?.user?.id === comment.author_id) {
         header.appendChild(el("button", {
-            class: "btn btn-link btn-sm text-danger ms-auto p-0",
+            class: "text-action danger ms-auto",
             type: "button",
             text: "삭제",
             onclick: async () => {
@@ -316,30 +316,30 @@ function renderComment(comment) {
         }));
     }
 
-    item.append(header, el("div", { class: "board-comment-body small", text: comment.body }));
+    item.append(header, el("div", { class: "board-comment-body", text: comment.body }));
     return item;
 }
 
 function renderPost(post) {
     const profile = post.profiles || {};
-    const card = el("article", { class: "card shadow-sm mb-3" });
-    const body = el("div", { class: "card-body" });
-    const header = el("div", { class: "d-flex align-items-start gap-2 mb-2" });
-    const titleWrap = el("div", { class: "flex-grow-1" });
-    const actions = el("div", { class: "d-flex gap-2" });
+    const card = el("article", { class: "post-card" });
+    const body = el("div", { class: "post-body" });
+    const header = el("div", { class: "post-header" });
+    const titleWrap = el("div", { class: "post-title-wrap" });
+    const actions = el("div", { class: "post-actions" });
 
     if (profile.avatar_url) {
         header.appendChild(el("img", {
-            class: "board-avatar",
+            class: "avatar",
             src: profile.avatar_url,
             alt: ""
         }));
     }
 
     titleWrap.append(
-        el("h5", { class: "card-title mb-1", text: post.title }),
+        el("h2", { class: "post-title", text: post.title }),
         el("div", {
-            class: "text-body-secondary board-muted",
+            class: "post-meta",
             text: `${profile.display_name || "Paengclub member"} · ${formatDate(post.created_at)}`
         })
     );
@@ -348,16 +348,16 @@ function renderPost(post) {
 
     body.append(
         header,
-        el("div", { class: "board-post-body mb-3", text: post.body })
+        el("div", { class: "board-post-body", text: post.body })
     );
 
     const comments = [...(post.board_comments || [])].sort((a, b) => {
         return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     });
-    const commentBox = el("div", { class: "mt-2" });
+    const commentBox = el("div", { class: "comment-box" });
     if (comments.length > 0) {
         commentBox.appendChild(el("div", {
-            class: "fw-semibold board-muted mb-1",
+            class: "comment-count",
             text: `댓글 ${comments.length}`
         }));
         for (const comment of comments) commentBox.appendChild(renderComment(comment));
@@ -374,15 +374,19 @@ export async function renderBoard() {
     if (!root) return;
     root.replaceChildren();
 
-    const wrapper = el("div", { class: "container board-shell mt-3" });
+    const wrapper = el("section", { class: "page-shell board-shell" });
+    const panel = el("div", { class: "app-panel board-panel" });
     wrapper.append(
+        panel
+    );
+    panel.append(
         el("div", { id: "boardAlert" }),
-        el("div", { class: "d-flex align-items-center justify-content-between board-toolbar mb-3" }, [
+        el("div", { class: "section-header board-toolbar" }, [
             el("div", {}, [
-                el("h2", { class: "h4 mb-1", text: "게시판" })
+                el("h1", { class: "section-title", text: "게시판" })
             ]),
             el("button", {
-                class: "btn btn-outline-secondary btn-sm",
+                class: "secondary-button compact",
                 type: "button",
                 text: "새로고침",
                 onclick: renderBoard
@@ -390,12 +394,12 @@ export async function renderBoard() {
         ])
     );
 
-    if (currentSession) renderComposer(wrapper);
-    else renderLoginPrompt(wrapper);
+    if (currentSession) renderComposer(panel);
+    else renderLoginPrompt(panel);
 
     const list = el("div", { id: "boardFeed" });
     list.appendChild(el("div", { class: "text-body-secondary py-4 text-center", text: "글을 불러오는 중..." }));
-    wrapper.appendChild(list);
+    panel.appendChild(list);
     root.appendChild(wrapper);
 
     try {
