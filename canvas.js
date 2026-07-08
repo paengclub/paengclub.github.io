@@ -14,6 +14,8 @@ let pixelChannel = null;
 let refreshTimer = null;
 const pendingDraws = new Map();
 const pendingErases = new Map();
+const inflightKeys = new Set();
+let writeEpoch = 0;
 
 function keyOf(x, y) {
     return `${x},${y}`;
@@ -78,6 +80,7 @@ function queuePixel(x, y) {
         pendingErases.set(key, { x, y });
     }
 
+    writeEpoch++;
     drawCanvas();
     scheduleFlush();
 }
@@ -100,14 +103,24 @@ async function flushChanges() {
     pendingDraws.clear();
     pendingErases.clear();
 
-    if (draws.length > 0) {
-        const { error } = await supabase.from("canvas_pixels").upsert(draws, { onConflict: "x,y" });
-        if (error) showCanvasStatus(error.message, "danger");
-    }
+    // Keep these writes marked in-flight so a poll can't reload stale DB
+    // state and wipe them before the upsert/delete has committed.
+    for (const pixel of draws) inflightKeys.add(keyOf(pixel.x, pixel.y));
+    for (const pixel of erases) inflightKeys.add(keyOf(pixel.x, pixel.y));
 
-    for (const pixel of erases) {
-        const { error } = await supabase.from("canvas_pixels").delete().eq("x", pixel.x).eq("y", pixel.y);
-        if (error) showCanvasStatus(error.message, "danger");
+    try {
+        if (draws.length > 0) {
+            const { error } = await supabase.from("canvas_pixels").upsert(draws, { onConflict: "x,y" });
+            if (error) showCanvasStatus(error.message, "danger");
+        }
+
+        for (const pixel of erases) {
+            const { error } = await supabase.from("canvas_pixels").delete().eq("x", pixel.x).eq("y", pixel.y);
+            if (error) showCanvasStatus(error.message, "danger");
+        }
+    } finally {
+        for (const pixel of draws) inflightKeys.delete(keyOf(pixel.x, pixel.y));
+        for (const pixel of erases) inflightKeys.delete(keyOf(pixel.x, pixel.y));
     }
 }
 
@@ -119,12 +132,17 @@ function showCanvasStatus(message, type = "secondary") {
 }
 
 async function loadPixels(showErrors = true) {
-    if (pendingDraws.size > 0 || pendingErases.size > 0) return;
+    if (pendingDraws.size > 0 || pendingErases.size > 0 || inflightKeys.size > 0) return;
+    const epochAtRequest = writeEpoch;
     const { data, error } = await supabase.from("canvas_pixels").select("x,y");
     if (error) {
         if (showErrors) showCanvasStatus(error.message, "danger");
         return;
     }
+
+    // If any local drawing happened while this snapshot was in flight, the
+    // snapshot may predate those strokes — discard it instead of wiping them.
+    if (writeEpoch !== epochAtRequest || pendingDraws.size > 0 || pendingErases.size > 0 || inflightKeys.size > 0) return;
 
     pixels.clear();
     for (const pixel of data || []) pixels.add(keyOf(pixel.x, pixel.y));
