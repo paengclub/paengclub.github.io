@@ -11,6 +11,7 @@ let currentTool = "pen";
 let isDrawing = false;
 let flushTimer = null;
 let pixelChannel = null;
+let refreshTimer = null;
 const pendingDraws = new Map();
 const pendingErases = new Map();
 
@@ -113,21 +114,21 @@ async function flushChanges() {
 function showCanvasStatus(message, type = "secondary") {
     const target = document.getElementById("canvasStatus");
     if (!target) return;
-    target.className = `small text-${type}`;
+    target.className = `canvas-status small text-${type}`;
     target.textContent = message;
 }
 
-async function loadPixels() {
+async function loadPixels(showErrors = true) {
+    if (pendingDraws.size > 0 || pendingErases.size > 0) return;
     const { data, error } = await supabase.from("canvas_pixels").select("x,y");
     if (error) {
-        showCanvasStatus(error.message, "danger");
+        if (showErrors) showCanvasStatus(error.message, "danger");
         return;
     }
 
     pixels.clear();
     for (const pixel of data || []) pixels.add(keyOf(pixel.x, pixel.y));
     drawCanvas();
-    showCanvasStatus("공유 그림판 연결됨");
 }
 
 function subscribePixels() {
@@ -146,32 +147,32 @@ function subscribePixels() {
         .subscribe();
 }
 
+function startPolling() {
+    if (refreshTimer) window.clearInterval(refreshTimer);
+    refreshTimer = window.setInterval(() => {
+        if (document.hidden) return;
+        loadPixels(false);
+    }, 1200);
+}
+
 function createToolbar() {
     const penButton = el("button", {
-        class: "btn btn-outline-dark active",
+        class: "btn btn-outline-secondary active",
         type: "button",
         "data-canvas-tool": "pen",
         text: "펜",
         onclick: () => setTool("pen")
     });
     const eraserButton = el("button", {
-        class: "btn btn-outline-dark",
+        class: "btn btn-outline-secondary",
         type: "button",
         "data-canvas-tool": "eraser",
         text: "지우개",
         onclick: () => setTool("eraser")
     });
-    const refreshButton = el("button", {
-        class: "btn btn-outline-secondary",
-        type: "button",
-        text: "새로고침",
-        onclick: loadPixels
-    });
-
     return el("div", { class: "canvas-toolbar d-flex align-items-center flex-wrap gap-2 mb-3" }, [
         el("div", { class: "btn-group", role: "group", "aria-label": "그림판 도구" }, [penButton, eraserButton]),
-        refreshButton,
-        el("span", { id: "canvasStatus", class: "small text-secondary", text: "불러오는 중..." })
+        el("span", { id: "canvasStatus", class: "canvas-status small text-danger", text: "" })
     ]);
 }
 
@@ -207,8 +208,7 @@ export async function renderPixelBoard() {
     root.replaceChildren();
     const wrapper = el("div", { class: "container pixel-shell mt-3" });
     const header = el("div", { class: "pixel-header mb-3" }, [
-        el("h1", { class: "h4 mb-1", text: "공유 그림판" }),
-        el("div", { class: "text-body-secondary small", text: "로그인 없이 같이 찍어두는 흑백 픽셀 보드" })
+        el("h1", { class: "h4 mb-1", text: "공유 그림판" })
     ]);
 
     canvasElement = el("canvas", {
@@ -227,5 +227,6 @@ export async function renderPixelBoard() {
     setTool(currentTool);
     drawCanvas();
     subscribePixels();
+    startPolling();
     await loadPixels();
 }

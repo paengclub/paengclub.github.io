@@ -31,21 +31,27 @@ function preprocessed() {
 }
 
 const darkModeSwitcherClassContent = "btn position-absolute bottom-0 end-0 btn-sm p-3 m-2 border-white rounded-5 ";
+let manualTheme = null;
+
 function setTheme(theme) {
     document.documentElement.setAttribute("data-bs-theme", theme);
     document.getElementById("colorSwitcher").setAttribute("class", darkModeSwitcherClassContent + (theme == "dark" ? "btn-light" : "btn-dark"));
 }
 
 function initTheme() {
-    const savedTheme = localStorage.getItem("paengclub-theme");
-    const deviceTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    setTheme(savedTheme || deviceTheme);
+    localStorage.removeItem("paengclub-theme");
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    setTheme(mediaQuery.matches ? "dark" : "light");
+    mediaQuery.addEventListener("change", function(event) {
+        if (manualTheme) return;
+        setTheme(event.matches ? "dark" : "light");
+    });
 }
 
 function switchDarkMode() {
     const currentTheme = document.documentElement.getAttribute("data-bs-theme");
     const nextTheme = currentTheme == "light" ? "dark" : "light";
-    localStorage.setItem("paengclub-theme", nextTheme);
+    manualTheme = nextTheme;
     setTheme(nextTheme);
 }
 

@@ -132,12 +132,11 @@ function showBoardAlert(message, type = "info") {
 }
 
 function renderLoginPrompt(parent) {
-    const prompt = el("div", { class: "board-empty p-4 text-center mb-3" }, [
-        el("div", { class: "fw-semibold mb-2", text: "게시판은 Google 로그인 후 글쓰기와 댓글 작성이 가능합니다." }),
+    const prompt = el("div", { class: "board-login-bar mb-3" }, [
         el("button", {
-            class: "btn btn-primary",
+            class: "btn btn-primary btn-sm",
             type: "button",
-            text: "Google로 계속하기",
+            text: "Google 로그인",
             onclick: signInWithGoogle
         })
     ]);
@@ -380,8 +379,7 @@ export async function renderBoard() {
         el("div", { id: "boardAlert" }),
         el("div", { class: "d-flex align-items-center justify-content-between board-toolbar mb-3" }, [
             el("div", {}, [
-                el("h2", { class: "h4 mb-1", text: "게시판" }),
-                el("div", { class: "text-body-secondary board-muted", text: "공지, 근황, 아무 말이나 남기는 Paengclub 피드" })
+                el("h2", { class: "h4 mb-1", text: "게시판" })
             ]),
             el("button", {
                 class: "btn btn-outline-secondary btn-sm",
