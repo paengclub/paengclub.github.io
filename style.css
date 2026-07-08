@@ -731,9 +731,9 @@ button {
 
 .portfolio-snapshot-form {
     display: grid;
-    grid-template-columns: 150px minmax(130px, 1fr) minmax(160px, 1.3fr) auto;
-    gap: 8px;
-    align-items: center;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+    align-items: end;
 }
 
 .portfolio-inline-actions .form-control {
@@ -936,9 +936,9 @@ button {
 
 .category-editor-row {
     display: grid;
-    grid-template-columns: minmax(160px, 1fr) 52px minmax(120px, 170px) auto;
+    grid-template-columns: 44px minmax(0, 1fr) auto auto;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     padding-top: 10px;
     border-top: 1px solid var(--app-line);
 }
@@ -949,16 +949,22 @@ button {
 }
 
 .category-color-input {
+    width: 44px;
     min-width: 0;
-    height: 38px;
-    padding: 4px;
+    height: 34px;
+    padding: 3px;
 }
 
 .target-editor {
     display: grid;
-    grid-template-columns: auto minmax(72px, 1fr);
+    grid-template-columns: auto 62px auto;
     align-items: center;
     gap: 6px;
+}
+
+.target-editor .target-input {
+    width: 62px;
+    text-align: right;
 }
 
 .target-editor span {
@@ -1124,6 +1130,37 @@ button {
 
 .pf-dash > * + * {
     margin-top: 0;
+}
+
+/* Desktop: pack cards into a 12-column grid so wide (16:9) screens use the
+   horizontal space instead of one tall single column. Mobile keeps the
+   single vertical column from the base rule above. */
+@media (min-width: 1024px) {
+    .pf-dash {
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        align-items: start;
+    }
+
+    .pf-area-snapbar,
+    .pf-area-hero {
+        grid-column: span 12;
+    }
+
+    .pf-area-rebal {
+        grid-column: span 5;
+    }
+
+    .pf-area-holdings {
+        grid-column: span 7;
+    }
+
+    .pf-area-trend {
+        grid-column: span 8;
+    }
+
+    .pf-area-stats {
+        grid-column: span 4;
+    }
 }
 
 .pf-card {
@@ -1578,7 +1615,7 @@ button {
 /* stat tiles */
 .pf-stat-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
     gap: 10px;
 }
 

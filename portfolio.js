@@ -822,7 +822,7 @@ function renderDashboard(context) {
 function renderSnapshotBar() {
     const snapshots = sortedSnapshots();
     const active = activeSnapshot();
-    return el("div", { class: "pf-snapbar" }, [
+    return el("div", { class: "pf-snapbar pf-area-snapbar" }, [
         el("div", { class: "pf-snapbar-scroll" }, snapshots.map((snapshot) => el("button", {
             class: `pf-snap-pill ${snapshot.id === active?.id ? "active" : ""}`,
             type: "button",
@@ -855,7 +855,7 @@ function renderHero(context) {
     const changePct = previous && previousTotal > 0 ? (changeAmount / previousTotal) * 100 : NaN;
     const rebalanceNeed = rebalanceAdjustment();
 
-    return el("div", { class: "pf-hero" }, [
+    return el("div", { class: "pf-hero pf-area-hero" }, [
         el("div", { class: "pf-card pf-hero-chart" }, [
             el("div", { class: "pf-alloc-toggle" }, [
                 toggleButton("category", "분류별"),
@@ -928,7 +928,7 @@ function renderRebalancePanel() {
             el("button", { class: "secondary-button compact", type: "button", text: "목표 설정하러 가기", onclick: () => { state.view = "categories"; renderLoaded(); } })
         ]);
 
-    return el("section", { class: "pf-card" }, [
+    return el("section", { class: "pf-card pf-area-rebal" }, [
         el("div", { class: "pf-card-head" }, [
             el("h2", { text: "리밸런싱" }),
             data.hasTargets ? el("small", { class: Math.abs(data.targetSum - 100) > 0.5 ? "pf-warn-text" : "muted-text", text: `목표 합계 ${data.targetSum.toFixed(1)}%` }) : null
@@ -985,7 +985,7 @@ function renderHoldingsPanel(context) {
         ]);
     }));
 
-    return el("section", { class: "pf-card" }, [
+    return el("section", { class: "pf-card pf-area-holdings" }, [
         el("div", { class: "pf-card-head" }, [
             el("h2", { text: "종목 비중" }),
             el("small", { class: "muted-text", text: `${segs.length}종목` })
@@ -1006,7 +1006,7 @@ function renderTrendPanel(context) {
     const categories = portfolioCategoryNames();
 
     const single = ascending.length < 2;
-    return el("section", { class: "pf-card" }, [
+    return el("section", { class: "pf-card pf-area-trend" }, [
         el("div", { class: "pf-card-head" }, [el("h2", { text: "추이" })]),
         single
             ? el("div", { class: "pf-hint", text: "시점이 2개 이상이면 자산 추이와 분류 배분 변화 그래프가 표시됩니다. ‘현재 시점 복사’로 다음 시점을 만들어 보세요." })
@@ -1044,7 +1044,7 @@ function renderStatTiles(context) {
         statTile("리밸런싱 필요", rebal.hasTargets ? (rebal.total > 0 ? moneyLabel(rebal.total) : "없음") : "-", rebal.hasTargets ? "목표까지 이동액" : "목표 미설정", rebal.total > 0 ? "warn" : "")
     ];
 
-    return el("section", { class: "pf-card" }, [
+    return el("section", { class: "pf-card pf-area-stats" }, [
         el("div", { class: "pf-card-head" }, [el("h2", { text: "요약 통계" })]),
         el("div", { class: "pf-stat-grid" }, tiles)
     ]);
@@ -1063,10 +1063,22 @@ function statTile(label, value, helper, tone) {
 function renderSnapshotEditor(snapshot) {
     return el("section", { class: "pf-card" }, [
         el("div", { class: "pf-card-head" }, [
-            el("h2", { text: "시점 정보" }),
+            el("h2", { text: "시점 선택 · 정보" }),
             el("button", { class: "text-action danger", type: "button", text: "이 시점 삭제", onclick: deleteSnapshot })
         ]),
         el("div", { class: "portfolio-snapshot-form" }, [
+            labeledField("불러올 시점", el("select", {
+                class: "form-control",
+                onchange: (event) => {
+                    state.activeSnapshotId = event.target.value;
+                    state.draftHoldings = normalizeDraft(activeSnapshot()?.portfolio_holdings || []);
+                    renderLoaded();
+                }
+            }, sortedSnapshots().map((item) => el("option", {
+                value: item.id,
+                text: `${item.as_of_date} · ${item.label || "무제"}`,
+                selected: item.id === snapshot.id ? "" : null
+            })))),
             labeledField("날짜", el("input", { id: "portfolioSnapshotDate", class: "form-control", type: "date", value: snapshot.as_of_date })),
             labeledField("라벨", el("input", { id: "portfolioSnapshotLabel", class: "form-control", maxlength: "60", placeholder: "예: 7월 말", value: snapshot.label || "" })),
             labeledField("메모", el("input", { id: "portfolioSnapshotNote", class: "form-control", maxlength: "500", placeholder: "선택", value: snapshot.note || "" }))
