@@ -121,6 +121,14 @@ export async function initBoardAuth(onAuthChange) {
     });
 }
 
+export function getCurrentSession() {
+    return currentSession;
+}
+
+export function getCurrentPlayerName() {
+    return currentSession ? userName(currentSession.user) : "";
+}
+
 function showBoardAlert(message, type = "info") {
     const alertTarget = document.getElementById("boardAlert");
     if (!alertTarget) return;

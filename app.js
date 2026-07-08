@@ -2,6 +2,7 @@ import {itineraries, members} from "/data.js";
 import {renderTimer} from "/timer.js";
 import {initBoardAuth, renderBoard} from "/board.js";
 import {renderPixelBoard} from "/canvas.js";
+import {cleanupGames, renderGames} from "/games.js";
 
 document.body.onload = init;
 let current_rendered_page = 0;
@@ -82,7 +83,7 @@ function init() {
     });
 
     initBoardAuth(function() {
-        if (current_rendered_page == 1) myRenderFunction();
+        if (current_rendered_page == 1 || current_rendered_page == 2) myRenderFunction();
     });
     preprocessed();
     myRenderFunction();
@@ -92,12 +93,14 @@ function myRenderFunction() {
     // what to do in this function
     // 1. delete all rendered elements
     // 2. add all new elements according to PAGE_YOURE_LOOKING_AT
+    if (current_rendered_page != 2) cleanupGames();
     document.getElementById("screen").replaceChildren();
     setActiveNavButton();
 
     if (current_rendered_page == 0) renderPixelBoard();
     if (current_rendered_page == 1) renderBoard();
-    if (current_rendered_page == 2) renderTimer();
+    if (current_rendered_page == 2) renderGames();
+    if (current_rendered_page == 3) renderTimer();
 }
 
 export {current_rendered_page, rankImageSet};

@@ -9,7 +9,7 @@ function isDarkMode() {
 }
 
 function updater() {
-    if (current_rendered_page != 2) return;
+    if (current_rendered_page != 3) return;
     for (let user_id = 0; user_id < members.length; user_id++) {
         let progressBarElement = document.getElementById("progressDisplayer" + user_id);
         let preProgressBarElement = document.getElementById("preProgressDisplayer" + user_id);

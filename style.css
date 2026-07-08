@@ -181,6 +181,8 @@ textarea {
 }
 
 .page-shell {
+    width: 100%;
+    margin: 0 auto;
     padding: 32px 0 84px;
 }
 
@@ -326,6 +328,10 @@ textarea {
 
 .board-shell {
     max-width: 930px;
+}
+
+.games-shell {
+    max-width: 980px;
 }
 
 .board-panel {
@@ -499,6 +505,215 @@ textarea {
     text-align: center;
 }
 
+.games-panel {
+    padding-bottom: 24px;
+}
+
+.games-header {
+    align-items: flex-start;
+}
+
+.game-tabs {
+    display: inline-flex;
+    gap: 6px;
+    padding: 5px;
+    border: 1px solid var(--app-line);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--app-bg) 62%, transparent);
+}
+
+.game-tab {
+    min-height: 32px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    color: var(--app-muted);
+    background: transparent;
+    font-size: 0.88rem;
+    font-weight: 680;
+    white-space: nowrap;
+}
+
+.game-tab.active {
+    color: #ffffff;
+    background: var(--app-primary);
+}
+
+.game-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 18px;
+    padding: 0 24px;
+}
+
+.game-stage,
+.side-block {
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius);
+    background: var(--app-surface-strong);
+}
+
+.game-stage {
+    display: grid;
+    gap: 14px;
+    align-content: start;
+    min-height: 430px;
+    padding: 18px;
+}
+
+.game-title-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.game-title {
+    margin: 0;
+    color: var(--app-text);
+    font-size: 1.08rem;
+    font-weight: 760;
+}
+
+.game-pad {
+    display: grid;
+    width: 100%;
+    min-height: 260px;
+    place-items: center;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius);
+    color: var(--app-text);
+    background: color-mix(in srgb, var(--app-bg) 72%, var(--app-surface-strong));
+    font-size: clamp(1.6rem, 6vw, 3.2rem);
+    font-weight: 820;
+    user-select: none;
+    touch-action: manipulation;
+}
+
+.game-pad.reaction-wait {
+    color: var(--app-muted);
+    background: color-mix(in srgb, var(--app-bg) 86%, var(--app-surface-strong));
+}
+
+.game-pad.reaction-ready,
+.game-pad.running {
+    color: #ffffff;
+    background: var(--app-primary);
+}
+
+.game-status {
+    min-height: 1.4em;
+    color: var(--app-muted);
+    font-size: 0.92rem;
+}
+
+.game-status.success {
+    color: var(--app-primary);
+}
+
+.game-status.danger {
+    color: var(--app-danger);
+}
+
+.memory-wrap {
+    display: grid;
+    gap: 14px;
+}
+
+.memory-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.memory-cell {
+    min-height: 120px;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius);
+    color: var(--app-muted);
+    background: color-mix(in srgb, var(--app-bg) 72%, var(--app-surface-strong));
+    font-size: 1.6rem;
+    font-weight: 800;
+    touch-action: manipulation;
+}
+
+.memory-cell.flash,
+.memory-cell:active {
+    color: #ffffff;
+    background: var(--app-primary);
+}
+
+.game-side {
+    display: grid;
+    gap: 14px;
+    align-content: start;
+}
+
+.side-block {
+    padding: 14px;
+}
+
+.side-title {
+    margin: 0 0 10px;
+    color: var(--app-text);
+    font-size: 0.94rem;
+    font-weight: 760;
+}
+
+.leader-list,
+.stats-list {
+    display: grid;
+    gap: 8px;
+}
+
+.leader-row,
+.stat-row {
+    display: grid;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    color: var(--app-text);
+    font-size: 0.92rem;
+}
+
+.leader-row {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+}
+
+.leader-rank {
+    display: grid;
+    width: 26px;
+    height: 26px;
+    place-items: center;
+    border-radius: 50%;
+    color: #ffffff;
+    background: var(--app-primary);
+    font-size: 0.82rem;
+    font-weight: 760;
+}
+
+.leader-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.leader-score,
+.stat-row strong {
+    color: var(--app-primary);
+    font-weight: 780;
+}
+
+.stat-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.empty-line {
+    color: var(--app-muted);
+    font-size: 0.9rem;
+}
+
 .card {
     border: 1px solid var(--app-line);
     border-radius: var(--app-radius);
@@ -610,7 +825,7 @@ textarea {
 
     .nav-tabs {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         border-radius: var(--app-radius);
     }
 
@@ -637,6 +852,41 @@ textarea {
     #boardFeed {
         padding-left: 14px;
         padding-right: 14px;
+    }
+
+    .games-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .game-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-radius: var(--app-radius);
+    }
+
+    .game-layout {
+        grid-template-columns: 1fr;
+        padding: 0 14px;
+    }
+
+    .game-stage {
+        min-height: 360px;
+        padding: 14px;
+    }
+
+    .game-title-row {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .game-pad {
+        min-height: 220px;
+    }
+
+    .memory-cell {
+        min-height: 96px;
     }
 
     .composer {
