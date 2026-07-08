@@ -1,0 +1,38 @@
+.board-shell {
+    max-width: 920px;
+    padding-bottom: 6rem;
+}
+
+.board-toolbar {
+    gap: 0.75rem;
+}
+
+.board-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.board-post-body,
+.board-comment-body {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.board-muted {
+    font-size: 0.875rem;
+}
+
+.board-empty {
+    border: 1px dashed var(--bs-border-color);
+    border-radius: 0.5rem;
+}
+
+#authArea {
+    min-height: 38px;
+}
+
+#authArea .auth-name {
+    max-width: 180px;
+}

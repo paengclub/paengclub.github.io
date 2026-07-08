@@ -2,6 +2,7 @@ import {itineraries, members} from "/data.js";
 import {renderTimer} from "/timer.js";
 import {renderList} from "/itinlist.js";
 import {renderCalendar} from "/calendar.js";
+import {initBoardAuth, renderBoard} from "/board.js";
 
 document.body.onload = init;
 let current_rendered_page = 0;
@@ -63,6 +64,7 @@ function init() {
         switchDarkMode();
     });
 
+    initBoardAuth(myRenderFunction);
     preprocessed();
     myRenderFunction();
 }
@@ -77,6 +79,7 @@ function myRenderFunction() {
     if (current_rendered_page == 1) renderCalendar();
     if (current_rendered_page == 2) renderList(false);
     if (current_rendered_page == 3) renderList(true);
+    if (current_rendered_page == 4) renderBoard();
 }
 
 export {current_rendered_page, rankImageSet};
