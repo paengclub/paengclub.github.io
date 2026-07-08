@@ -22,7 +22,7 @@ let state = {
     draftHoldings: [],
     categoryDrafts: [],
     deletedCategoryIds: [],
-    view: "dashboard",
+    view: "overview",
     shareMode: false,
     allocMode: "category",
     loading: false,
@@ -548,6 +548,36 @@ function holdingSegments() {
         }));
 }
 
+function investmentHoldings() {
+    return meaningfulHoldings().filter(isRebalanceIncluded);
+}
+
+function investmentTotal() {
+    return rebalanceTotal();
+}
+
+function investmentCategorySegments() {
+    return categoryAllocation(state.draftHoldings, { rebalanceOnly: true })
+        .map((item) => ({ label: item.category, value: item.value, color: categoryColor(item.category) }));
+}
+
+function targetSegments() {
+    return state.categoryDrafts
+        .filter((category) => num(category.target_ratio) > 0)
+        .sort((a, b) => num(b.target_ratio) - num(a.target_ratio))
+        .map((category) => ({ label: category.name, value: num(category.target_ratio), color: category.color }));
+}
+
+// Categories present in the current snapshot, ordered by value (for stable
+// legend + stacking colors across the trend charts).
+function orderedCategories({ investmentOnly = false } = {}) {
+    return categoryAllocation(state.draftHoldings, { rebalanceOnly: investmentOnly }).map((item) => item.category);
+}
+
+function snapshotsAscending() {
+    return [...state.snapshots].sort((a, b) => new Date(a.as_of_date).getTime() - new Date(b.as_of_date).getTime());
+}
+
 /* ------------------------------------------------------------------- charts */
 
 function donutChart(segments, { size = 208, thickness = 30, centerLabel = "", centerValue = "", centerSub = "" } = {}) {
@@ -605,68 +635,71 @@ function donutLegend(segments, total) {
 
 function lineChart(points) {
     const width = 560;
-    const height = 190;
-    const pad = { l: 12, r: 14, t: 18, b: 26 };
+    const height = 214;
+    const pad = { l: 56, r: 18, t: 24, b: 30 };
     const svgEl = svg("svg", { viewBox: `0 0 ${width} ${height}`, class: "pf-line-svg", role: "img" });
     if (points.length === 0) return svgEl;
 
     const values = points.map((point) => point.value);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const lo = Math.min(min, max * 0.98);
-    const span = Math.max(max - lo, 1);
-    const x = (index) => pad.l + (points.length === 1 ? 0.5 : index / (points.length - 1)) * (width - pad.l - pad.r);
-    const y = (value) => pad.t + (1 - (value - lo) / span) * (height - pad.t - pad.b);
-    const baseline = height - pad.b;
+    const rawMin = Math.min(...values);
+    const rawMax = Math.max(...values);
+    const range = Math.max(rawMax - rawMin, rawMax * 0.05, 1);
+    const lo = Math.max(0, rawMin - range * 0.28);
+    const hi = rawMax + range * 0.22;
+    const span = Math.max(hi - lo, 1);
+    const plotW = width - pad.l - pad.r;
+    const plotH = height - pad.t - pad.b;
+    const x = (index) => pad.l + (points.length === 1 ? 0.5 : index / (points.length - 1)) * plotW;
+    const y = (value) => pad.t + (1 - (value - lo) / span) * plotH;
 
-    svgEl.appendChild(svg("line", { x1: pad.l, y1: baseline, x2: width - pad.r, y2: baseline, stroke: "var(--app-line)", "stroke-width": 1 }));
+    const ticks = 4;
+    for (let t = 0; t <= ticks; t += 1) {
+        const value = lo + span * (t / ticks);
+        const gy = y(value);
+        svgEl.appendChild(svg("line", { x1: pad.l, y1: gy, x2: width - pad.r, y2: gy, stroke: "var(--app-line)", "stroke-width": 1, opacity: t === 0 ? "1" : "0.5" }));
+        svgEl.appendChild(svg("text", { x: pad.l - 8, y: gy + 3, "text-anchor": "end", class: "pf-chart-axis", text: bigMoney(value) }));
+    }
 
     if (points.length >= 2) {
         const areaPoints = points.map((point, index) => `${x(index)},${y(point.value)}`).join(" ");
-        svgEl.appendChild(svg("polygon", {
-            points: `${pad.l},${baseline} ${areaPoints} ${width - pad.r},${baseline}`,
-            fill: "var(--app-primary)",
-            opacity: "0.12"
-        }));
+        svgEl.appendChild(svg("polygon", { points: `${pad.l},${y(lo)} ${areaPoints} ${width - pad.r},${y(lo)}`, fill: "var(--app-primary)", opacity: "0.1" }));
     }
 
-    const line = svg("polyline", {
+    svgEl.appendChild(svg("polyline", {
         points: points.map((point, index) => `${x(index)},${y(point.value)}`).join(" "),
-        fill: "none",
-        stroke: "var(--app-primary)",
-        "stroke-width": 2.5,
-        "stroke-linejoin": "round",
-        "stroke-linecap": "round"
-    });
-    svgEl.appendChild(line);
+        fill: "none", stroke: "var(--app-primary)", "stroke-width": 2.5, "stroke-linejoin": "round", "stroke-linecap": "round"
+    }));
 
     points.forEach((point, index) => {
+        const anchor = index === 0 ? "start" : (index === points.length - 1 ? "end" : "middle");
         svgEl.appendChild(svg("circle", { cx: x(index), cy: y(point.value), r: 3.5, fill: "var(--app-surface-strong)", stroke: "var(--app-primary)", "stroke-width": 2 }));
+        svgEl.appendChild(svg("text", { x: x(index), y: y(point.value) - 9, "text-anchor": anchor, class: "pf-chart-value", text: bigMoney(point.value) }));
+        svgEl.appendChild(svg("text", { x: x(index), y: height - 10, "text-anchor": anchor, class: "pf-chart-label", text: point.label }));
     });
-
-    // Endpoint labels only, to avoid clutter.
-    const first = svg("text", { x: pad.l, y: baseline + 18, "text-anchor": "start", class: "pf-chart-label", text: points[0].label });
-    const last = svg("text", { x: width - pad.r, y: baseline + 18, "text-anchor": "end", class: "pf-chart-label", text: points[points.length - 1].label });
-    svgEl.appendChild(first);
-    svgEl.appendChild(last);
-    svgEl.appendChild(svg("text", { x: pad.l, y: pad.t - 4, "text-anchor": "start", class: "pf-chart-label", text: bigMoney(max) }));
     return svgEl;
 }
 
-function stackedBars(snapshotsAsc, categories) {
+function stackedBars(snapshotsAsc, categories, { investmentOnly = false } = {}) {
     const width = 560;
-    const height = 190;
-    const pad = { l: 12, r: 14, t: 14, b: 26 };
+    const height = 200;
+    const pad = { l: 34, r: 12, t: 12, b: 28 };
     const svgEl = svg("svg", { viewBox: `0 0 ${width} ${height}`, class: "pf-stack-svg", role: "img" });
     if (snapshotsAsc.length === 0) return svgEl;
 
     const plotW = width - pad.l - pad.r;
     const plotH = height - pad.t - pad.b;
     const slot = plotW / snapshotsAsc.length;
-    const barW = Math.min(slot * 0.62, 46);
+    const barW = Math.min(slot * 0.56, 44);
+
+    for (const p of [0, 50, 100]) {
+        const gy = pad.t + (1 - p / 100) * plotH;
+        svgEl.appendChild(svg("line", { x1: pad.l, y1: gy, x2: width - pad.r, y2: gy, stroke: "var(--app-line)", "stroke-width": 1, opacity: p === 0 ? "1" : "0.45" }));
+        svgEl.appendChild(svg("text", { x: pad.l - 6, y: gy + 3, "text-anchor": "end", class: "pf-chart-axis", text: `${p}%` }));
+    }
 
     snapshotsAsc.forEach((snapshot, index) => {
-        const holdings = normalizeDraft(snapshot.portfolio_holdings || []);
+        let holdings = normalizeDraft(snapshot.portfolio_holdings || []);
+        if (investmentOnly) holdings = holdings.filter(isRebalanceIncluded);
         const total = holdings.reduce((sum, holding) => sum + holdingValue(holding), 0);
         const cx = pad.l + slot * index + slot / 2;
         let acc = 0;
@@ -677,10 +710,9 @@ function stackedBars(snapshotsAsc, categories) {
                     .reduce((sum, holding) => sum + holdingValue(holding), 0);
                 if (value <= 0) continue;
                 const frac = value / total;
-                const segH = frac * plotH;
                 const yTop = pad.t + (1 - acc - frac) * plotH;
                 svgEl.appendChild(svg("rect", {
-                    x: cx - barW / 2, y: yTop, width: barW, height: Math.max(segH - 0.6, 0.6),
+                    x: cx - barW / 2, y: yTop, width: barW, height: Math.max(frac * plotH - 1, 0.6),
                     fill: categoryColor(category), rx: 1
                 }));
                 acc += frac;
@@ -688,13 +720,17 @@ function stackedBars(snapshotsAsc, categories) {
         } else {
             svgEl.appendChild(svg("rect", { x: cx - barW / 2, y: pad.t, width: barW, height: plotH, fill: "var(--app-line)", rx: 1 }));
         }
-        svgEl.appendChild(svg("text", {
-            x: cx, y: height - 8, "text-anchor": "middle", class: "pf-chart-label",
-            text: (snapshot.as_of_date || "").slice(2)
-        }));
+        svgEl.appendChild(svg("text", { x: cx, y: height - 9, "text-anchor": "middle", class: "pf-chart-label", text: (snapshot.as_of_date || "").slice(2) }));
     });
 
     return svgEl;
+}
+
+function categoryChartLegend(categories) {
+    return el("div", { class: "pf-chart-legend" }, categories.map((category) => el("span", { class: "pf-chart-legend-item" }, [
+        el("span", { class: "pf-legend-dot", style: `background:${categoryColor(category)}` }),
+        el("span", { text: category })
+    ])));
 }
 
 /* -------------------------------------------------------------- render: shell */
@@ -766,7 +802,7 @@ function renderHeader() {
 }
 
 function renderViewSwitch() {
-    const views = [["dashboard", "대시보드"], ["input", "입력"], ["categories", "분류·목표"]];
+    const views = [["overview", "현황"], ["rebalance", "리밸런싱"], ["input", "입력"], ["categories", "분류·목표"]];
     return el("div", { class: "portfolio-view-switch", role: "tablist" }, views.map(([value, label]) => el("button", {
         class: state.view === value ? "active" : "",
         type: "button",
@@ -784,7 +820,10 @@ function renderView(context) {
     if (state.view === "categories") {
         return el("div", { class: "portfolio-view" }, [renderCategoryManager()]);
     }
-    return renderDashboard(context);
+    if (state.view === "rebalance") {
+        return renderRebalanceView(context);
+    }
+    return renderOverview(context);
 }
 
 function renderEmptyState() {
@@ -797,25 +836,45 @@ function renderEmptyState() {
 
 /* --------------------------------------------------------- render: dashboard */
 
-function renderDashboard(context) {
-    const holdings = meaningfulHoldings();
-    if (holdings.length === 0) {
+function renderEmptyDashboard() {
+    return el("div", { class: "portfolio-view" }, [
+        renderSnapshotBar(),
+        el("div", { class: "portfolio-empty" }, [
+            el("strong", { text: "이 시점에 보유 종목이 없어요." }),
+            el("span", { text: "‘입력’ 탭에서 종목을 추가하면 현황이 채워집니다." }),
+            el("button", { class: "primary-button", type: "button", text: "종목 입력하러 가기", onclick: () => { state.view = "input"; renderLoaded(); } })
+        ])
+    ]);
+}
+
+// 관점 ①: 흩어진 전 자산을 통합해 총액·손익·증감을 추적 (계산 제외 자산 포함).
+function renderOverview(context) {
+    if (meaningfulHoldings().length === 0) return renderEmptyDashboard();
+    return el("div", { class: "portfolio-view pf-dash" }, [
+        renderSnapshotBar(),
+        renderOverviewHero(context),
+        renderHoldingsPanel(context),
+        renderOverviewTrend(context),
+        renderOverviewStats(context)
+    ]);
+}
+
+// 관점 ②: 투자자산만(계산 제외 자산 빼고) 목표 비중 리밸런싱.
+function renderRebalanceView(context) {
+    if (investmentHoldings().length === 0) {
         return el("div", { class: "portfolio-view" }, [
             renderSnapshotBar(),
-            el("div", { class: "portfolio-empty" }, [
-                el("strong", { text: "이 시점에 보유 종목이 없어요." }),
-                el("span", { text: "‘입력’ 탭에서 종목을 추가하면 대시보드가 채워집니다." }),
-                el("button", { class: "primary-button", type: "button", text: "종목 입력하러 가기", onclick: () => { state.view = "input"; renderLoaded(); } })
+            el("div", { class: "pf-hint" }, [
+                el("span", { text: "리밸런싱은 ‘투자자산’으로 표시된 종목만 대상으로 합니다. ‘입력’ 탭에서 각 종목의 ‘계산’ 체크를 켜 주세요." }),
+                el("button", { class: "secondary-button compact", type: "button", text: "입력으로 가기", onclick: () => { state.view = "input"; renderLoaded(); } })
             ])
         ]);
     }
     return el("div", { class: "portfolio-view pf-dash" }, [
         renderSnapshotBar(),
-        renderHero(context),
+        renderRebalanceHero(context),
         renderRebalancePanel(context),
-        renderHoldingsPanel(context),
-        renderTrendPanel(context),
-        renderStatTiles(context)
+        renderRebalanceTrend(context)
     ]);
 }
 
@@ -847,37 +906,61 @@ function renderSnapshotBar() {
     ]);
 }
 
-function renderHero(context) {
+function renderOverviewHero(context) {
     const { total, cost, pnl, previous, previousTotal, snapshot } = context;
-    const segments = categorySegments();
+    const segs = state.allocMode === "holding" ? holdingSegments() : categorySegments();
     const pnlPct = cost > 0 ? (pnl / cost) * 100 : NaN;
     const changeAmount = previous ? total - previousTotal : NaN;
     const changePct = previous && previousTotal > 0 ? (changeAmount / previousTotal) * 100 : NaN;
-    const rebalanceNeed = rebalanceAdjustment();
+    const invTotal = investmentTotal();
+    const invPct = total > 0 ? (invTotal / total) * 100 : 0;
 
-    return el("div", { class: "pf-hero pf-area-hero" }, [
-        el("div", { class: "pf-card pf-hero-chart" }, [
-            el("div", { class: "pf-alloc-toggle" }, [
-                toggleButton("category", "분류별"),
-                toggleButton("holding", "종목별")
-            ]),
-            (() => {
-                const segs = state.allocMode === "holding" ? holdingSegments() : segments;
-                return el("div", { class: "pf-hero-donut" }, [
-                    donutChart(segs, {
-                        centerLabel: snapshot?.as_of_date || "",
-                        centerValue: bigMoney(total),
-                        centerSub: `${meaningfulHoldings().length}종목`
-                    }),
-                    donutLegend(segs, total)
-                ]);
-            })()
+    return el("div", { class: "pf-card pf-overview-hero pf-area-hero" }, [
+        el("div", { class: "pf-hero-left" }, [
+            el("div", { class: "pf-alloc-toggle" }, [toggleButton("category", "분류별"), toggleButton("holding", "종목별")]),
+            el("div", { class: "pf-hero-donut" }, [
+                donutChart(segs, { centerLabel: snapshot?.as_of_date || "", centerValue: bigMoney(total), centerSub: "전체 자산" }),
+                donutLegend(segs, total)
+            ])
         ]),
-        el("div", { class: "pf-kpis" }, [
+        el("div", { class: "pf-kpis pf-hero-kpis" }, [
             kpiTile("총 자산", bigMoney(total), previous ? `이전 ${bigMoney(previousTotal)}` : "첫 시점", ""),
             kpiTile("평가손익", cost > 0 ? bigMoney(pnl) : "-", cost > 0 ? `수익률 ${pct(pnlPct)}` : "평단 미입력", cost > 0 ? (pnl >= 0 ? "plus" : "minus") : ""),
-            kpiTile("전 시점 대비", previous ? pct(changePct) : "-", previous ? `${bigMoney(changeAmount)}` : "비교 대상 없음", previous ? (changeAmount >= 0 ? "plus" : "minus") : ""),
-            kpiTile("리밸런싱 필요", rebalanceNeed.total > 0 ? bigMoney(rebalanceNeed.total) : "균형", rebalanceNeed.total > 0 ? "목표까지 이동액" : "목표 비중 도달", rebalanceNeed.total > 0 ? "warn" : "plus")
+            kpiTile("전 시점 대비", previous ? pct(changePct) : "-", previous ? bigMoney(changeAmount) : "비교 대상 없음", previous ? (changeAmount >= 0 ? "plus" : "minus") : ""),
+            kpiTile("투자 비중", ratio(invPct), `현금·제외 ${bigMoney(total - invTotal)}`, "")
+        ])
+    ]);
+}
+
+function renderRebalanceHero() {
+    const invTotal = investmentTotal();
+    const currentSegs = investmentCategorySegments();
+    const targets = targetSegments();
+    const adj = rebalanceAdjustment();
+    const maxGap = [...adj.rows].sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))[0];
+    const targetSumOk = Math.abs(adj.targetSum - 100) <= 0.5;
+    const drift = adj.rows.reduce((sum, row) => sum + Math.abs(row.gap), 0) / 2;
+    const fit = Math.max(0, 100 - drift);
+
+    return el("div", { class: "pf-card pf-overview-hero pf-area-hero" }, [
+        el("div", { class: "pf-hero-left" }, [
+            el("div", { class: "pf-donut-pair" }, [
+                el("div", { class: "pf-donut-cell" }, [
+                    el("h3", { text: "현재 배분" }),
+                    donutChart(currentSegs, { size: 152, thickness: 22, centerValue: bigMoney(invTotal), centerSub: "투자자산" })
+                ]),
+                adj.hasTargets ? el("div", { class: "pf-donut-cell" }, [
+                    el("h3", { text: "목표 배분" }),
+                    donutChart(targets, { size: 152, thickness: 22, centerValue: `${adj.targetSum.toFixed(0)}%`, centerSub: "목표 합계" })
+                ]) : null
+            ]),
+            donutLegend(currentSegs, invTotal)
+        ]),
+        el("div", { class: "pf-kpis pf-hero-kpis" }, [
+            kpiTile("투자자산", bigMoney(invTotal), "리밸런싱 대상", ""),
+            kpiTile("리밸런싱 필요", adj.hasTargets ? (adj.total > 0 ? bigMoney(adj.total) : "균형") : "-", adj.hasTargets ? "매수·매도 이동액" : "목표 미설정", adj.total > 0 ? "warn" : (adj.hasTargets ? "plus" : "")),
+            kpiTile("최대 이탈", adj.hasTargets && maxGap ? maxGap.category : "-", adj.hasTargets && maxGap ? `${maxGap.gap >= 0 ? "+" : ""}${maxGap.gap.toFixed(1)}%p` : "", ""),
+            kpiTile("목표 도달도", adj.hasTargets ? ratio(fit) : "-", targetSumOk ? "목표 합계 100%" : `목표 합계 ${adj.targetSum.toFixed(0)}%`, adj.hasTargets ? (fit >= 90 ? "plus" : (fit >= 70 ? "warn" : "minus")) : "")
         ])
     ]);
 }
@@ -997,55 +1080,70 @@ function renderHoldingsPanel(context) {
     ]);
 }
 
-function renderTrendPanel(context) {
-    const ascending = [...state.snapshots].sort((a, b) => new Date(a.as_of_date).getTime() - new Date(b.as_of_date).getTime());
+function renderOverviewTrend(context) {
+    const ascending = snapshotsAscending();
+    const single = ascending.length < 2;
     const linePoints = ascending.map((snapshot) => ({
         label: (snapshot.as_of_date || "").slice(2),
         value: displayValue(snapshotTotal(snapshot), context.total)
     }));
-    const categories = portfolioCategoryNames();
+    const categories = orderedCategories({ investmentOnly: false });
 
-    const single = ascending.length < 2;
     return el("section", { class: "pf-card pf-area-trend" }, [
-        el("div", { class: "pf-card-head" }, [el("h2", { text: "추이" })]),
+        el("div", { class: "pf-card-head" }, [el("h2", { text: "자산 추이" })]),
         single
-            ? el("div", { class: "pf-hint", text: "시점이 2개 이상이면 자산 추이와 분류 배분 변화 그래프가 표시됩니다. ‘현재 시점 복사’로 다음 시점을 만들어 보세요." })
+            ? el("div", { class: "pf-hint", text: "시점이 2개 이상이면 자산 추이와 배분 변화가 표시됩니다. 상단 ‘현재 시점 복사’로 다음 달 시점을 만들어 보세요." })
             : el("div", { class: "pf-trend-grid" }, [
-                el("div", { class: "pf-trend-item" }, [el("h3", { text: "자산 추이" }), lineChart(linePoints)]),
-                el("div", { class: "pf-trend-item" }, [el("h3", { text: "분류 배분 변화" }), stackedBars(ascending, categories)])
+                el("div", { class: "pf-trend-item" }, [el("h3", { text: "전체 자산 변화" }), lineChart(linePoints)]),
+                el("div", { class: "pf-trend-item" }, [el("h3", { text: "분류 배분 변화 (전체 자산)" }), stackedBars(ascending, categories), categoryChartLegend(categories)])
             ])
     ]);
 }
 
-function renderStatTiles(context) {
-    const { total, cost, pnl, previous, previousTotal } = context;
+function renderRebalanceTrend() {
+    const ascending = snapshotsAscending();
+    const single = ascending.length < 2;
+    const categories = orderedCategories({ investmentOnly: true });
+
+    return el("section", { class: "pf-card pf-area-rebaltrend" }, [
+        el("div", { class: "pf-card-head" }, [el("h2", { text: "투자 배분 추이" })]),
+        single
+            ? el("div", { class: "pf-hint", text: "시점이 2개 이상이면 투자자산 배분이 시점별로 어떻게 바뀌었는지 표시됩니다." })
+            : el("div", { class: "pf-trend-item" }, [
+                el("h3", { text: "분류 배분 변화 (투자자산만)" }),
+                stackedBars(ascending, categories, { investmentOnly: true }),
+                categoryChartLegend(categories)
+            ])
+    ]);
+}
+
+function renderOverviewStats(context) {
+    const { total, cost, pnl } = context;
     const holdings = meaningfulHoldings();
     const alloc = categoryAllocation(state.draftHoldings, { rebalanceOnly: false });
-    const biggestCat = alloc[0];
     const sorted = [...holdings].sort((a, b) => holdingValue(b) - holdingValue(a));
     const largest = sorted[0];
     const top3 = sorted.slice(0, 3).reduce((sum, holding) => sum + holdingValue(holding), 0);
     const first = firstSnapshot();
     const firstTotal = first ? snapshotTotal(first) : 0;
     const sinceFirst = firstTotal > 0 ? ((total - firstTotal) / firstTotal) * 100 : NaN;
-    const cashValue = alloc
-        .filter((item) => item.category.includes("현금") || item.category.toLowerCase().includes("cash"))
-        .reduce((sum, item) => sum + item.value, 0);
-    const rebal = rebalanceAdjustment();
+    const invTotal = investmentTotal();
+    const excluded = total - invTotal;
+    const pnlPct = cost > 0 ? (pnl / cost) * 100 : NaN;
 
     const tiles = [
-        statTile("종목 수", `${holdings.length}개`, `분류 ${alloc.length}개`, ""),
-        statTile("최대 종목", largest ? (largest.name || "무제") : "-", largest ? ratio((holdingValue(largest) / Math.max(total, 1)) * 100) : "", ""),
-        statTile("상위 3종목", total > 0 ? ratio((top3 / total) * 100) : "-", "집중도", top3 / Math.max(total, 1) > 0.6 ? "warn" : ""),
-        statTile("최대 분류", biggestCat ? biggestCat.category : "-", biggestCat ? ratio((biggestCat.value / Math.max(total, 1)) * 100) : "", ""),
-        statTile("현금 비중", total > 0 ? ratio((cashValue / total) * 100) : "-", "안전자산", ""),
+        statTile("투자자산", bigMoney(invTotal), total > 0 ? `전체의 ${ratio((invTotal / total) * 100)}` : "", ""),
+        statTile("현금·제외", bigMoney(excluded), total > 0 ? `전체의 ${ratio((excluded / total) * 100)}` : "", ""),
+        statTile("평가손익", cost > 0 ? bigMoney(pnl) : "-", cost > 0 ? `수익률 ${pct(pnlPct)}` : "평단 미입력", cost > 0 ? (pnl >= 0 ? "plus" : "minus") : ""),
         statTile("최초 대비", Number.isFinite(sinceFirst) ? pct(sinceFirst) : "-", first ? `${first.as_of_date} 기준` : "기준 없음", Number.isFinite(sinceFirst) ? (sinceFirst >= 0 ? "plus" : "minus") : ""),
-        statTile("평가손익", cost > 0 ? moneyLabel(pnl) : "-", cost > 0 ? "평단 기준" : "평단 미입력", cost > 0 ? (pnl >= 0 ? "plus" : "minus") : ""),
-        statTile("리밸런싱 필요", rebal.hasTargets ? (rebal.total > 0 ? moneyLabel(rebal.total) : "없음") : "-", rebal.hasTargets ? "목표까지 이동액" : "목표 미설정", rebal.total > 0 ? "warn" : "")
+        statTile("최대 종목", largest ? (largest.name || "무제") : "-", largest ? ratio((holdingValue(largest) / Math.max(total, 1)) * 100) : "", ""),
+        statTile("최대 분류", alloc[0] ? alloc[0].category : "-", alloc[0] ? ratio((alloc[0].value / Math.max(total, 1)) * 100) : "", ""),
+        statTile("상위 3종목", total > 0 ? ratio((top3 / total) * 100) : "-", "집중도", top3 / Math.max(total, 1) > 0.6 ? "warn" : ""),
+        statTile("종목 수", `${holdings.length}개`, `분류 ${alloc.length}개`, "")
     ];
 
     return el("section", { class: "pf-card pf-area-stats" }, [
-        el("div", { class: "pf-card-head" }, [el("h2", { text: "요약 통계" })]),
+        el("div", { class: "pf-card-head" }, [el("h2", { text: "요약 통계 (전체 자산)" })]),
         el("div", { class: "pf-stat-grid" }, tiles)
     ]);
 }

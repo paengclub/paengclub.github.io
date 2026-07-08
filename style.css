@@ -1125,7 +1125,7 @@ button {
 
 .pf-dash {
     display: grid;
-    gap: 16px;
+    gap: 13px;
 }
 
 .pf-dash > * + * {
@@ -1146,20 +1146,24 @@ button {
         grid-column: span 12;
     }
 
-    .pf-area-rebal {
+    .pf-area-holdings {
         grid-column: span 5;
     }
 
-    .pf-area-holdings {
+    .pf-area-trend {
         grid-column: span 7;
     }
 
-    .pf-area-trend {
-        grid-column: span 8;
+    .pf-area-stats {
+        grid-column: span 12;
     }
 
-    .pf-area-stats {
-        grid-column: span 4;
+    .pf-area-rebal {
+        grid-column: span 7;
+    }
+
+    .pf-area-rebaltrend {
+        grid-column: span 5;
     }
 }
 
@@ -1167,7 +1171,7 @@ button {
     border: 1px solid var(--app-line);
     border-radius: var(--app-radius);
     background: var(--app-surface-strong);
-    padding: 16px 18px;
+    padding: 13px 15px;
     min-width: 0;
 }
 
@@ -1176,7 +1180,7 @@ button {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 14px;
+    margin-bottom: 11px;
 }
 
 .pf-card-head h2 {
@@ -1395,9 +1399,9 @@ button {
 
 .pf-kpi {
     display: grid;
-    gap: 4px;
+    gap: 3px;
     align-content: center;
-    padding: 14px 16px;
+    padding: 12px 14px;
     border: 1px solid var(--app-line);
     border-radius: var(--app-radius);
     background: var(--app-surface);
@@ -1612,6 +1616,77 @@ button {
     font-weight: 600;
 }
 
+.pf-chart-axis {
+    fill: var(--app-muted);
+    font-size: 10px;
+    font-weight: 500;
+}
+
+.pf-chart-value {
+    fill: var(--app-text);
+    font-size: 10.5px;
+    font-weight: 720;
+}
+
+.pf-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px 14px;
+    margin-top: 10px;
+}
+
+.pf-chart-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--app-muted);
+    font-size: 0.78rem;
+    font-weight: 640;
+}
+
+/* dense combined hero: donut(s)+legend on the left, KPI 2x2 on the right */
+.pf-overview-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: center;
+}
+
+.pf-hero-left {
+    display: grid;
+    gap: 12px;
+    align-content: center;
+    min-width: 0;
+}
+
+.pf-hero-kpis {
+    align-content: center;
+}
+
+.pf-donut-pair {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.pf-donut-cell {
+    display: grid;
+    gap: 6px;
+    justify-items: center;
+}
+
+.pf-donut-cell h3 {
+    margin: 0;
+    color: var(--app-muted);
+    font-size: 0.8rem;
+    font-weight: 720;
+}
+
+.pf-donut-cell .pf-donut {
+    width: 150px;
+}
+
 /* stat tiles */
 .pf-stat-grid {
     display: grid;
@@ -1699,7 +1774,8 @@ button {
 }
 
 @media (max-width: 900px) {
-    .pf-hero {
+    .pf-hero,
+    .pf-overview-hero {
         grid-template-columns: 1fr;
     }
 
