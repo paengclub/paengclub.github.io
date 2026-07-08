@@ -159,7 +159,7 @@ function renderComposer(parent) {
         rows: "4",
         maxlength: "5000",
         required: "",
-        placeholder: "무슨 일이 있었나요?"
+        placeholder: "내용"
     });
     const submit = el("button", {
         class: "btn btn-primary",

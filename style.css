@@ -141,4 +141,8 @@ body {
     #authArea {
         padding-bottom: 0.5rem;
     }
+
+    #colorSwitcher {
+        display: none;
+    }
 }

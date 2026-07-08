@@ -101,7 +101,7 @@ async function flushChanges() {
     pendingErases.clear();
 
     if (draws.length > 0) {
-        const { error } = await supabase.from("canvas_pixels").insert(draws, { ignoreDuplicates: true });
+        const { error } = await supabase.from("canvas_pixels").upsert(draws, { onConflict: "x,y" });
         if (error) showCanvasStatus(error.message, "danger");
     }
 
