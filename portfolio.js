@@ -2,25 +2,14 @@ import { getCurrentSession, signInWithGoogle } from "/board.js";
 import { supabase } from "/supabaseClient.js";
 
 const DEFAULT_CATEGORIES = [
-    { name: "국내주식", color: "#315f4d" },
-    { name: "미국주식", color: "#2f7dd3" },
-    { name: "ETF", color: "#8b5cf6" },
-    { name: "현금", color: "#d16a45" }
+    { name: "국내주식", color: "#315f4d", target_ratio: 0 },
+    { name: "미국주식", color: "#2f7dd3", target_ratio: 0 },
+    { name: "ETF", color: "#8b5cf6", target_ratio: 0 },
+    { name: "현금", color: "#d16a45", target_ratio: 0 }
 ];
-const EVENT_TYPES = {
-    buy: "매수",
-    sell: "매도",
-    dividend: "배당",
-    deposit: "입금",
-    withdrawal: "출금",
-    fee: "수수료",
-    note: "메모"
-};
-
 let state = {
     snapshots: [],
     categories: [],
-    events: [],
     activeSnapshotId: "",
     draftHoldings: [],
     loading: false,
@@ -146,7 +135,7 @@ async function ensureDefaultCategories() {
 }
 
 async function loadPortfolioData(preferredSnapshotId = state.activeSnapshotId) {
-    const [snapshotsResult, categoriesResult, eventsResult] = await Promise.all([
+    const [snapshotsResult, categoriesResult] = await Promise.all([
         supabase
             .from("portfolio_snapshots")
             .select(`
@@ -173,24 +162,16 @@ async function loadPortfolioData(preferredSnapshotId = state.activeSnapshotId) {
             .order("created_at", { ascending: false }),
         supabase
             .from("portfolio_categories")
-            .select("id, name, color, sort_order")
+            .select("id, name, color, sort_order, target_ratio")
             .order("sort_order", { ascending: true })
-            .order("name", { ascending: true }),
-        supabase
-            .from("portfolio_events")
-            .select("id, event_date, symbol, event_type, quantity, price, amount, memo, created_at")
-            .order("event_date", { ascending: false })
-            .order("created_at", { ascending: false })
-            .limit(40)
+            .order("name", { ascending: true })
     ]);
 
     if (snapshotsResult.error) throw snapshotsResult.error;
     if (categoriesResult.error) throw categoriesResult.error;
-    if (eventsResult.error) throw eventsResult.error;
 
     state.snapshots = sortedByDate(snapshotsResult.data || []);
     state.categories = categoriesResult.data || [];
-    state.events = eventsResult.data || [];
 
     if (state.categories.length === 0) {
         await ensureDefaultCategories();
@@ -248,7 +229,7 @@ async function createSnapshot({ copyActive = false } = {}) {
             user_id: session.user.id,
             label,
             as_of_date: today(),
-            note: copyActive && base ? `${base.as_of_date} 기준 복사` : ""
+        note: copyActive && base ? `${base.as_of_date} 기준 복사` : ""
         })
         .select("id")
         .single();
@@ -378,6 +359,8 @@ async function savePortfolio() {
     if (!metaSaved) return;
     const holdingsSaved = await saveHoldings({ refreshAfter: false });
     if (!holdingsSaved) return;
+    const targetsSaved = await saveCategoryTargets();
+    if (!targetsSaved) return;
     await refresh(snapshot.id, "저장했어요.");
 }
 
@@ -394,6 +377,7 @@ async function ensureCategoriesFromHoldings(rows) {
             user_id: session.user.id,
             name,
             color: paletteColor(state.categories.length + index),
+            target_ratio: 0,
             sort_order: state.categories.length + index
         })),
         { onConflict: "user_id,name" }
@@ -401,74 +385,31 @@ async function ensureCategoriesFromHoldings(rows) {
     if (error) throw error;
 }
 
-async function addCategory() {
+async function saveCategoryTargets() {
     const session = getCurrentSession();
-    if (!session) return;
-    const input = document.getElementById("portfolioNewCategory");
-    const name = input?.value.trim().slice(0, 40);
-    if (!name) return;
-    const { data, error } = await supabase.from("portfolio_categories").upsert({
+    if (!session) return false;
+
+    const rows = Array.from(document.querySelectorAll("[data-target-category]")).map((input, index) => ({
         user_id: session.user.id,
-        name,
-        color: paletteColor(state.categories.length),
-        sort_order: state.categories.length
-    }, { onConflict: "user_id,name" }).select("id, name, color, sort_order").single();
+        name: input.dataset.targetCategory.slice(0, 40),
+        color: categoryColor(input.dataset.targetCategory),
+        target_ratio: Math.max(0, Math.min(100, num(input.value))),
+        sort_order: state.categories.find((category) => category.name === input.dataset.targetCategory)?.sort_order ?? index
+    }));
+    if (rows.length === 0) return true;
+
+    const { error } = await supabase
+        .from("portfolio_categories")
+        .upsert(rows, { onConflict: "user_id,name" });
     if (error) {
         setStatus(error.message, "danger");
-        return;
+        return false;
     }
-    if (!state.categories.some((category) => category.name === name)) {
-        state.categories = [...state.categories, data || {
-            id: crypto.randomUUID(),
-            name,
-            color: paletteColor(state.categories.length),
-            sort_order: state.categories.length
-        }];
-    }
-    if (input) input.value = "";
-    renderLoaded();
-    setStatus("분류를 추가했어요.", "success");
+    return true;
 }
 
 function paletteColor(index) {
     return ["#315f4d", "#2f7dd3", "#d16a45", "#8b5cf6", "#16a34a", "#be123c", "#0f766e"][index % 7];
-}
-
-async function saveEvent(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const payload = {
-        event_date: form.event_date.value || today(),
-        event_type: form.event_type.value,
-        symbol: form.symbol.value.trim().slice(0, 60),
-        quantity: num(form.quantity.value),
-        price: roundMoney(form.price.value),
-        amount: roundMoney(form.amount.value || num(form.quantity.value) * num(form.price.value)),
-        memo: form.memo.value.trim().slice(0, 500)
-    };
-    if (!payload.symbol && payload.event_type !== "deposit" && payload.event_type !== "withdrawal") {
-        setStatus("종목 또는 내용을 입력해 주세요.", "danger");
-        return;
-    }
-    if (!payload.symbol) payload.symbol = EVENT_TYPES[payload.event_type];
-
-    const { error } = await supabase.from("portfolio_events").insert(payload);
-    if (error) {
-        setStatus(error.message, "danger");
-        return;
-    }
-    form.reset();
-    form.event_date.value = today();
-    await refresh(state.activeSnapshotId, "변동사항을 기록했어요.");
-}
-
-async function deleteEvent(id) {
-    const { error } = await supabase.from("portfolio_events").delete().eq("id", id);
-    if (error) {
-        setStatus(error.message, "danger");
-        return;
-    }
-    await refresh(state.activeSnapshotId, "변동사항을 삭제했어요.");
 }
 
 async function refresh(snapshotId = state.activeSnapshotId, message = "") {
@@ -513,16 +454,15 @@ function renderLoaded() {
 
     panel.append(
         renderHeader(),
-        el("div", { id: "portfolioStatus", class: "portfolio-status" }),
         state.snapshots.length === 0 ? renderEmptyState() : el("div", { class: "portfolio-grid" }, [
             el("section", { class: "portfolio-main" }, [
                 renderKpis({ total, cost, pnl, totalChange, previous }),
                 renderSnapshotEditor(snapshot),
-                renderHoldingsEditor(total),
-                renderEvents()
+                renderHoldingsEditor(total)
             ]),
             el("aside", { class: "portfolio-side" }, [
                 renderAllocation(total),
+                renderRebalance(total),
                 renderTrend(),
                 renderInsights({ total, cost, pnl, previous, previousTotal })
             ])
@@ -541,10 +481,12 @@ function renderHeader() {
 
     return el("div", { class: "section-header portfolio-header" }, [
         el("div", {}, [
-            el("h1", { class: "section-title", text: "주식 분석" }),
-            el("div", { class: "muted-text", text: "시점별 포트폴리오와 변동사항을 개인 기록으로 관리" })
+            el("h1", { class: "section-title", text: "주식 분석" })
         ]),
-        el("div", { class: "portfolio-header-actions" }, actions)
+        el("div", { class: "portfolio-header-actions" }, [
+            ...actions,
+            el("span", { id: "portfolioStatus", class: "portfolio-status", "aria-live": "polite" })
+        ])
     ]);
 }
 
@@ -606,8 +548,6 @@ function renderHoldingsEditor(total) {
         el("div", { class: "portfolio-block-title" }, [
             el("h2", { text: "보유 종목" }),
             el("div", { class: "portfolio-inline-actions" }, [
-                el("input", { id: "portfolioNewCategory", class: "form-control", placeholder: "새 분류" }),
-                el("button", { class: "secondary-button compact", type: "button", text: "분류 추가", onclick: addCategory }),
                 el("button", { class: "secondary-button compact", type: "button", text: "종목 추가", onclick: addHoldingRow })
             ])
         ]),
@@ -712,6 +652,7 @@ function syncDraftMetrics() {
             gainCell.className = `portfolio-gain portfolio-gain-cell ${gain >= 0 ? "plus" : "minus"}`;
         }
     });
+    syncRebalanceMetrics();
 }
 
 function addHoldingRow() {
@@ -744,6 +685,48 @@ function renderAllocation(total) {
     ]);
 }
 
+function renderRebalance(total) {
+    const allocation = categoryAllocation(state.draftHoldings);
+    const valueByCategory = new Map(allocation.map((item) => [item.category, item.value]));
+    const categories = portfolioCategoryNames();
+    const targetSum = categories.reduce((sum, category) => sum + categoryTarget(category), 0);
+
+    return el("section", { class: "portfolio-side-block" }, [
+        el("div", { class: "portfolio-block-title compact-title" }, [
+            el("h2", { class: "side-title", text: "목표 비율" }),
+            el("small", { class: targetSum > 100 ? "rebalance-warning" : "muted-text", text: `합계 ${targetSum.toFixed(1)}%` })
+        ]),
+        categories.length === 0 ? el("div", { class: "empty-line", text: "분류 없음" }) : el("div", { class: "rebalance-list" }, categories.map((category) => {
+            const actualValue = valueByCategory.get(category) || 0;
+            const actualRatio = total > 0 ? (actualValue / total) * 100 : 0;
+            const targetRatio = categoryTarget(category);
+            const gap = targetRatio - actualRatio;
+            const moveAmount = total * (gap / 100);
+            return el("div", { class: "rebalance-row", "data-rebalance-category": category }, [
+                el("div", { class: "rebalance-row-head" }, [
+                    el("span", { text: category }),
+                    el("strong", { class: gap >= 0 ? "plus" : "minus", text: money(moveAmount) })
+                ]),
+                el("div", { class: "rebalance-controls" }, [
+                    el("span", { class: "rebalance-actual", text: `${actualRatio.toFixed(1)}%` }),
+                    el("input", {
+                        class: "form-control numeric-input target-input",
+                        type: "text",
+                        inputmode: "decimal",
+                        value: targetRatio || "",
+                        "data-target-category": category,
+                        oninput: (event) => {
+                            updateCategoryTarget(category, event.target.value);
+                            syncRebalanceMetrics();
+                        }
+                    }),
+                    el("span", { class: gap >= 0 ? "rebalance-gap plus" : "rebalance-gap minus", text: `${gap >= 0 ? "+" : ""}${gap.toFixed(1)}%` })
+                ])
+            ]);
+        }))
+    ]);
+}
+
 function categoryAllocation(holdings) {
     const map = new Map();
     for (const holding of holdings) {
@@ -753,6 +736,67 @@ function categoryAllocation(holdings) {
     return [...map.entries()]
         .map(([category, value]) => ({ category, value }))
         .sort((a, b) => b.value - a.value);
+}
+
+function portfolioCategoryNames() {
+    const names = new Set(state.categories.map((category) => category.name));
+    for (const holding of state.draftHoldings) {
+        const category = holding.category?.trim();
+        if (category) names.add(category);
+    }
+    return [...names].filter(Boolean);
+}
+
+function categoryTarget(name) {
+    return num(state.categories.find((category) => category.name === name)?.target_ratio);
+}
+
+function updateCategoryTarget(name, value) {
+    const targetRatio = Math.max(0, Math.min(100, num(value)));
+    const existing = state.categories.find((category) => category.name === name);
+    if (existing) {
+        existing.target_ratio = targetRatio;
+        return;
+    }
+    state.categories.push({
+        id: crypto.randomUUID(),
+        name,
+        color: paletteColor(state.categories.length),
+        target_ratio: targetRatio,
+        sort_order: state.categories.length
+    });
+}
+
+function syncRebalanceMetrics() {
+    const total = state.draftHoldings.reduce((sum, holding) => sum + holdingValue(holding), 0);
+    const allocation = categoryAllocation(state.draftHoldings);
+    const valueByCategory = new Map(allocation.map((item) => [item.category, item.value]));
+    const targetSum = portfolioCategoryNames().reduce((sum, category) => sum + categoryTarget(category), 0);
+    const summary = document.querySelector(".compact-title small");
+    if (summary) {
+        summary.textContent = `합계 ${targetSum.toFixed(1)}%`;
+        summary.className = targetSum > 100 ? "rebalance-warning" : "muted-text";
+    }
+
+    document.querySelectorAll("[data-rebalance-category]").forEach((row) => {
+        const category = row.dataset.rebalanceCategory;
+        const actualValue = valueByCategory.get(category) || 0;
+        const actualRatio = total > 0 ? (actualValue / total) * 100 : 0;
+        const gap = categoryTarget(category) - actualRatio;
+        const moveAmount = total * (gap / 100);
+        const amount = row.querySelector(".rebalance-row-head strong");
+        const actual = row.querySelector(".rebalance-actual");
+        const gapNode = row.querySelector(".rebalance-gap");
+        if (amount) {
+            amount.textContent = money(moveAmount);
+            amount.className = gap >= 0 ? "plus" : "minus";
+        }
+        if (actual) actual.textContent = `${actualRatio.toFixed(1)}%`;
+        if (gapNode) {
+            gapNode.textContent = `${gap >= 0 ? "+" : ""}${gap.toFixed(1)}%`;
+            gapNode.className = gap >= 0 ? "rebalance-gap plus" : "rebalance-gap minus";
+        }
+    });
 }
 
 function renderTrend() {
@@ -819,18 +863,38 @@ function drawPortfolioTrend() {
 
 function renderInsights({ total, cost, pnl, previous, previousTotal }) {
     const snapshot = activeSnapshot();
-    const biggest = categoryAllocation(state.draftHoldings)[0];
-    const largestHolding = [...state.draftHoldings].sort((a, b) => holdingValue(b) - holdingValue(a))[0];
+    const allocation = categoryAllocation(state.draftHoldings);
+    const biggest = allocation[0];
+    const meaningfulHoldings = state.draftHoldings.filter((holding) => holdingValue(holding) > 0);
+    const largestHolding = [...meaningfulHoldings].sort((a, b) => holdingValue(b) - holdingValue(a))[0];
     const sinceFirst = firstSnapshot();
     const firstTotal = sinceFirst ? snapshotTotal(sinceFirst) : 0;
     const sinceFirstReturn = firstTotal > 0 ? ((total - firstTotal) / firstTotal) * 100 : NaN;
+    const top3Value = [...meaningfulHoldings]
+        .sort((a, b) => holdingValue(b) - holdingValue(a))
+        .slice(0, 3)
+        .reduce((sum, holding) => sum + holdingValue(holding), 0);
+    const targetGapAmount = portfolioCategoryNames().reduce((sum, category) => {
+        const actual = allocation.find((item) => item.category === category)?.value || 0;
+        const target = total * (categoryTarget(category) / 100);
+        return sum + Math.abs(target - actual);
+    }, 0) / 2;
+    const targetSum = portfolioCategoryNames().reduce((sum, category) => sum + categoryTarget(category), 0);
+    const cashValue = allocation
+        .filter((item) => item.category.includes("현금") || item.category.toLowerCase().includes("cash"))
+        .reduce((sum, item) => sum + item.value, 0);
 
     return el("section", { class: "portfolio-side-block" }, [
-        el("h2", { class: "side-title", text: "요약" }),
+        el("h2", { class: "side-title", text: "통계" }),
         el("div", { class: "portfolio-insights" }, [
             insight("시점", snapshot ? `${snapshot.as_of_date} · ${snapshot.label || "무제"}` : "-"),
-            insight("최대 분류", biggest ? `${biggest.category} · ${money(biggest.value)}원` : "-"),
-            insight("최대 종목", largestHolding ? `${largestHolding.name || "무제"} · ${money(holdingValue(largestHolding))}원` : "-"),
+            insight("종목 수", `${meaningfulHoldings.length}개`),
+            insight("최대 분류", biggest ? `${biggest.category} · ${pct((biggest.value / Math.max(total, 1)) * 100)}` : "-"),
+            insight("최대 종목", largestHolding ? `${largestHolding.name || "무제"} · ${pct((holdingValue(largestHolding) / Math.max(total, 1)) * 100)}` : "-"),
+            insight("상위 3종목", total > 0 ? pct((top3Value / total) * 100) : "-"),
+            insight("현금 비중", total > 0 ? pct((cashValue / total) * 100) : "-"),
+            insight("목표 합계", `${targetSum.toFixed(1)}%`),
+            insight("조정 필요", targetGapAmount > 0 ? `${money(targetGapAmount)}원` : "-"),
             insight("전 시점", previous ? `${money(total - previousTotal)}원` : "-"),
             insight("최초 대비", Number.isFinite(sinceFirstReturn) ? pct(sinceFirstReturn) : "-"),
             insight("평단 손익", cost > 0 ? `${money(pnl)}원` : "-")
@@ -854,38 +918,6 @@ function previousSnapshot(snapshot) {
 
 function firstSnapshot() {
     return [...state.snapshots].sort((a, b) => new Date(a.as_of_date).getTime() - new Date(b.as_of_date).getTime())[0] || null;
-}
-
-function renderEvents() {
-    const form = el("form", { class: "portfolio-event-form", onsubmit: saveEvent }, [
-        el("input", { class: "form-control", type: "date", name: "event_date", value: today() }),
-        el("select", { class: "form-control", name: "event_type" }, Object.entries(EVENT_TYPES).map(([value, label]) => el("option", { value, text: label }))),
-        el("input", { class: "form-control", name: "symbol", placeholder: "종목/내용" }),
-        el("input", { class: "form-control", name: "quantity", type: "number", min: "0", step: "0.0001", placeholder: "수량" }),
-        el("input", { class: "form-control", name: "price", type: "number", min: "0", step: "0.01", placeholder: "단가" }),
-        el("input", { class: "form-control", name: "amount", type: "number", step: "0.01", placeholder: "금액" }),
-        el("input", { class: "form-control", name: "memo", placeholder: "메모" }),
-        el("button", { class: "secondary-button", type: "submit", text: "기록" })
-    ]);
-
-    return el("section", { class: "portfolio-block" }, [
-        el("div", { class: "portfolio-block-title" }, [el("h2", { text: "변동사항" })]),
-        form,
-        el("div", { class: "portfolio-events" }, state.events.length === 0
-            ? [el("div", { class: "empty-line", text: "아직 기록 없음" })]
-            : state.events.map(renderEventRow))
-    ]);
-}
-
-function renderEventRow(event) {
-    return el("div", { class: "portfolio-event-row" }, [
-        el("div", {}, [
-            el("strong", { text: `${event.event_date} · ${EVENT_TYPES[event.event_type] || event.event_type}` }),
-            el("span", { text: `${event.symbol} ${num(event.quantity) ? `${event.quantity}주` : ""} ${num(event.amount) ? `${money(event.amount)}원` : ""}` })
-        ]),
-        el("small", { text: event.memo || "" }),
-        el("button", { class: "text-action danger", type: "button", text: "삭제", onclick: () => deleteEvent(event.id) })
-    ]);
 }
 
 export function cleanupPortfolio() {

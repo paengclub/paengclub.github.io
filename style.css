@@ -193,6 +193,10 @@ button {
     margin: 0 auto;
 }
 
+.app-main:has(.portfolio-shell) {
+    width: min(1440px, calc(100% - 40px));
+}
+
 .page-shell {
     width: 100%;
     margin: 0 auto;
@@ -352,7 +356,7 @@ button {
 }
 
 .portfolio-shell {
-    max-width: 1180px;
+    max-width: 1440px;
 }
 
 .profile-shell {
@@ -551,15 +555,19 @@ button {
 .portfolio-inline-actions {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 8px;
     justify-content: flex-end;
 }
 
 .portfolio-status {
-    min-height: 1.4em;
-    margin: -8px 24px 14px;
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    margin: 0 0 0 4px;
     color: var(--app-muted);
-    font-size: 0.9rem;
+    font-size: 0.86rem;
+    font-weight: 700;
 }
 
 .portfolio-status.success {
@@ -573,7 +581,7 @@ button {
 
 .portfolio-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 310px;
+    grid-template-columns: minmax(0, 1fr) 360px;
     gap: 18px;
     padding: 0 24px;
     align-items: start;
@@ -669,7 +677,7 @@ button {
 .portfolio-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 880px;
+    min-width: 760px;
 }
 
 .portfolio-table th,
@@ -692,7 +700,7 @@ button {
 }
 
 .portfolio-table .form-control {
-    min-width: 88px;
+    min-width: 74px;
 }
 
 .numeric-input {
@@ -721,7 +729,8 @@ button {
 
 .allocation-list,
 .portfolio-insights,
-.portfolio-events {
+.portfolio-events,
+.rebalance-list {
     display: grid;
     gap: 10px;
 }
@@ -768,6 +777,77 @@ button {
 .allocation-row small {
     color: var(--app-muted);
     font-size: 0.8rem;
+}
+
+.compact-title {
+    margin-bottom: 10px;
+}
+
+.compact-title small {
+    font-size: 0.78rem;
+    font-weight: 760;
+}
+
+.rebalance-warning {
+    color: var(--app-danger);
+}
+
+.rebalance-row {
+    display: grid;
+    gap: 7px;
+    padding-top: 10px;
+    border-top: 1px solid var(--app-line);
+}
+
+.rebalance-row:first-child {
+    padding-top: 0;
+    border-top: 0;
+}
+
+.rebalance-row-head,
+.rebalance-controls {
+    display: grid;
+    align-items: center;
+    gap: 8px;
+}
+
+.rebalance-row-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.rebalance-row-head span {
+    overflow: hidden;
+    color: var(--app-text);
+    font-weight: 740;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rebalance-row-head strong,
+.rebalance-gap {
+    font-weight: 780;
+}
+
+.rebalance-controls {
+    grid-template-columns: 54px minmax(68px, 1fr) 58px;
+}
+
+.rebalance-actual {
+    color: var(--app-muted);
+    font-size: 0.82rem;
+}
+
+.target-input {
+    min-width: 0;
+    height: 34px;
+}
+
+.plus {
+    color: var(--app-primary);
+}
+
+.minus {
+    color: var(--app-danger);
 }
 
 .portfolio-trend-canvas {
@@ -1598,8 +1678,9 @@ button {
     }
 
     .portfolio-status {
-        margin-left: 14px;
-        margin-right: 14px;
+        flex-basis: 100%;
+        justify-content: center;
+        margin: 0;
     }
 
     .portfolio-grid {
