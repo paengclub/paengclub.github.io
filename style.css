@@ -576,6 +576,7 @@ button {
     grid-template-columns: minmax(0, 1fr) 310px;
     gap: 18px;
     padding: 0 24px;
+    align-items: start;
 }
 
 .portfolio-main,
@@ -583,6 +584,7 @@ button {
     display: grid;
     gap: 14px;
     align-content: start;
+    min-width: 0;
 }
 
 .portfolio-kpis {
@@ -623,6 +625,8 @@ button {
 .portfolio-block,
 .portfolio-side-block {
     padding: 14px;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .portfolio-block-title {
@@ -656,7 +660,10 @@ button {
 }
 
 .portfolio-table-wrap {
+    max-width: 100%;
+    min-width: 0;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
 }
 
 .portfolio-table {
@@ -760,6 +767,7 @@ button {
     display: block;
     width: 100%;
     height: 180px;
+    max-width: 100%;
 }
 
 .portfolio-event-form {
@@ -1463,6 +1471,16 @@ button {
     pointer-events: none;
 }
 
+@media (max-width: 1180px) {
+    .portfolio-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .portfolio-side {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
 @media (max-width: 760px) {
     .app-nav {
         padding: 6px 8px 4px;
@@ -1580,6 +1598,10 @@ button {
     .portfolio-grid {
         grid-template-columns: 1fr;
         padding: 0 14px;
+    }
+
+    .portfolio-side {
+        grid-template-columns: 1fr;
     }
 
     .portfolio-kpis {
