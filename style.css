@@ -650,7 +650,7 @@ button {
 
 .portfolio-snapshot-form {
     display: grid;
-    grid-template-columns: 150px minmax(130px, 1fr) minmax(160px, 1.3fr) auto auto;
+    grid-template-columns: 150px minmax(130px, 1fr) minmax(160px, 1.3fr) auto;
     gap: 8px;
     align-items: center;
 }
@@ -669,7 +669,7 @@ button {
 .portfolio-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 980px;
+    min-width: 880px;
 }
 
 .portfolio-table th,
@@ -696,7 +696,14 @@ button {
 }
 
 .numeric-input {
+    appearance: textfield;
     text-align: right;
+}
+
+.numeric-input::-webkit-outer-spin-button,
+.numeric-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 .portfolio-gain {

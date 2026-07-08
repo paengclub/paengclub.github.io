@@ -49,7 +49,7 @@ function today() {
 }
 
 function num(value) {
-    const parsed = Number(value);
+    const parsed = Number(String(value ?? "").replaceAll(",", ""));
     return Number.isFinite(parsed) ? parsed : 0;
 }
 
@@ -105,7 +105,6 @@ function categoryColor(name) {
 function emptyHolding(sortOrder = 0) {
     return {
         id: crypto.randomUUID(),
-        symbol: "",
         name: "",
         category: state.categories[0]?.name || "미분류",
         price: 0,
@@ -222,7 +221,6 @@ function normalizeDraft(holdings) {
         .sort((a, b) => num(a.sort_order) - num(b.sort_order))
         .map((holding, index) => ({
             id: holding.id || crypto.randomUUID(),
-            symbol: holding.symbol || "",
             name: holding.name || "",
             category: holding.category || "미분류",
             price: num(holding.price),
@@ -238,6 +236,10 @@ async function createSnapshot({ copyActive = false } = {}) {
     const session = getCurrentSession();
     if (!session) return;
     const base = activeSnapshot();
+    if (copyActive && !base) {
+        setStatus("복사할 시점이 없어요. 먼저 첫 시점을 만들어 주세요.", "danger");
+        return;
+    }
     const label = copyActive && base ? `${base.label || base.as_of_date} 복사본` : "새 시점";
 
     const { data, error } = await supabase
@@ -259,7 +261,7 @@ async function createSnapshot({ copyActive = false } = {}) {
         const copied = (base.portfolio_holdings || []).map((holding, index) => ({
             snapshot_id: data.id,
             user_id: session.user.id,
-            symbol: holding.symbol || "",
+            symbol: "",
             name: holding.name || "",
             category: holding.category || "미분류",
             price: num(holding.price),
@@ -281,22 +283,28 @@ async function createSnapshot({ copyActive = false } = {}) {
     await refresh(data.id, copyActive ? "이전 시점을 복사했어요." : "새 시점을 만들었어요.");
 }
 
-async function saveSnapshotMeta() {
+function snapshotMetaPayload() {
+    return {
+        label: document.getElementById("portfolioSnapshotLabel")?.value.trim() || "",
+        as_of_date: document.getElementById("portfolioSnapshotDate")?.value || today(),
+        note: document.getElementById("portfolioSnapshotNote")?.value.trim() || ""
+    };
+}
+
+async function saveSnapshotMeta({ refreshAfter = true } = {}) {
     const snapshot = activeSnapshot();
-    if (!snapshot) return;
-    const label = document.getElementById("portfolioSnapshotLabel")?.value.trim() || "";
-    const date = document.getElementById("portfolioSnapshotDate")?.value || today();
-    const note = document.getElementById("portfolioSnapshotNote")?.value.trim() || "";
+    if (!snapshot) return false;
 
     const { error } = await supabase
         .from("portfolio_snapshots")
-        .update({ label, as_of_date: date, note })
+        .update(snapshotMetaPayload())
         .eq("id", snapshot.id);
     if (error) {
         setStatus(error.message, "danger");
-        return;
+        return false;
     }
-    await refresh(snapshot.id, "시점 정보를 저장했어요.");
+    if (refreshAfter) await refresh(snapshot.id, "저장했어요.");
+    return true;
 }
 
 async function deleteSnapshot() {
@@ -317,16 +325,16 @@ async function deleteSnapshot() {
     await refresh("", "시점을 삭제했어요.");
 }
 
-async function saveHoldings() {
+async function saveHoldings({ refreshAfter = true } = {}) {
     const session = getCurrentSession();
     const snapshot = activeSnapshot();
-    if (!session || !snapshot) return;
+    if (!session || !snapshot) return false;
 
     const rows = state.draftHoldings
         .map((holding, index) => ({
             snapshot_id: snapshot.id,
             user_id: session.user.id,
-            symbol: holding.symbol.trim().slice(0, 20),
+            symbol: "",
             name: holding.name.trim().slice(0, 60),
             category: (holding.category.trim() || "미분류").slice(0, 40),
             price: roundMoney(holding.price),
@@ -336,22 +344,41 @@ async function saveHoldings() {
             memo: holding.memo.trim().slice(0, 300),
             sort_order: index
         }))
-        .filter((holding) => holding.name || holding.symbol || holding.market_value > 0);
+        .filter((holding) => holding.name || holding.market_value > 0);
 
-    await ensureCategoriesFromHoldings(rows);
+    try {
+        await ensureCategoriesFromHoldings(rows);
+    } catch (error) {
+        setStatus(error.message, "danger");
+        return false;
+    }
     const { error: deleteError } = await supabase.from("portfolio_holdings").delete().eq("snapshot_id", snapshot.id);
     if (deleteError) {
         setStatus(deleteError.message, "danger");
-        return;
+        return false;
     }
     if (rows.length > 0) {
         const { error } = await supabase.from("portfolio_holdings").insert(rows);
         if (error) {
             setStatus(error.message, "danger");
-            return;
+            return false;
         }
     }
-    await refresh(snapshot.id, "보유 종목을 저장했어요.");
+    if (refreshAfter) await refresh(snapshot.id, "저장했어요.");
+    return true;
+}
+
+async function savePortfolio() {
+    const snapshot = activeSnapshot();
+    if (!snapshot) {
+        setStatus("먼저 시점을 만들어 주세요.", "danger");
+        return;
+    }
+    const metaSaved = await saveSnapshotMeta({ refreshAfter: false });
+    if (!metaSaved) return;
+    const holdingsSaved = await saveHoldings({ refreshAfter: false });
+    if (!holdingsSaved) return;
+    await refresh(snapshot.id, "저장했어요.");
 }
 
 async function ensureCategoriesFromHoldings(rows) {
@@ -377,19 +404,30 @@ async function ensureCategoriesFromHoldings(rows) {
 async function addCategory() {
     const session = getCurrentSession();
     if (!session) return;
-    const name = document.getElementById("portfolioNewCategory")?.value.trim();
+    const input = document.getElementById("portfolioNewCategory");
+    const name = input?.value.trim().slice(0, 40);
     if (!name) return;
-    const { error } = await supabase.from("portfolio_categories").upsert({
+    const { data, error } = await supabase.from("portfolio_categories").upsert({
         user_id: session.user.id,
-        name: name.slice(0, 40),
+        name,
         color: paletteColor(state.categories.length),
         sort_order: state.categories.length
-    }, { onConflict: "user_id,name" });
+    }, { onConflict: "user_id,name" }).select("id, name, color, sort_order").single();
     if (error) {
         setStatus(error.message, "danger");
         return;
     }
-    await refresh(state.activeSnapshotId, "분류를 추가했어요.");
+    if (!state.categories.some((category) => category.name === name)) {
+        state.categories = [...state.categories, data || {
+            id: crypto.randomUUID(),
+            name,
+            color: paletteColor(state.categories.length),
+            sort_order: state.categories.length
+        }];
+    }
+    if (input) input.value = "";
+    renderLoaded();
+    setStatus("분류를 추가했어요.", "success");
 }
 
 function paletteColor(index) {
@@ -496,15 +534,17 @@ function renderLoaded() {
 }
 
 function renderHeader() {
+    const actions = state.snapshots.length > 0 ? [
+        el("button", { class: "secondary-button compact", type: "button", text: "현재 시점 복사", onclick: () => createSnapshot({ copyActive: true }) }),
+        el("button", { class: "primary-button compact", type: "button", text: "저장", onclick: savePortfolio })
+    ] : [];
+
     return el("div", { class: "section-header portfolio-header" }, [
         el("div", {}, [
             el("h1", { class: "section-title", text: "주식 분석" }),
             el("div", { class: "muted-text", text: "시점별 포트폴리오와 변동사항을 개인 기록으로 관리" })
         ]),
-        el("div", { class: "portfolio-header-actions" }, [
-            el("button", { class: "secondary-button compact", type: "button", text: "새 시점", onclick: () => createSnapshot() }),
-            el("button", { class: "primary-button compact", type: "button", text: "현재 시점 복사", onclick: () => createSnapshot({ copyActive: true }) })
-        ])
+        el("div", { class: "portfolio-header-actions" }, actions)
     ]);
 }
 
@@ -556,7 +596,6 @@ function renderSnapshotEditor(snapshot) {
             el("input", { id: "portfolioSnapshotDate", class: "form-control", type: "date", value: snapshot.as_of_date }),
             el("input", { id: "portfolioSnapshotLabel", class: "form-control", maxlength: "60", placeholder: "라벨", value: snapshot.label || "" }),
             el("input", { id: "portfolioSnapshotNote", class: "form-control", maxlength: "500", placeholder: "메모", value: snapshot.note || "" }),
-            el("button", { class: "secondary-button", type: "button", text: "저장", onclick: saveSnapshotMeta }),
             el("button", { class: "text-action danger", type: "button", text: "삭제", onclick: deleteSnapshot })
         ])
     ]);
@@ -569,8 +608,7 @@ function renderHoldingsEditor(total) {
             el("div", { class: "portfolio-inline-actions" }, [
                 el("input", { id: "portfolioNewCategory", class: "form-control", placeholder: "새 분류" }),
                 el("button", { class: "secondary-button compact", type: "button", text: "분류 추가", onclick: addCategory }),
-                el("button", { class: "secondary-button compact", type: "button", text: "종목 추가", onclick: addHoldingRow }),
-                el("button", { class: "primary-button compact", type: "button", text: "저장", onclick: saveHoldings })
+                el("button", { class: "secondary-button compact", type: "button", text: "종목 추가", onclick: addHoldingRow })
             ])
         ]),
         el("datalist", { id: "portfolioCategoryOptions" }, state.categories.map((category) => el("option", { value: category.name }))),
@@ -596,32 +634,32 @@ function renderHoldingRow(holding, index, total) {
     const value = holdingValue(holding);
     const cost = holdingCost(holding);
     const gain = cost > 0 ? value - cost : 0;
-    return el("tr", {}, [
+    return el("tr", { "data-holding-index": String(index) }, [
         el("td", {}, [
-            el("input", { class: "form-control", placeholder: "티커", value: holding.symbol, oninput: (event) => updateHolding(index, "symbol", event.target.value) }),
-            el("input", { class: "form-control mt-1", placeholder: "종목명", value: holding.name, oninput: (event) => updateHolding(index, "name", event.target.value) })
+            el("input", { class: "form-control", placeholder: "종목명", value: holding.name, oninput: (event) => updateHolding(index, "name", event.target.value) })
         ]),
         el("td", {}, [el("input", { class: "form-control", list: "portfolioCategoryOptions", value: holding.category, oninput: (event) => updateHolding(index, "category", event.target.value) })]),
-        el("td", {}, [moneyInput(holding.price, (valueInput) => updateCalculatedHolding(index, "price", valueInput))]),
-        el("td", {}, [moneyInput(holding.quantity, (valueInput) => updateCalculatedHolding(index, "quantity", valueInput), "0.0001")]),
-        el("td", {}, [moneyInput(value, (valueInput) => updateCalculatedHolding(index, "market_value", valueInput))]),
-        el("td", { text: total > 0 ? `${((value / total) * 100).toFixed(1)}%` : "-" }),
-        el("td", {}, [moneyInput(holding.avg_cost, (valueInput) => updateHolding(index, "avg_cost", num(valueInput)))]),
-        el("td", { class: gain >= 0 ? "portfolio-gain plus" : "portfolio-gain minus", text: cost > 0 ? money(gain) : "-" }),
+        el("td", {}, [moneyInput(holding.price, (valueInput) => updateCalculatedHolding(index, "price", valueInput), "portfolio-price-input")]),
+        el("td", {}, [moneyInput(holding.quantity, (valueInput) => updateCalculatedHolding(index, "quantity", valueInput), "portfolio-quantity-input")]),
+        el("td", {}, [moneyInput(value, (valueInput) => updateCalculatedHolding(index, "market_value", valueInput), "portfolio-value-input")]),
+        el("td", { class: "portfolio-ratio-cell", text: total > 0 ? `${((value / total) * 100).toFixed(1)}%` : "-" }),
+        el("td", {}, [moneyInput(holding.avg_cost, (valueInput) => {
+            updateHolding(index, "avg_cost", num(valueInput));
+            syncDraftMetrics();
+        }, "portfolio-cost-input")]),
+        el("td", { class: `portfolio-gain portfolio-gain-cell ${gain >= 0 ? "plus" : "minus"}`, text: cost > 0 ? money(gain) : "-" }),
         el("td", {}, [el("button", { class: "text-action danger", type: "button", text: "삭제", onclick: () => removeHoldingRow(index) })])
     ]);
 }
 
-function moneyInput(value, oninput, step = "0.01") {
+function moneyInput(value, oninput, extraClass = "") {
     const apply = (event) => oninput(event.target.value);
     return el("input", {
-        class: "form-control numeric-input",
-        type: "number",
-        min: "0",
-        step,
+        class: `form-control numeric-input ${extraClass}`.trim(),
+        type: "text",
+        inputmode: "decimal",
         value: value || "",
-        onchange: apply,
-        onblur: apply
+        onchange: apply
     });
 }
 
@@ -638,7 +676,42 @@ function updateCalculatedHolding(index, key, value) {
     if (key === "market_value" && num(holding.quantity) > 0) {
         holding.price = roundMoney(num(holding.market_value) / num(holding.quantity));
     }
-    renderLoaded();
+    syncDraftMetrics();
+}
+
+function syncDraftMetrics() {
+    const total = state.draftHoldings.reduce((sum, holding) => sum + holdingValue(holding), 0);
+    const activeElement = document.activeElement;
+
+    document.querySelectorAll("[data-holding-index]").forEach((row) => {
+        const index = Number(row.dataset.holdingIndex);
+        const holding = state.draftHoldings[index];
+        if (!holding) return;
+
+        const value = holdingValue(holding);
+        const cost = holdingCost(holding);
+        const gain = cost > 0 ? value - cost : 0;
+        const updates = [
+            [".portfolio-price-input", holding.price],
+            [".portfolio-quantity-input", holding.quantity],
+            [".portfolio-value-input", value],
+            [".portfolio-cost-input", holding.avg_cost]
+        ];
+
+        for (const [selector, nextValue] of updates) {
+            const input = row.querySelector(selector);
+            if (input && input !== activeElement) input.value = nextValue || "";
+        }
+
+        const ratioCell = row.querySelector(".portfolio-ratio-cell");
+        if (ratioCell) ratioCell.textContent = total > 0 ? `${((value / total) * 100).toFixed(1)}%` : "-";
+
+        const gainCell = row.querySelector(".portfolio-gain-cell");
+        if (gainCell) {
+            gainCell.textContent = cost > 0 ? money(gain) : "-";
+            gainCell.className = `portfolio-gain portfolio-gain-cell ${gain >= 0 ? "plus" : "minus"}`;
+        }
+    });
 }
 
 function addHoldingRow() {
@@ -757,7 +830,7 @@ function renderInsights({ total, cost, pnl, previous, previousTotal }) {
         el("div", { class: "portfolio-insights" }, [
             insight("시점", snapshot ? `${snapshot.as_of_date} · ${snapshot.label || "무제"}` : "-"),
             insight("최대 분류", biggest ? `${biggest.category} · ${money(biggest.value)}원` : "-"),
-            insight("최대 종목", largestHolding ? `${largestHolding.name || largestHolding.symbol} · ${money(holdingValue(largestHolding))}원` : "-"),
+            insight("최대 종목", largestHolding ? `${largestHolding.name || "무제"} · ${money(holdingValue(largestHolding))}원` : "-"),
             insight("전 시점", previous ? `${money(total - previousTotal)}원` : "-"),
             insight("최초 대비", Number.isFinite(sinceFirstReturn) ? pct(sinceFirstReturn) : "-"),
             insight("평단 손익", cost > 0 ? `${money(pnl)}원` : "-")
