@@ -1,8 +1,7 @@
 import {itineraries, members} from "/data.js";
 import {renderTimer} from "/timer.js";
-import {renderList} from "/itinlist.js";
-import {renderCalendar} from "/calendar.js";
 import {initBoardAuth, renderBoard} from "/board.js";
+import {renderPixelBoard} from "/canvas.js";
 
 document.body.onload = init;
 let current_rendered_page = 0;
@@ -32,22 +31,35 @@ function preprocessed() {
 }
 
 const darkModeSwitcherClassContent = "btn position-absolute bottom-0 end-0 btn-sm p-3 m-2 border-white rounded-5 ";
+function setTheme(theme) {
+    document.documentElement.setAttribute("data-bs-theme", theme);
+    document.getElementById("colorSwitcher").setAttribute("class", darkModeSwitcherClassContent + (theme == "dark" ? "btn-light" : "btn-dark"));
+}
+
+function initTheme() {
+    const savedTheme = localStorage.getItem("paengclub-theme");
+    const deviceTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    setTheme(savedTheme || deviceTheme);
+}
+
 function switchDarkMode() {
-    let current_status = document.documentElement.getAttribute("data-bs-theme");
-    if (current_status == 'light') {
-        document.documentElement.setAttribute("data-bs-theme", "dark");
-        document.getElementById("colorSwitcher").setAttribute("class", darkModeSwitcherClassContent + "btn-light");
-    }
-    else {
-        document.documentElement.setAttribute("data-bs-theme", "light");
-        document.getElementById("colorSwitcher").setAttribute("class", darkModeSwitcherClassContent + "btn-dark");
-    }
-    myRenderFunction();
+    const currentTheme = document.documentElement.getAttribute("data-bs-theme");
+    const nextTheme = currentTheme == "light" ? "dark" : "light";
+    localStorage.setItem("paengclub-theme", nextTheme);
+    setTheme(nextTheme);
 }
 
 function onButtonClick(buttonContent) {
     current_rendered_page = Number(buttonContent);
     myRenderFunction();
+}
+
+function setActiveNavButton() {
+    const buttonList = document.querySelectorAll('.nav-buttons');
+    for (let i = 0; i < buttonList.length; i++) {
+        if (Number(buttonList[i].id) == current_rendered_page) buttonList[i].classList.add("active", "fw-semibold");
+        else buttonList[i].classList.remove("active", "fw-semibold");
+    }
 }
 
 function init() {
@@ -59,12 +71,14 @@ function init() {
         });
     }
 
-    document.getElementById('colorSwitcher').setAttribute("class", darkModeSwitcherClassContent + "btn-light");
+    initTheme();
     document.getElementById('colorSwitcher').addEventListener("click", function() {
         switchDarkMode();
     });
 
-    initBoardAuth(myRenderFunction);
+    initBoardAuth(function() {
+        if (current_rendered_page == 1) myRenderFunction();
+    });
     preprocessed();
     myRenderFunction();
 }
@@ -74,12 +88,11 @@ function myRenderFunction() {
     // 1. delete all rendered elements
     // 2. add all new elements according to PAGE_YOURE_LOOKING_AT
     document.getElementById("screen").replaceChildren();
+    setActiveNavButton();
 
-    if (current_rendered_page == 0) renderTimer();
-    if (current_rendered_page == 1) renderCalendar();
-    if (current_rendered_page == 2) renderList(false);
-    if (current_rendered_page == 3) renderList(true);
-    if (current_rendered_page == 4) renderBoard();
+    if (current_rendered_page == 0) renderPixelBoard();
+    if (current_rendered_page == 1) renderBoard();
+    if (current_rendered_page == 2) renderTimer();
 }
 
 export {current_rendered_page, rankImageSet};

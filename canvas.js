@@ -1,0 +1,231 @@
+import { supabase } from "/supabaseClient.js";
+
+const GRID_WIDTH = 64;
+const GRID_HEIGHT = 48;
+const CANVAS_SCALE = 10;
+const pixels = new Set();
+
+let canvasElement = null;
+let context = null;
+let currentTool = "pen";
+let isDrawing = false;
+let flushTimer = null;
+let pixelChannel = null;
+const pendingDraws = new Map();
+const pendingErases = new Map();
+
+function keyOf(x, y) {
+    return `${x},${y}`;
+}
+
+function parseKey(key) {
+    return key.split(",").map(Number);
+}
+
+function el(tag, attrs = {}, children = []) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(attrs)) {
+        if (key === "class") node.className = value;
+        else if (key === "text") node.textContent = value;
+        else if (key.startsWith("on") && typeof value === "function") node.addEventListener(key.slice(2), value);
+        else if (value !== null && value !== undefined) node.setAttribute(key, value);
+    }
+    for (const child of children) {
+        if (typeof child === "string") node.appendChild(document.createTextNode(child));
+        else if (child) node.appendChild(child);
+    }
+    return node;
+}
+
+function setTool(tool) {
+    currentTool = tool;
+    document.querySelectorAll("[data-canvas-tool]").forEach((button) => {
+        button.classList.toggle("active", button.dataset.canvasTool === tool);
+    });
+}
+
+function drawCanvas() {
+    if (!context) return;
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvasElement.width, canvasElement.height);
+    context.fillStyle = "#111111";
+
+    for (const key of pixels) {
+        const [x, y] = parseKey(key);
+        context.fillRect(x * CANVAS_SCALE, y * CANVAS_SCALE, CANVAS_SCALE, CANVAS_SCALE);
+    }
+}
+
+function getPixelFromEvent(event) {
+    const rect = canvasElement.getBoundingClientRect();
+    const x = Math.floor(((event.clientX - rect.left) / rect.width) * GRID_WIDTH);
+    const y = Math.floor(((event.clientY - rect.top) / rect.height) * GRID_HEIGHT);
+
+    if (x < 0 || x >= GRID_WIDTH || y < 0 || y >= GRID_HEIGHT) return null;
+    return { x, y };
+}
+
+function queuePixel(x, y) {
+    const key = keyOf(x, y);
+    if (currentTool === "pen") {
+        pixels.add(key);
+        pendingErases.delete(key);
+        pendingDraws.set(key, { x, y });
+    } else {
+        pixels.delete(key);
+        pendingDraws.delete(key);
+        pendingErases.set(key, { x, y });
+    }
+
+    drawCanvas();
+    scheduleFlush();
+}
+
+function drawFromEvent(event) {
+    const pixel = getPixelFromEvent(event);
+    if (!pixel) return;
+    queuePixel(pixel.x, pixel.y);
+}
+
+function scheduleFlush() {
+    if (flushTimer) return;
+    flushTimer = window.setTimeout(flushChanges, 150);
+}
+
+async function flushChanges() {
+    flushTimer = null;
+    const draws = Array.from(pendingDraws.values());
+    const erases = Array.from(pendingErases.values());
+    pendingDraws.clear();
+    pendingErases.clear();
+
+    if (draws.length > 0) {
+        const { error } = await supabase.from("canvas_pixels").insert(draws, { ignoreDuplicates: true });
+        if (error) showCanvasStatus(error.message, "danger");
+    }
+
+    for (const pixel of erases) {
+        const { error } = await supabase.from("canvas_pixels").delete().eq("x", pixel.x).eq("y", pixel.y);
+        if (error) showCanvasStatus(error.message, "danger");
+    }
+}
+
+function showCanvasStatus(message, type = "secondary") {
+    const target = document.getElementById("canvasStatus");
+    if (!target) return;
+    target.className = `small text-${type}`;
+    target.textContent = message;
+}
+
+async function loadPixels() {
+    const { data, error } = await supabase.from("canvas_pixels").select("x,y");
+    if (error) {
+        showCanvasStatus(error.message, "danger");
+        return;
+    }
+
+    pixels.clear();
+    for (const pixel of data || []) pixels.add(keyOf(pixel.x, pixel.y));
+    drawCanvas();
+    showCanvasStatus("공유 그림판 연결됨");
+}
+
+function subscribePixels() {
+    if (pixelChannel) return;
+
+    pixelChannel = supabase
+        .channel("shared-pixel-board")
+        .on("postgres_changes", { event: "*", schema: "public", table: "canvas_pixels" }, (payload) => {
+            const row = payload.eventType === "DELETE" ? payload.old : payload.new;
+            if (!row) return;
+            const key = keyOf(row.x, row.y);
+            if (payload.eventType === "DELETE") pixels.delete(key);
+            else pixels.add(key);
+            drawCanvas();
+        })
+        .subscribe();
+}
+
+function createToolbar() {
+    const penButton = el("button", {
+        class: "btn btn-outline-dark active",
+        type: "button",
+        "data-canvas-tool": "pen",
+        text: "펜",
+        onclick: () => setTool("pen")
+    });
+    const eraserButton = el("button", {
+        class: "btn btn-outline-dark",
+        type: "button",
+        "data-canvas-tool": "eraser",
+        text: "지우개",
+        onclick: () => setTool("eraser")
+    });
+    const refreshButton = el("button", {
+        class: "btn btn-outline-secondary",
+        type: "button",
+        text: "새로고침",
+        onclick: loadPixels
+    });
+
+    return el("div", { class: "canvas-toolbar d-flex align-items-center flex-wrap gap-2 mb-3" }, [
+        el("div", { class: "btn-group", role: "group", "aria-label": "그림판 도구" }, [penButton, eraserButton]),
+        refreshButton,
+        el("span", { id: "canvasStatus", class: "small text-secondary", text: "불러오는 중..." })
+    ]);
+}
+
+function bindCanvasEvents() {
+    canvasElement.addEventListener("pointerdown", (event) => {
+        isDrawing = true;
+        canvasElement.setPointerCapture(event.pointerId);
+        drawFromEvent(event);
+    });
+
+    canvasElement.addEventListener("pointermove", (event) => {
+        if (!isDrawing) return;
+        drawFromEvent(event);
+    });
+
+    canvasElement.addEventListener("pointerup", async () => {
+        isDrawing = false;
+        if (flushTimer) {
+            window.clearTimeout(flushTimer);
+            await flushChanges();
+        }
+    });
+
+    canvasElement.addEventListener("pointercancel", () => {
+        isDrawing = false;
+    });
+}
+
+export async function renderPixelBoard() {
+    const root = document.getElementById("screen");
+    if (!root) return;
+
+    root.replaceChildren();
+    const wrapper = el("div", { class: "container pixel-shell mt-3" });
+    const header = el("div", { class: "pixel-header mb-3" }, [
+        el("h1", { class: "h4 mb-1", text: "공유 그림판" }),
+        el("div", { class: "text-body-secondary small", text: "로그인 없이 같이 찍어두는 흑백 픽셀 보드" })
+    ]);
+
+    canvasElement = el("canvas", {
+        id: "pixelCanvas",
+        width: String(GRID_WIDTH * CANVAS_SCALE),
+        height: String(GRID_HEIGHT * CANVAS_SCALE),
+        "aria-label": "공유 픽셀 그림판"
+    });
+    context = canvasElement.getContext("2d");
+    context.imageSmoothingEnabled = false;
+
+    wrapper.append(header, createToolbar(), el("div", { class: "pixel-canvas-frame" }, [canvasElement]));
+    root.appendChild(wrapper);
+
+    bindCanvasEvents();
+    setTool(currentTool);
+    drawCanvas();
+    subscribePixels();
+    await loadPixels();
+}
