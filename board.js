@@ -152,11 +152,19 @@ export async function initBoardAuth(onAuthChange) {
     rerenderApp = onAuthChange;
     const { data } = await supabase.auth.getSession();
     currentSession = data.session;
-    if (currentSession) await ensureProfile();
     renderAuthArea();
+    // Enrich the profile (avatar / display name) in the background so it never
+    // delays the first paint; only the auth-area avatar refreshes when it lands.
+    if (currentSession) ensureProfile().then(renderAuthArea);
 
+    let lastUserId = currentSession?.user?.id || null;
     supabase.auth.onAuthStateChange(async (_event, session) => {
+        const nextUserId = session?.user?.id || null;
         currentSession = session;
+        // Ignore the initial-session replay and periodic token refreshes; only
+        // re-render when the signed-in user actually changes (sign in / out).
+        if (nextUserId === lastUserId) return;
+        lastUserId = nextUserId;
         currentProfile = null;
         if (currentSession) await ensureProfile();
         renderAuthArea();

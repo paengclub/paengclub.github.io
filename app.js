@@ -72,7 +72,7 @@ function setActiveNavButton() {
     }
 }
 
-function init() {
+async function init() {
     // initializes the page
     const buttonList = document.querySelectorAll('.nav-buttons');
     for (let i = 0; i < buttonList.length; i++) {
@@ -86,10 +86,15 @@ function init() {
         switchDarkMode();
     });
 
-    initBoardAuth(function() {
+    preprocessed();
+
+    // Resolve the auth session before the first render so the board paints
+    // once (composer vs. login known up front) instead of rendering as a guest
+    // and then re-rendering the whole page once the session resolves.
+    await initBoardAuth(function() {
         if (current_rendered_page == 0 || current_rendered_page == 1) myRenderFunction();
     });
-    preprocessed();
+
     myRenderFunction();
 }
 
