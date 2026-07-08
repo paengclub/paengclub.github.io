@@ -1198,15 +1198,15 @@ button {
 
     .nav-tabs {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
         flex: 1;
         border-radius: var(--app-radius);
     }
 
     .nav-buttons {
         min-height: 32px;
-        padding: 0 3px;
-        font-size: 0.76rem;
+        padding: 0 2px;
+        font-size: 0.7rem;
     }
 
     .auth-area {
