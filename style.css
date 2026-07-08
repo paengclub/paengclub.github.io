@@ -1011,6 +1011,169 @@ button {
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
 }
 
+.tier-shell {
+    max-width: 900px;
+}
+
+.tier-panel {
+    padding-bottom: 24px;
+}
+
+.tier-add-form {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 24px 16px;
+}
+
+.tier-add-form.open {
+    display: flex;
+}
+
+.tier-add-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tier-add-row .form-control {
+    flex: 1;
+    min-width: 160px;
+}
+
+.tier-add-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.tier-status {
+    min-height: 1.4em;
+    padding: 0 24px;
+    color: var(--app-muted);
+    font-size: 0.86rem;
+}
+
+.tier-status:empty {
+    min-height: 0;
+}
+
+.tier-status.success {
+    color: var(--app-primary);
+}
+
+.tier-status.danger {
+    color: var(--app-danger);
+}
+
+.tier-board {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 8px 24px 0;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius);
+    overflow: hidden;
+}
+
+.tier-row {
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid var(--app-line);
+}
+
+.tier-row:last-child {
+    border-bottom: 0;
+}
+
+.tier-label {
+    display: flex;
+    flex: 0 0 60px;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    color: #ffffff;
+    font-size: 1.3rem;
+    font-weight: 800;
+}
+
+.tier-label-pool {
+    flex-basis: 76px;
+    width: 76px;
+    background: var(--app-surface-strong);
+    color: var(--app-muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.tier-dropzone {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 8px;
+    min-height: 96px;
+    padding: 8px;
+    background: var(--app-surface);
+}
+
+.tier-pool-zone {
+    background: color-mix(in srgb, var(--app-bg) 55%, transparent);
+}
+
+.tier-dropzone.drag-over {
+    background: color-mix(in srgb, var(--app-primary) 16%, var(--app-surface));
+}
+
+.tier-item {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    overflow: hidden;
+    border: 1px solid var(--app-line);
+    border-radius: 10px;
+    background: var(--app-surface-strong);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+.tier-item.dragging {
+    opacity: 0.35;
+}
+
+.tier-item img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+}
+
+.tier-item-label {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    overflow: hidden;
+    padding: 2px 4px;
+    color: #ffffff;
+    font-size: 0.64rem;
+    font-weight: 650;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.tier-ghost {
+    position: fixed;
+    z-index: 1000;
+    box-shadow: var(--app-shadow);
+    transform: scale(1.05);
+    pointer-events: none;
+}
+
 @media (max-width: 760px) {
     .app-nav {
         padding: 6px 8px 4px;
@@ -1159,6 +1322,33 @@ button {
     .pixel-canvas-frame {
         width: calc(100% - 28px);
         padding: 7px;
+    }
+
+    .tier-board {
+        margin: 8px 14px 0;
+    }
+
+    .tier-add-form,
+    .tier-status {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    .tier-item {
+        width: 64px;
+        height: 64px;
+    }
+
+    .tier-label {
+        flex-basis: 44px;
+        width: 44px;
+        font-size: 1.05rem;
+    }
+
+    .tier-label-pool {
+        flex-basis: 56px;
+        width: 56px;
+        font-size: 0.64rem;
     }
 
     .comment-input-row {
