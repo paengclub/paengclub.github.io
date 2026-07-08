@@ -134,10 +134,26 @@ function showCanvasStatus(message, type = "secondary") {
 async function loadPixels(showErrors = true) {
     if (pendingDraws.size > 0 || pendingErases.size > 0 || inflightKeys.size > 0) return;
     const epochAtRequest = writeEpoch;
-    const { data, error } = await supabase.from("canvas_pixels").select("x,y");
-    if (error) {
-        if (showErrors) showCanvasStatus(error.message, "danger");
-        return;
+
+    // The board holds up to 64*48 = 3072 pixels, but a Supabase select returns
+    // at most 1000 rows (the API "max rows" cap). Fetch every row in ordered
+    // pages so the snapshot is complete — otherwise each poll rebuilds from a
+    // different 1000-row subset and existing pixels flicker away.
+    const pageSize = 1000;
+    const rows = [];
+    for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+            .from("canvas_pixels")
+            .select("x,y")
+            .order("x", { ascending: true })
+            .order("y", { ascending: true })
+            .range(from, from + pageSize - 1);
+        if (error) {
+            if (showErrors) showCanvasStatus(error.message, "danger");
+            return;
+        }
+        rows.push(...(data || []));
+        if (!data || data.length < pageSize) break;
     }
 
     // If any local drawing happened while this snapshot was in flight, the
@@ -145,7 +161,7 @@ async function loadPixels(showErrors = true) {
     if (writeEpoch !== epochAtRequest || pendingDraws.size > 0 || pendingErases.size > 0 || inflightKeys.size > 0) return;
 
     pixels.clear();
-    for (const pixel of data || []) pixels.add(keyOf(pixel.x, pixel.y));
+    for (const pixel of rows) pixels.add(keyOf(pixel.x, pixel.y));
     drawCanvas();
 }
 
