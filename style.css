@@ -158,6 +158,31 @@ button {
     object-fit: cover;
 }
 
+.avatar-button {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--app-line);
+    border-radius: 50%;
+    color: var(--app-text);
+    background: transparent;
+    overflow: hidden;
+}
+
+.avatar-button:hover {
+    background: color-mix(in srgb, var(--app-surface-strong) 82%, transparent);
+}
+
+.avatar-fallback {
+    display: grid;
+    place-items: center;
+    color: #ffffff;
+    background: var(--app-primary);
+    font-weight: 780;
+}
+
 .avatar.small {
     width: 24px;
     height: 24px;
@@ -320,6 +345,61 @@ button {
 
 .games-shell {
     max-width: 980px;
+}
+
+.profile-shell {
+    max-width: 680px;
+}
+
+.profile-panel {
+    padding-bottom: 24px;
+}
+
+.profile-content {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 22px;
+    padding: 0 24px 24px;
+}
+
+.profile-preview {
+    display: grid;
+    place-items: center;
+}
+
+.profile-avatar-preview {
+    width: 160px;
+    height: 160px;
+    border: 1px solid var(--app-line);
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--app-surface-strong);
+}
+
+.profile-controls {
+    display: grid;
+    align-content: start;
+    gap: 12px;
+}
+
+.profile-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.profile-status {
+    min-height: 1.35em;
+    color: var(--app-muted);
+    font-size: 0.9rem;
+}
+
+.profile-status.success {
+    color: var(--app-primary);
+}
+
+.profile-status.danger {
+    color: var(--app-danger);
 }
 
 .board-panel {
@@ -895,6 +975,22 @@ button {
     .composer {
         margin-left: 14px;
         margin-right: 14px;
+    }
+
+    .profile-content {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 0 14px 18px;
+    }
+
+    .profile-avatar-preview {
+        width: 128px;
+        height: 128px;
+    }
+
+    .profile-actions {
+        display: grid;
+        grid-template-columns: 1fr;
     }
 
     .pixel-canvas-frame {
