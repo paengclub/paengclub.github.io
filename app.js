@@ -4,6 +4,7 @@ import {initBoardAuth, renderBoard} from "/board.js";
 import {cleanupPixelBoard, renderPixelBoard} from "/canvas.js";
 import {cleanupGames, renderGames} from "/games.js";
 import {cleanupWeightTracker, renderWeightTracker} from "/weight.js";
+import {cleanupPortfolio, renderPortfolio} from "/portfolio.js";
 import {cleanupGameTier, renderGameTier} from "/tier.js";
 
 document.body.onload = init;
@@ -92,7 +93,7 @@ async function init() {
     // once (composer vs. login known up front) instead of rendering as a guest
     // and then re-rendering the whole page once the session resolves.
     await initBoardAuth(function() {
-        if (current_rendered_page == 0 || current_rendered_page == 1) myRenderFunction();
+        if (current_rendered_page == 0 || current_rendered_page == 1 || current_rendered_page == 5) myRenderFunction();
     });
 
     myRenderFunction();
@@ -105,7 +106,8 @@ function myRenderFunction() {
     if (current_rendered_page != 1) cleanupGames();
     if (current_rendered_page != 2) cleanupPixelBoard();
     if (current_rendered_page != 4) cleanupWeightTracker();
-    if (current_rendered_page != 5) cleanupGameTier();
+    if (current_rendered_page != 5) cleanupPortfolio();
+    if (current_rendered_page != 6) cleanupGameTier();
     document.getElementById("screen").replaceChildren();
     setActiveNavButton();
 
@@ -114,7 +116,8 @@ function myRenderFunction() {
     if (current_rendered_page == 2) renderPixelBoard();
     if (current_rendered_page == 3) renderTimer();
     if (current_rendered_page == 4) renderWeightTracker();
-    if (current_rendered_page == 5) renderGameTier();
+    if (current_rendered_page == 5) renderPortfolio();
+    if (current_rendered_page == 6) renderGameTier();
 }
 
 export {current_rendered_page, rankImageSet};

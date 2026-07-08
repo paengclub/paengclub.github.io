@@ -48,7 +48,7 @@ function el(tag, attrs = {}, children = []) {
     return node;
 }
 
-async function signInWithGoogle() {
+export async function signInWithGoogle() {
     const redirectTo = `${window.location.origin}${window.location.pathname}`;
     const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",

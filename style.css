@@ -351,6 +351,10 @@ button {
     max-width: 1040px;
 }
 
+.portfolio-shell {
+    max-width: 1180px;
+}
+
 .profile-shell {
     max-width: 680px;
 }
@@ -533,6 +537,291 @@ button {
     place-items: center;
     color: var(--app-muted);
     font-size: 0.95rem;
+}
+
+.portfolio-panel {
+    padding-bottom: 24px;
+}
+
+.portfolio-header {
+    align-items: flex-start;
+}
+
+.portfolio-header-actions,
+.portfolio-inline-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.portfolio-status {
+    min-height: 1.4em;
+    margin: -8px 24px 14px;
+    color: var(--app-muted);
+    font-size: 0.9rem;
+}
+
+.portfolio-status.success {
+    color: var(--app-primary);
+}
+
+.portfolio-status.danger,
+.portfolio-error {
+    color: var(--app-danger);
+}
+
+.portfolio-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 310px;
+    gap: 18px;
+    padding: 0 24px;
+}
+
+.portfolio-main,
+.portfolio-side {
+    display: grid;
+    gap: 14px;
+    align-content: start;
+}
+
+.portfolio-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.portfolio-kpi,
+.portfolio-block,
+.portfolio-side-block,
+.portfolio-login-panel,
+.portfolio-empty {
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius);
+    background: var(--app-surface-strong);
+}
+
+.portfolio-kpi {
+    display: grid;
+    gap: 4px;
+    min-height: 94px;
+    padding: 14px;
+}
+
+.portfolio-kpi span,
+.portfolio-kpi small,
+.portfolio-footnote {
+    color: var(--app-muted);
+}
+
+.portfolio-kpi strong {
+    color: var(--app-text);
+    font-size: 1.2rem;
+    font-weight: 780;
+}
+
+.portfolio-block,
+.portfolio-side-block {
+    padding: 14px;
+}
+
+.portfolio-block-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.portfolio-block-title h2 {
+    margin: 0;
+    color: var(--app-text);
+    font-size: 1rem;
+    font-weight: 760;
+}
+
+.portfolio-snapshot-select {
+    width: min(320px, 100%);
+}
+
+.portfolio-snapshot-form {
+    display: grid;
+    grid-template-columns: 150px minmax(130px, 1fr) minmax(160px, 1.3fr) auto auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.portfolio-inline-actions .form-control {
+    width: 128px;
+}
+
+.portfolio-table-wrap {
+    overflow-x: auto;
+}
+
+.portfolio-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 980px;
+}
+
+.portfolio-table th,
+.portfolio-table td {
+    padding: 8px 6px;
+    border-top: 1px solid var(--app-line);
+    vertical-align: middle;
+}
+
+.portfolio-table th {
+    color: var(--app-muted);
+    font-size: 0.78rem;
+    font-weight: 760;
+    white-space: nowrap;
+}
+
+.portfolio-table td {
+    color: var(--app-text);
+    font-size: 0.9rem;
+}
+
+.portfolio-table .form-control {
+    min-width: 88px;
+}
+
+.numeric-input {
+    text-align: right;
+}
+
+.portfolio-gain {
+    white-space: nowrap;
+    font-weight: 760;
+}
+
+.portfolio-gain.plus {
+    color: var(--app-primary);
+}
+
+.portfolio-gain.minus {
+    color: var(--app-danger);
+}
+
+.allocation-list,
+.portfolio-insights,
+.portfolio-events {
+    display: grid;
+    gap: 10px;
+}
+
+.allocation-row {
+    display: grid;
+    gap: 5px;
+}
+
+.allocation-line,
+.insight-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.allocation-line span,
+.insight-row span,
+.portfolio-event-row small {
+    color: var(--app-muted);
+}
+
+.allocation-line strong,
+.insight-row strong {
+    color: var(--app-text);
+    font-size: 0.9rem;
+    text-align: right;
+}
+
+.allocation-bar {
+    height: 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--app-bg) 78%, var(--app-line));
+    overflow: hidden;
+}
+
+.allocation-bar span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+}
+
+.allocation-row small {
+    color: var(--app-muted);
+    font-size: 0.8rem;
+}
+
+.portfolio-trend-canvas {
+    display: block;
+    width: 100%;
+    height: 180px;
+}
+
+.portfolio-event-form {
+    display: grid;
+    grid-template-columns: 140px 110px minmax(110px, 1fr) 90px 100px 110px minmax(140px, 1.2fr) auto;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.portfolio-event-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(80px, 0.7fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--app-line);
+}
+
+.portfolio-event-row div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.portfolio-event-row strong,
+.portfolio-event-row span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.portfolio-event-row span {
+    color: var(--app-muted);
+    font-size: 0.86rem;
+}
+
+.portfolio-login-panel,
+.portfolio-empty {
+    display: grid;
+    gap: 12px;
+    margin: 0 24px;
+    padding: 24px;
+}
+
+.portfolio-login-panel {
+    max-width: 520px;
+}
+
+.portfolio-empty span {
+    color: var(--app-muted);
+}
+
+.portfolio-loading,
+.portfolio-error {
+    margin: 0 24px;
+    padding: 24px;
+}
+
+.portfolio-footnote {
+    padding: 18px 24px 0;
+    font-size: 0.78rem;
+    text-align: right;
 }
 
 .board-panel {
@@ -1198,15 +1487,18 @@ button {
 
     .nav-tabs {
         display: grid;
-        grid-template-columns: repeat(6, minmax(0, 1fr));
+        grid-template-columns: repeat(7, minmax(0, 1fr));
         flex: 1;
         border-radius: var(--app-radius);
     }
 
     .nav-buttons {
         min-height: 32px;
-        padding: 0 2px;
-        font-size: 0.7rem;
+        padding: 0 1px;
+        font-size: 0.62rem;
+        line-height: 1.08;
+        white-space: normal;
+        word-break: keep-all;
     }
 
     .auth-area {
@@ -1263,6 +1555,71 @@ button {
 
     .weight-controls button:not(.icon-button) {
         grid-column: span 2;
+    }
+
+    .portfolio-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .portfolio-header-actions,
+    .portfolio-inline-actions {
+        justify-content: stretch;
+    }
+
+    .portfolio-header-actions > *,
+    .portfolio-inline-actions > * {
+        flex: 1;
+    }
+
+    .portfolio-status {
+        margin-left: 14px;
+        margin-right: 14px;
+    }
+
+    .portfolio-grid {
+        grid-template-columns: 1fr;
+        padding: 0 14px;
+    }
+
+    .portfolio-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .portfolio-snapshot-form,
+    .portfolio-event-form {
+        grid-template-columns: 1fr;
+    }
+
+    .portfolio-block-title {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .portfolio-inline-actions .form-control {
+        width: auto;
+    }
+
+    .portfolio-event-row {
+        grid-template-columns: 1fr auto;
+    }
+
+    .portfolio-event-row small {
+        grid-column: 1 / -1;
+    }
+
+    .portfolio-login-panel,
+    .portfolio-empty,
+    .portfolio-loading,
+    .portfolio-error {
+        margin-left: 14px;
+        margin-right: 14px;
+    }
+
+    .portfolio-footnote {
+        padding-left: 14px;
+        padding-right: 14px;
+        text-align: left;
     }
 
     .weight-chart-shell {
