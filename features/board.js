@@ -1,3 +1,6 @@
+// features/board.js — 게시판 (posts + comments) AND the app's auth/session
+// module. Owns Google sign-in and the current session; other tabs import
+// getCurrentSession / getCurrentPlayerName / signInWithGoogle from here.
 import { supabase } from "/supabaseClient.js";
 import { el } from "/lib/dom.js";
 

@@ -1,3 +1,7 @@
+// features/tier.js — 게임 티어, a shared S/A/B/C/D/F tier list. Anyone (even
+// logged out) can add a game (image upload to the tier-games bucket) and
+// drag/drop it between tiers; positions sync via Supabase realtime + a poll.
+// Exports renderGameTier, cleanupGameTier.
 import { supabase } from "/supabaseClient.js";
 import { el } from "/lib/dom.js";
 

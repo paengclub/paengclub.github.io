@@ -1,3 +1,8 @@
+// features/games.js — 미니게임 hub: reaction / taprush / memory / tetris, each
+// a small self-contained game that posts to the shared game_scores leaderboard
+// (TOP 3 + per-player best). Tetris uses a custom DAS/ARR key-repeat loop and a
+// hold piece. Exports renderGames, cleanupGames (cleanupTimers releases every
+// game's timers + the tetris input loop/listeners).
 import { supabase } from "/supabaseClient.js";
 import { getCurrentPlayerName, getCurrentSession } from "/features/board.js";
 import { el } from "/lib/dom.js";

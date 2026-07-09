@@ -1,3 +1,7 @@
+// features/canvas.js — 그림판, a shared 64x48 pixel board. Optimistic local
+// edits + Supabase realtime for live sync + a periodic full-board reconcile
+// (paginated, so it survives >1000 rows). Exports renderPixelBoard,
+// cleanupPixelBoard.
 import { supabase } from "/supabaseClient.js";
 import { el } from "/lib/dom.js";
 

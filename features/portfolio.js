@@ -1,3 +1,8 @@
+// features/portfolio.js — 자산관리, a login-gated personal asset dashboard.
+// Two lenses over per-user, snapshot-based data (portfolio_snapshots/holdings/
+// categories): 현황 (whole-asset tracking) and 리밸런싱 (investment-only vs
+// target). Charts are inline SVG (donuts / line / stacked bars). Exports
+// renderPortfolio, cleanupPortfolio. All state lives in the module-level `state`.
 import { getCurrentSession, signInWithGoogle } from "/features/board.js";
 import { supabase } from "/supabaseClient.js";
 import { el, svg } from "/lib/dom.js";

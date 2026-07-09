@@ -1,3 +1,7 @@
+// features/weight.js — 체중, a zoomable/pannable weight-over-time line chart
+// (canvas) for each tracked person. Data comes from Supabase
+// (weight_people + weight_records). Exports renderWeightTracker,
+// cleanupWeightTracker.
 import { supabase } from "/supabaseClient.js";
 import { el } from "/lib/dom.js";
 import { cssVar, num } from "/lib/format.js";

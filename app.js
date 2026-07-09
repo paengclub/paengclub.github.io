@@ -1,3 +1,6 @@
+// app.js — the app shell / router. Wires the nav, theme toggle and auth, then
+// switches tabs: each numeric page id maps to one /features module's
+// render*/cleanup* pair (see myRenderFunction + ARCHITECTURE.md).
 import {itineraries, members} from "/data.js";
 import {renderTimer} from "/features/timer.js";
 import {initBoardAuth, renderBoard} from "/features/board.js";

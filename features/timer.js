@@ -1,3 +1,8 @@
+// features/timer.js — 디데이, the original tab: a live progress card per member
+// (discharge % + rank/leave schedule) built from the static data in /data.js.
+// Imports current_rendered_page from /app.js so its interval only redraws while
+// this tab is showing (the one intentional feature -> app circular import).
+// Exports renderTimer.
 import {itineraries, members} from "/data.js";
 import {current_rendered_page} from "/app.js";
 

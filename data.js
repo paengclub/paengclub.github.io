@@ -1,3 +1,7 @@
+// data.js — static seed data for the 디데이 tab (features/timer.js): the group's
+// members (service dates/rank/branch) and one-off itinerary events. Edited by
+// hand. (The weight tab used to keep hard-coded data here too; that moved to
+// Supabase — see migrations/20260709_weight_tracking.sql.)
 let itineraries = [
     {name:'예지민', date:'2024-04-15', type:'한국 귀국'},
     {name:'김현서', date:'2024-09-12', type:'훈련소 수료'},
