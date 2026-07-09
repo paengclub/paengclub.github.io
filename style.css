@@ -2127,6 +2127,122 @@ button {
     background: var(--app-primary);
 }
 
+.tetris-wrap {
+    display: grid;
+    gap: 12px;
+    justify-items: center;
+}
+
+.tetris-hud {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    max-width: 220px;
+}
+
+.tetris-hud-item {
+    display: grid;
+    gap: 1px;
+}
+
+.tetris-hud-item span {
+    color: var(--app-muted);
+    font-size: 0.7rem;
+    font-weight: 640;
+}
+
+.tetris-hud-item strong {
+    color: var(--app-text);
+    font-size: 0.98rem;
+    font-weight: 800;
+}
+
+.tetris-next-wrap {
+    display: grid;
+    gap: 3px;
+    margin-left: auto;
+    justify-items: center;
+}
+
+.tetris-next-wrap span {
+    color: var(--app-muted);
+    font-size: 0.7rem;
+    font-weight: 640;
+}
+
+.tetris-next-canvas {
+    border: 1px solid var(--app-line);
+    border-radius: 4px;
+    background: var(--app-bg);
+}
+
+.tetris-board-wrap {
+    position: relative;
+    line-height: 0;
+}
+
+.tetris-canvas {
+    display: block;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius);
+    touch-action: none;
+}
+
+.tetris-start-btn {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: var(--app-radius);
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.55);
+    font-size: 1.1rem;
+    font-weight: 780;
+}
+
+.tetris-controls {
+    display: grid;
+    grid-template-columns: repeat(3, 52px);
+    grid-template-areas: "left rotate right" "soft soft hard";
+    gap: 8px;
+    width: 100%;
+    max-width: 220px;
+}
+
+.tetris-controls .tetris-btn-wide {
+    grid-column: span 1;
+}
+
+.tetris-controls .tetris-btn:nth-child(4) {
+    grid-column: 1 / span 2;
+}
+
+.tetris-controls .tetris-btn:nth-child(5) {
+    grid-column: 3;
+}
+
+.tetris-btn {
+    min-height: 42px;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius-sm);
+    color: var(--app-text);
+    background: color-mix(in srgb, var(--app-bg) 72%, var(--app-surface-strong));
+    font-size: 1rem;
+    font-weight: 720;
+    touch-action: manipulation;
+}
+
+.tetris-btn:active {
+    color: #ffffff;
+    background: var(--app-primary);
+}
+
+.tetris-btn-wide {
+    font-size: 0.8rem;
+}
+
 .game-side {
     display: grid;
     gap: 14px;
