@@ -1,4 +1,4 @@
-import { weightData } from "/data.js";
+import { supabase } from "/supabaseClient.js";
 
 const dayMs = 24 * 60 * 60 * 1000;
 const padding = {
@@ -18,6 +18,7 @@ let fullDateBounds = null;
 let viewStart = 0;
 let viewEnd = 0;
 let plottedPoints = [];
+let weightData = [];
 let isDragging = false;
 let lastDragX = 0;
 let resizeHandler = null;
@@ -212,9 +213,9 @@ function buildTrend(records) {
     if (points.length <= 2) return points;
 
     const span = Math.max(viewEnd - viewStart, dayMs);
-    const sampleCount = Math.min(96, Math.max(28, Math.round(span / (dayMs * 2))));
+    const sampleCount = Math.min(110, Math.max(24, Math.round(span / dayMs)));
     const step = span / (sampleCount - 1);
-    const bandwidth = Math.max(span / 10, dayMs * 7);
+    const bandwidth = Math.max(span / 22, dayMs * 3);
     const trend = [];
 
     for (let i = 0; i < sampleCount; i += 1) {
@@ -457,8 +458,49 @@ function anchorRatio(clientX) {
 
 function initializeViewport() {
     fullDateBounds = getFullDateBounds(allRecords());
-    viewStart = fullDateBounds.minDate;
+    selectedRange = "30";
+    viewStart = Math.max(fullDateBounds.minDate, fullDateBounds.maxDate - 29 * dayMs);
     viewEnd = fullDateBounds.maxDate;
+}
+
+async function loadWeightData() {
+    const [peopleResult, recordsResult] = await Promise.all([
+        supabase
+            .from("weight_people")
+            .select("id, name, goal, color, sort_order")
+            .order("sort_order", { ascending: true })
+            .order("name", { ascending: true }),
+        supabase
+            .from("weight_records")
+            .select("person_id, record_date, weight, memo")
+            .order("record_date", { ascending: true })
+    ]);
+
+    if (peopleResult.error) throw peopleResult.error;
+    if (recordsResult.error) throw recordsResult.error;
+
+    const recordsByPerson = new Map();
+    for (const record of recordsResult.data || []) {
+        if (!recordsByPerson.has(record.person_id)) recordsByPerson.set(record.person_id, []);
+        recordsByPerson.get(record.person_id).push({
+            date: record.record_date,
+            weight: num(record.weight),
+            memo: record.memo || ""
+        });
+    }
+
+    weightData = (peopleResult.data || []).map((person) => ({
+        id: person.id,
+        name: person.name,
+        goal: person.goal,
+        color: person.color,
+        records: recordsByPerson.get(person.id) || []
+    }));
+}
+
+function num(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function renderShell() {
@@ -554,7 +596,7 @@ export function cleanupWeightTracker() {
     legend = null;
 }
 
-export function renderWeightTracker() {
+export async function renderWeightTracker() {
     cleanupWeightTracker();
     const root = document.getElementById("screen");
     if (!root) return;
@@ -566,12 +608,21 @@ export function renderWeightTracker() {
     tooltip = document.getElementById("weightTooltip");
     emptyState = document.getElementById("weightEmptyState");
     legend = document.getElementById("weightLegend");
-    selectedRange = "all";
+    selectedRange = "30";
     plottedPoints = [];
     isDragging = false;
 
-    initializeViewport();
-    bindControls();
-    renderLegend();
-    renderChart();
+    try {
+        emptyState.hidden = false;
+        emptyState.textContent = "불러오는 중...";
+        await loadWeightData();
+        initializeViewport();
+        bindControls();
+        renderLegend();
+        renderChart();
+    } catch (error) {
+        console.error(error);
+        emptyState.hidden = false;
+        emptyState.textContent = "체중 데이터를 불러오지 못했습니다. Supabase 테이블을 확인해 주세요.";
+    }
 }
