@@ -1072,6 +1072,13 @@ button {
 
 .portfolio-login-panel {
     max-width: 520px;
+    margin-right: auto;
+    margin-left: auto;
+    text-align: center;
+}
+
+.portfolio-login-panel .primary-button {
+    justify-self: center;
 }
 
 .portfolio-empty span {
