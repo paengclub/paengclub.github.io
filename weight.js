@@ -1,65 +1,5 @@
 import { supabase } from "/supabaseClient.js";
 
-const fallbackWeightData = [
-    {
-        id: "paeng",
-        name: "paeng",
-        goal: "loss",
-        color: "#2f7dd3",
-        records: [
-            { date: "2024-08-07", weight: 67.4 },
-            { date: "2024-11-15", weight: 68.5 },
-            { date: "2025-06-13", weight: 65.2 },
-            { date: "2026-01-12", weight: 73.4 },
-            { date: "2026-04-26", weight: 70.6 },
-            { date: "2026-05-12", weight: 70.1 },
-            { date: "2026-05-16", weight: 70.3 },
-            { date: "2026-05-28", weight: 69.6 },
-            { date: "2026-05-29", weight: 69.7 },
-            { date: "2026-06-01", weight: 70.3 },
-            { date: "2026-06-05", weight: 69.5 },
-            { date: "2026-06-10", weight: 70.1 },
-            { date: "2026-06-11", weight: 70.3 },
-            { date: "2026-06-14", weight: 70.4 },
-            { date: "2026-06-22", weight: 70.0 },
-            { date: "2026-06-27", weight: 70.1 },
-            { date: "2026-06-30", weight: 69.7 },
-            { date: "2026-07-01", weight: 69.2 },
-            { date: "2026-07-04", weight: 70.7 },
-            { date: "2026-07-05", weight: 69.9 },
-            { date: "2026-07-06", weight: 69.6 },
-            { date: "2026-07-08", weight: 69.2 }
-        ]
-    },
-    {
-        id: "okh",
-        name: "okh",
-        goal: "gain",
-        color: "#d16a45",
-        records: [
-            { date: "2024-08-07", weight: 59.0 },
-            { date: "2024-11-15", weight: 61.0 },
-            { date: "2025-06-13", weight: 61.5 },
-            { date: "2026-01-12", weight: 66.0 },
-            { date: "2026-04-26", weight: 66.5 },
-            { date: "2026-05-12", weight: 67.6 },
-            { date: "2026-05-16", weight: 66.8 },
-            { date: "2026-05-28", weight: 66.2 },
-            { date: "2026-05-29", weight: 67.2 },
-            { date: "2026-06-01", weight: 66.4 },
-            { date: "2026-06-05", weight: 66.7 },
-            { date: "2026-06-10", weight: 66.5 },
-            { date: "2026-06-13", weight: 66.2 },
-            { date: "2026-06-18", weight: 67.3 },
-            { date: "2026-06-25", weight: 66.1 },
-            { date: "2026-06-28", weight: 66.0 },
-            { date: "2026-06-30", weight: 66.6 },
-            { date: "2026-07-04", weight: 65.8 },
-            { date: "2026-07-06", weight: 64.5 }
-        ]
-    }
-];
-
 const dayMs = 24 * 60 * 60 * 1000;
 const padding = {
     top: 22,
@@ -596,18 +536,6 @@ async function loadWeightData() {
     }));
 }
 
-function useFallbackWeightData() {
-    weightData = fallbackWeightData.map((person) => ({
-        ...person,
-        records: person.records.map((record) => ({ ...record }))
-    }));
-}
-
-function isMissingWeightTable(error) {
-    const message = String(error?.message || "");
-    return message.includes("weight_people") || message.includes("weight_records") || message.includes("schema cache");
-}
-
 function num(value) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
@@ -732,14 +660,6 @@ export async function renderWeightTracker() {
         renderChart();
     } catch (error) {
         console.warn(error);
-        if (isMissingWeightTable(error)) {
-            useFallbackWeightData();
-            initializeViewport();
-            bindControls();
-            renderLegend();
-            renderChart();
-            return;
-        }
         emptyState.hidden = false;
         emptyState.textContent = "체중 데이터를 불러오지 못했습니다.";
     }
