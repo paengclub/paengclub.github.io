@@ -181,17 +181,56 @@ function viewportSeries() {
         .filter((person) => person.records.length > 0);
 }
 
+function niceStep(rawStep) {
+    if (!Number.isFinite(rawStep) || rawStep <= 0) {
+        return 1;
+    }
+
+    const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+    const normalized = rawStep / magnitude;
+
+    if (normalized <= 1) {
+        return magnitude;
+    }
+    if (normalized <= 2) {
+        return 2 * magnitude;
+    }
+    if (normalized <= 2.5) {
+        return 2.5 * magnitude;
+    }
+    if (normalized <= 5) {
+        return 5 * magnitude;
+    }
+    return 10 * magnitude;
+}
+
+function niceWeightTicks(minWeight, maxWeight, targetCount = 5) {
+    const span = Math.max(maxWeight - minWeight, 0.5);
+    const step = Math.max(0.1, niceStep(span / targetCount));
+    const start = Math.floor(minWeight / step) * step;
+    const end = Math.ceil(maxWeight / step) * step;
+    const ticks = [];
+
+    for (let value = start; value <= end + step / 2; value += step) {
+        ticks.push(Math.round(value * 10) / 10);
+    }
+
+    return ticks;
+}
+
 function getBounds(series) {
     const records = series.flatMap((person) => person.records);
     const minWeight = Math.min(...records.map((record) => record.weight));
     const maxWeight = Math.max(...records.map((record) => record.weight));
     const weightRange = Math.max(maxWeight - minWeight, 1);
+    const yTicks = niceWeightTicks(minWeight - weightRange * 0.16, maxWeight + weightRange * 0.16);
 
     return {
         minDate: viewStart,
         maxDate: viewEnd,
-        minWeight: Math.floor((minWeight - weightRange * 0.12) * 10) / 10,
-        maxWeight: Math.ceil((maxWeight + weightRange * 0.12) * 10) / 10
+        minWeight: yTicks[0],
+        maxWeight: yTicks[yTicks.length - 1],
+        yTicks
     };
 }
 
@@ -229,9 +268,8 @@ function drawGrid(rect, bounds, scales) {
     ctx.font = "12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
     ctx.textBaseline = "middle";
 
-    const yTicks = 5;
-    for (let i = 0; i <= yTicks; i += 1) {
-        const weight = bounds.minWeight + ((bounds.maxWeight - bounds.minWeight) / yTicks) * i;
+    const yTicks = bounds.yTicks?.length ? bounds.yTicks : niceWeightTicks(bounds.minWeight, bounds.maxWeight);
+    for (const weight of yTicks) {
         const y = scales.y(weight);
 
         ctx.strokeStyle = css("--app-line");
