@@ -1,5 +1,5 @@
 import { supabase } from "/supabaseClient.js";
-import { getCurrentPlayerName, getCurrentSession } from "/board.js";
+import { getCurrentPlayerName, getCurrentSession } from "/features/board.js";
 import { el } from "/lib/dom.js";
 import { cssVar } from "/lib/format.js";
 

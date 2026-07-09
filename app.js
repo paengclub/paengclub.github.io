@@ -1,11 +1,11 @@
 import {itineraries, members} from "/data.js";
-import {renderTimer} from "/timer.js";
-import {initBoardAuth, renderBoard} from "/board.js";
-import {cleanupPixelBoard, renderPixelBoard} from "/canvas.js";
-import {cleanupGames, renderGames} from "/games.js";
-import {cleanupWeightTracker, renderWeightTracker} from "/weight.js";
-import {cleanupPortfolio, renderPortfolio} from "/portfolio.js";
-import {cleanupGameTier, renderGameTier} from "/tier.js";
+import {renderTimer} from "/features/timer.js";
+import {initBoardAuth, renderBoard} from "/features/board.js";
+import {cleanupPixelBoard, renderPixelBoard} from "/features/canvas.js";
+import {cleanupGames, renderGames} from "/features/games.js";
+import {cleanupWeightTracker, renderWeightTracker} from "/features/weight.js";
+import {cleanupPortfolio, renderPortfolio} from "/features/portfolio.js";
+import {cleanupGameTier, renderGameTier} from "/features/tier.js";
 
 document.body.onload = init;
 let current_rendered_page = 0;

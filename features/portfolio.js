@@ -1,4 +1,4 @@
-import { getCurrentSession, signInWithGoogle } from "/board.js";
+import { getCurrentSession, signInWithGoogle } from "/features/board.js";
 import { supabase } from "/supabaseClient.js";
 import { el, svg } from "/lib/dom.js";
 import { num } from "/lib/format.js";
