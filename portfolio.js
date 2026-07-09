@@ -1,5 +1,7 @@
 import { getCurrentSession, signInWithGoogle } from "/board.js";
 import { supabase } from "/supabaseClient.js";
+import { el, svg } from "/lib/dom.js";
+import { num } from "/lib/format.js";
 
 const DEFAULT_CATEGORIES = [
     { name: "국내주식", color: "#315f4d", target_ratio: 0 },
@@ -13,8 +15,6 @@ const HOLDING_PALETTE = [
     "#14b8a6", "#f97316", "#6366f1", "#84cc16", "#06b6d4", "#eab308",
     "#a855f7", "#0ea5e9", "#f43f5e", "#10b981", "#d946ef", "#fb7185"
 ];
-const SVG_NS = "http://www.w3.org/2000/svg";
-
 let state = {
     snapshots: [],
     categories: [],
@@ -29,38 +29,8 @@ let state = {
     error: ""
 };
 
-function el(tag, attrs = {}, children = []) {
-    const node = document.createElement(tag);
-    for (const [key, value] of Object.entries(attrs)) {
-        if (key === "class") node.className = value;
-        else if (key === "text") node.textContent = value;
-        else if (key === "html") node.innerHTML = value;
-        else if (key.startsWith("on") && typeof value === "function") node.addEventListener(key.slice(2), value);
-        else if (value !== null && value !== undefined) node.setAttribute(key, value);
-    }
-    for (const child of children) {
-        if (typeof child === "string") node.appendChild(document.createTextNode(child));
-        else if (child) node.appendChild(child);
-    }
-    return node;
-}
-
-function svg(tag, attrs = {}, children = []) {
-    const node = document.createElementNS(SVG_NS, tag);
-    for (const [key, value] of Object.entries(attrs)) {
-        if (value !== null && value !== undefined) node.setAttribute(key, value);
-    }
-    for (const child of children) if (child) node.appendChild(child);
-    return node;
-}
-
 function today() {
     return new Date().toISOString().slice(0, 10);
-}
-
-function num(value) {
-    const parsed = Number(String(value ?? "").replaceAll(",", ""));
-    return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function roundMoney(value) {

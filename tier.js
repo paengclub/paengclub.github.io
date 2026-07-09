@@ -1,4 +1,5 @@
 import { supabase } from "/supabaseClient.js";
+import { el } from "/lib/dom.js";
 
 const TIERS = [
     { key: "S", label: "S", color: "#ef4444" },
@@ -17,21 +18,6 @@ let gameChannel = null;
 let refreshTimer = null;
 let addFormOpen = false;
 let dragState = null;
-
-function el(tag, attrs = {}, children = []) {
-    const node = document.createElement(tag);
-    for (const [key, value] of Object.entries(attrs)) {
-        if (key === "class") node.className = value;
-        else if (key === "text") node.textContent = value;
-        else if (key.startsWith("on") && typeof value === "function") node.addEventListener(key.slice(2), value);
-        else if (value !== null && value !== undefined) node.setAttribute(key, value);
-    }
-    for (const child of children) {
-        if (typeof child === "string") node.appendChild(document.createTextNode(child));
-        else if (child) node.appendChild(child);
-    }
-    return node;
-}
 
 function setStatus(message, type = "") {
     const status = document.getElementById("tierStatus");

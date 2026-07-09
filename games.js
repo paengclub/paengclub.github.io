@@ -1,5 +1,7 @@
 import { supabase } from "/supabaseClient.js";
 import { getCurrentPlayerName, getCurrentSession } from "/board.js";
+import { el } from "/lib/dom.js";
+import { cssVar } from "/lib/format.js";
 
 const GAMES = {
     reaction: {
@@ -89,27 +91,8 @@ let tetrisLastDirection = null;
 let tetrisRepeatNext = { left: 0, right: 0, down: 0 };
 let tetrisInputLoopId = null;
 
-function el(tag, attrs = {}, children = []) {
-    const node = document.createElement(tag);
-    for (const [key, value] of Object.entries(attrs)) {
-        if (key === "class") node.className = value;
-        else if (key === "text") node.textContent = value;
-        else if (key.startsWith("on") && typeof value === "function") node.addEventListener(key.slice(2), value);
-        else if (value !== null && value !== undefined) node.setAttribute(key, value);
-    }
-    for (const child of children) {
-        if (typeof child === "string") node.appendChild(document.createTextNode(child));
-        else if (child) node.appendChild(child);
-    }
-    return node;
-}
-
 function gameInfo() {
     return GAMES[activeGame];
-}
-
-function css(variableName) {
-    return getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
 }
 
 function setStatus(message, type = "") {
@@ -794,10 +777,10 @@ function drawTetris() {
     const width = TETRIS_COLS * TETRIS_CELL;
     const height = TETRIS_ROWS * TETRIS_CELL;
     tetrisCtx.clearRect(0, 0, width, height);
-    tetrisCtx.fillStyle = css("--app-bg") || "#161814";
+    tetrisCtx.fillStyle = cssVar("--app-bg") || "#161814";
     tetrisCtx.fillRect(0, 0, width, height);
 
-    tetrisCtx.strokeStyle = css("--app-line") || "rgba(128,128,128,0.2)";
+    tetrisCtx.strokeStyle = cssVar("--app-line") || "rgba(128,128,128,0.2)";
     tetrisCtx.lineWidth = 1;
     for (let c = 0; c <= TETRIS_COLS; c += 1) {
         tetrisCtx.beginPath();

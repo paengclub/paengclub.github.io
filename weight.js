@@ -1,4 +1,6 @@
 import { supabase } from "/supabaseClient.js";
+import { el } from "/lib/dom.js";
+import { cssVar, num } from "/lib/format.js";
 
 const dayMs = 24 * 60 * 60 * 1000;
 const padding = {
@@ -22,21 +24,6 @@ let weightData = [];
 let isDragging = false;
 let lastDragX = 0;
 let resizeHandler = null;
-
-function el(tag, attrs = {}, children = []) {
-    const node = document.createElement(tag);
-    for (const [key, value] of Object.entries(attrs)) {
-        if (key === "class") node.className = value;
-        else if (key === "text") node.textContent = value;
-        else if (key.startsWith("on") && typeof value === "function") node.addEventListener(key.slice(2), value);
-        else if (value !== null && value !== undefined) node.setAttribute(key, value);
-    }
-    for (const child of children) {
-        if (typeof child === "string") node.appendChild(document.createTextNode(child));
-        else if (child) node.appendChild(child);
-    }
-    return node;
-}
 
 function parseDate(date) {
     return new Date(`${date}T00:00:00`);
@@ -198,10 +185,6 @@ function createScales(rect, bounds) {
     };
 }
 
-function css(variableName) {
-    return getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
-}
-
 function drawGrid(rect, bounds, scales) {
     ctx.clearRect(0, 0, rect.width, rect.height);
     ctx.lineWidth = 1;
@@ -212,13 +195,13 @@ function drawGrid(rect, bounds, scales) {
     for (const weight of yTicks) {
         const y = scales.y(weight);
 
-        ctx.strokeStyle = css("--app-line");
+        ctx.strokeStyle = cssVar("--app-line");
         ctx.beginPath();
         ctx.moveTo(padding.left, y);
         ctx.lineTo(rect.width - padding.right, y);
         ctx.stroke();
 
-        ctx.fillStyle = css("--app-muted");
+        ctx.fillStyle = cssVar("--app-muted");
         ctx.textAlign = "right";
         ctx.fillText(`${weight.toFixed(1)}kg`, padding.left - 10, y);
     }
@@ -229,13 +212,13 @@ function drawGrid(rect, bounds, scales) {
         const dateValue = bounds.minDate + ((bounds.maxDate - bounds.minDate) / xTicks) * i;
         const x = scales.x(dateValue);
 
-        ctx.strokeStyle = css("--app-line");
+        ctx.strokeStyle = cssVar("--app-line");
         ctx.beginPath();
         ctx.moveTo(x, padding.top);
         ctx.lineTo(x, rect.height - padding.bottom);
         ctx.stroke();
 
-        ctx.fillStyle = css("--app-muted");
+        ctx.fillStyle = cssVar("--app-muted");
         ctx.textAlign = i === 0 ? "left" : i === xTicks ? "right" : "center";
         ctx.fillText(formatDate(new Date(dateValue)), x, rect.height - padding.bottom + 15);
     }
@@ -331,7 +314,7 @@ function drawSeries(series, scales, rect) {
 
         rawPoints.filter((point) => point.isInsideViewport).forEach((point) => {
             plottedPoints.push(point);
-            ctx.fillStyle = css("--app-surface-strong");
+            ctx.fillStyle = cssVar("--app-surface-strong");
             ctx.strokeStyle = person.color;
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -534,11 +517,6 @@ async function loadWeightData() {
         color: person.color,
         records: recordsByPerson.get(person.id) || []
     }));
-}
-
-function num(value) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function renderShell() {
