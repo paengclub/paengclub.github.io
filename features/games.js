@@ -327,7 +327,11 @@ function renderTapRushGame() {
         pad.textContent = running ? `${tapCount}회 · ${left}s` : "10초 탭 시작";
     }
 
-    pad.addEventListener("click", async () => {
+    // Count physical taps only (pointerdown). Using "click" let a held
+    // Enter/Space on the focused button auto-repeat ~30x/s (OS key-repeat),
+    // inflating scores; pointerdown fires once per real press and never for
+    // keyboard activation.
+    pad.addEventListener("pointerdown", async () => {
         if (!running) {
             running = true;
             tapCount = 0;
