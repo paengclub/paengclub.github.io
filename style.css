@@ -492,6 +492,41 @@ button {
     border-radius: 999px;
 }
 
+.weight-compare {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.weight-compare[hidden] {
+    display: none;
+}
+
+.weight-compare-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 12px;
+    border: 1px solid var(--app-line);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--app-bg) 55%, transparent);
+    font-size: 0.84rem;
+}
+
+.weight-compare-item span:first-child {
+    color: var(--app-muted);
+}
+
+.weight-compare-item strong {
+    color: var(--app-text);
+    font-weight: 720;
+}
+
+.weight-compare-who {
+    font-weight: 720;
+}
+
 .chart-wrap {
     position: relative;
     height: 460px;

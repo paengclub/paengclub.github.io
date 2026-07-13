@@ -1,7 +1,9 @@
 // features/weight.js — 체중, a zoomable/pannable weight-over-time line chart
 // (canvas) for each tracked person. Data comes from Supabase
-// (weight_people + weight_records). Exports renderWeightTracker,
-// cleanupWeightTracker.
+// (weight_people + weight_records). Two chart modes: overlay (each person's
+// raw + smoothed line) and diff (paeng - okh gap over time, with a
+// regression-based crossover prediction shown as a stat strip). Exports
+// renderWeightTracker, cleanupWeightTracker.
 import { supabase } from "/supabaseClient.js";
 import { el } from "/lib/dom.js";
 import { cssVar, num } from "/lib/format.js";
@@ -13,13 +15,26 @@ const padding = {
     bottom: 44,
     left: 56
 };
+// Gaussian-kernel bandwidth for the smoothed trend line: span/DIVISOR, floored
+// at FLOOR_DAYS days. Smaller values track local wiggles more aggressively
+// (more curve); larger values smooth harder.
+const TREND_BANDWIDTH_DIVISOR = 26;
+const TREND_BANDWIDTH_FLOOR_DAYS = 2;
+// Crossover prediction: fit each person's last WINDOW_DAYS of records with a
+// line and solve for where the two lines meet. Only surfaced if it lands
+// within HORIZON_DAYS of today (further out is too noisy to call a date).
+const PREDICTION_WINDOW_DAYS = 45;
+const PREDICTION_HORIZON_DAYS = 400;
 
 let canvas = null;
 let ctx = null;
 let tooltip = null;
 let emptyState = null;
 let legend = null;
-let selectedRange = "all";
+let compareStrip = null;
+let diffToggleBtn = null;
+let selectedRange = "7";
+let chartMode = "overlay"; // "overlay" | "diff"
 let fullDateBounds = null;
 let viewStart = 0;
 let viewEnd = 0;
@@ -53,6 +68,16 @@ function formatFullDate(date) {
         month: "long",
         day: "numeric"
     }).format(date);
+}
+
+function withAlpha(hexColor, alpha) {
+    const hex = hexColor.replace("#", "");
+    const full = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex;
+    const value = parseInt(full, 16);
+    const r = (value >> 16) & 255;
+    const g = (value >> 8) & 255;
+    const b = value & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function allRecords() {
@@ -228,43 +253,63 @@ function drawGrid(rect, bounds, scales) {
     }
 }
 
-function buildTrend(records) {
-    const points = records
-        .map((record) => ({
-            dateValue: record.dateValue,
-            weight: record.weight
-        }))
-        .sort((a, b) => a.dateValue - b.dateValue);
-    if (points.length <= 2) return points;
+// --- gaussian smoothing (shared by the overlay trend line and diff series) ---
 
+function sampleDates() {
     const span = Math.max(viewEnd - viewStart, dayMs);
     const sampleCount = Math.min(110, Math.max(24, Math.round(span / dayMs)));
     const step = span / (sampleCount - 1);
-    const bandwidth = Math.max(span / 22, dayMs * 3);
-    const trend = [];
+    return Array.from({ length: sampleCount }, (_, i) => viewStart + step * i);
+}
 
-    for (let i = 0; i < sampleCount; i += 1) {
-        const dateValue = viewStart + step * i;
-        let weighted = 0;
-        let totalWeight = 0;
+function trendBandwidth() {
+    const span = Math.max(viewEnd - viewStart, dayMs);
+    return Math.max(span / TREND_BANDWIDTH_DIVISOR, dayMs * TREND_BANDWIDTH_FLOOR_DAYS);
+}
 
-        for (const point of points) {
-            const distance = (dateValue - point.dateValue) / bandwidth;
-            const influence = Math.exp(-0.5 * distance * distance);
-            weighted += point.weight * influence;
-            totalWeight += influence;
-        }
+function gaussianEstimate(points, dateValue, bandwidth) {
+    let weighted = 0;
+    let totalWeight = 0;
 
-        if (totalWeight > 0.0001) {
-            trend.push({
-                dateValue,
-                weight: weighted / totalWeight
-            });
-        }
+    for (const point of points) {
+        const distance = (dateValue - point.dateValue) / bandwidth;
+        const influence = Math.exp(-0.5 * distance * distance);
+        weighted += point.weight * influence;
+        totalWeight += influence;
     }
 
+    return totalWeight > 0.0001 ? weighted / totalWeight : null;
+}
+
+function buildTrend(records) {
+    const points = records
+        .map((record) => ({ dateValue: record.dateValue, weight: record.weight }))
+        .sort((a, b) => a.dateValue - b.dateValue);
+    if (points.length <= 2) return points;
+
+    const bandwidth = trendBandwidth();
+    const trend = [];
+    for (const dateValue of sampleDates()) {
+        const estimate = gaussianEstimate(points, dateValue, bandwidth);
+        if (estimate !== null) trend.push({ dateValue, weight: estimate });
+    }
     return trend;
 }
+
+function buildDiffSeries(personA, personB) {
+    if (personA.records.length === 0 || personB.records.length === 0) return [];
+    const bandwidth = trendBandwidth();
+    const diffs = [];
+    for (const dateValue of sampleDates()) {
+        const a = gaussianEstimate(personA.records, dateValue, bandwidth);
+        const b = gaussianEstimate(personB.records, dateValue, bandwidth);
+        if (a === null || b === null) continue;
+        diffs.push({ dateValue, diff: a - b });
+    }
+    return diffs;
+}
+
+// --- overlay mode drawing ---
 
 function drawLine(points, scales) {
     if (points.length === 0) return;
@@ -331,24 +376,295 @@ function drawSeries(series, scales, rect) {
     ctx.restore();
 }
 
-function renderLegend() {
-    legend.replaceChildren(
-        ...weightData.map((person) => {
-            return el("span", { class: "legend-item" }, [
-                el("span", { class: "swatch" }),
-                el("span", { text: `${person.name} (${person.goal === "loss" ? "감량" : "증량"})` })
-            ]);
-        })
-    );
+// --- diff mode drawing ---
 
-    [...legend.querySelectorAll(".swatch")].forEach((swatch, index) => {
-        swatch.style.background = weightData[index].color;
-    });
+function getDiffBounds(diffPoints) {
+    const values = diffPoints.map((point) => point.diff);
+    const minValue = Math.min(...values, 0);
+    const maxValue = Math.max(...values, 0);
+    const range = Math.max(maxValue - minValue, 1);
+    const yTicks = niceWeightTicks(minValue - range * 0.16, maxValue + range * 0.16);
+
+    return {
+        minDate: viewStart,
+        maxDate: viewEnd,
+        minWeight: yTicks[0],
+        maxWeight: yTicks[yTicks.length - 1],
+        yTicks
+    };
 }
+
+function drawDiffGrid(rect, bounds, scales) {
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    ctx.font = "12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+    ctx.textBaseline = "middle";
+
+    for (const value of bounds.yTicks) {
+        const y = scales.y(value);
+        const isZero = Math.abs(value) < 0.05;
+
+        ctx.strokeStyle = isZero ? cssVar("--app-text") : cssVar("--app-line");
+        ctx.lineWidth = isZero ? 1.6 : 1;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(rect.width - padding.right, y);
+        ctx.stroke();
+
+        ctx.fillStyle = isZero ? cssVar("--app-text") : cssVar("--app-muted");
+        ctx.textAlign = "right";
+        ctx.fillText(isZero ? "0kg" : `${value > 0 ? "+" : ""}${value.toFixed(1)}kg`, padding.left - 10, y);
+    }
+
+    const xTicks = rect.width > 760 ? 6 : 4;
+    ctx.textBaseline = "top";
+    for (let i = 0; i <= xTicks; i += 1) {
+        const dateValue = bounds.minDate + ((bounds.maxDate - bounds.minDate) / xTicks) * i;
+        const x = scales.x(dateValue);
+
+        ctx.strokeStyle = cssVar("--app-line");
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, padding.top);
+        ctx.lineTo(x, rect.height - padding.bottom);
+        ctx.stroke();
+
+        ctx.fillStyle = cssVar("--app-muted");
+        ctx.textAlign = i === 0 ? "left" : i === xTicks ? "right" : "center";
+        ctx.fillText(formatDate(new Date(dateValue)), x, rect.height - padding.bottom + 15);
+    }
+}
+
+// Split the diff series into contiguous same-sign runs, inserting an
+// interpolated zero point at each sign change so the fill/stroke can switch
+// color exactly at the crossing instead of at the nearest sample.
+function splitDiffSegments(diffPoints, scales) {
+    const segments = [];
+    let current = [];
+    let currentSign = null;
+    const points = diffPoints.map((point) => ({ ...point, x: scales.x(point.dateValue) }));
+
+    for (let i = 0; i < points.length; i += 1) {
+        const point = points[i];
+        const sign = point.diff >= 0 ? 1 : -1;
+
+        if (currentSign === null) {
+            currentSign = sign;
+            current.push(point);
+            continue;
+        }
+        if (sign === currentSign) {
+            current.push(point);
+            continue;
+        }
+
+        const prev = points[i - 1];
+        const t = prev.diff / (prev.diff - point.diff);
+        const crossing = {
+            x: prev.x + (point.x - prev.x) * t,
+            diff: 0,
+            dateValue: prev.dateValue + (point.dateValue - prev.dateValue) * t
+        };
+        current.push(crossing);
+        segments.push({ sign: currentSign, points: current });
+        current = [crossing, point];
+        currentSign = sign;
+    }
+    if (current.length > 0) segments.push({ sign: currentSign, points: current });
+    return segments;
+}
+
+function drawDiffSeries(diffPoints, scales, personA, personB) {
+    plottedPoints = [];
+    if (diffPoints.length === 0) return;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(
+        padding.left,
+        padding.top,
+        canvas.getBoundingClientRect().width - padding.left - padding.right,
+        canvas.getBoundingClientRect().height - padding.top - padding.bottom
+    );
+    ctx.clip();
+
+    const zeroY = scales.y(0);
+    const segments = splitDiffSegments(diffPoints, scales);
+
+    for (const segment of segments) {
+        const color = segment.sign > 0 ? personA.color : personB.color;
+
+        ctx.beginPath();
+        ctx.moveTo(segment.points[0].x, zeroY);
+        segment.points.forEach((point) => ctx.lineTo(point.x, scales.y(point.diff)));
+        ctx.lineTo(segment.points[segment.points.length - 1].x, zeroY);
+        ctx.closePath();
+        ctx.fillStyle = withAlpha(color, 0.16);
+        ctx.fill();
+
+        ctx.beginPath();
+        segment.points.forEach((point, index) => {
+            const y = scales.y(point.diff);
+            if (index === 0) ctx.moveTo(point.x, y);
+            else ctx.lineTo(point.x, y);
+        });
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.stroke();
+    }
+
+    // Mark the actual (historical) crossing points inside the current view.
+    for (let i = 1; i < segments.length; i += 1) {
+        const crossing = segments[i].points[0];
+        ctx.beginPath();
+        ctx.arc(crossing.x, zeroY, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = cssVar("--app-surface-strong");
+        ctx.strokeStyle = cssVar("--app-text");
+        ctx.lineWidth = 2;
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
+// --- crossover prediction (independent of the current zoom/viewport) ---
+
+function linearRegressionDays(records) {
+    if (records.length < 2) return null;
+    const points = records.map((record) => ({ x: record.dateValue / dayMs, y: record.weight }));
+    const n = points.length;
+    const meanX = points.reduce((sum, point) => sum + point.x, 0) / n;
+    const meanY = points.reduce((sum, point) => sum + point.y, 0) / n;
+
+    let numerator = 0;
+    let denominator = 0;
+    for (const point of points) {
+        numerator += (point.x - meanX) * (point.y - meanY);
+        denominator += (point.x - meanX) ** 2;
+    }
+    if (denominator === 0) return null;
+
+    const slope = numerator / denominator; // kg per day
+    const intercept = meanY - slope * meanX;
+    return { slope, intercept };
+}
+
+function recentRecordsFor(records) {
+    if (records.length === 0) return [];
+    const latest = Math.max(...records.map((record) => record.dateValue));
+    const recent = records.filter((record) => record.dateValue >= latest - PREDICTION_WINDOW_DAYS * dayMs);
+    return recent.length >= 2 ? recent : records;
+}
+
+function sortedDatedRecords(records) {
+    return records
+        .map((record) => ({ ...record, dateValue: parseDate(record.date).getTime() }))
+        .sort((a, b) => a.dateValue - b.dateValue);
+}
+
+// Compares the two tracked people: current gap + (if the trend supports it) a
+// predicted date the gap closes to zero, based on a linear fit of each
+// person's last ~45 days. Only meaningful for exactly two people, which is
+// this site's real data; returns null otherwise so the UI can hide cleanly.
+function computeComparison() {
+    if (weightData.length !== 2) return null;
+    const [personA, personB] = weightData;
+    const recordsA = sortedDatedRecords(personA.records);
+    const recordsB = sortedDatedRecords(personB.records);
+    if (recordsA.length === 0 || recordsB.length === 0) return null;
+
+    const lastA = recordsA[recordsA.length - 1];
+    const lastB = recordsB[recordsB.length - 1];
+    const heavier = lastA.weight >= lastB.weight ? personA : personB;
+    const lighter = heavier === personA ? personB : personA;
+    const heavierRecords = heavier === personA ? recordsA : recordsB;
+    const lighterRecords = heavier === personA ? recordsB : recordsA;
+    const diff = heavierRecords[heavierRecords.length - 1].weight - lighterRecords[lighterRecords.length - 1].weight;
+
+    const regHeavy = linearRegressionDays(recentRecordsFor(heavierRecords));
+    const regLight = linearRegressionDays(recentRecordsFor(lighterRecords));
+
+    let prediction = { state: "flat" };
+    if (regHeavy && regLight) {
+        const slopeDiffPerDay = regHeavy.slope - regLight.slope;
+        if (slopeDiffPerDay < -0.001) {
+            const crossDay = (regLight.intercept - regHeavy.intercept) / slopeDiffPerDay;
+            const daysFromNow = crossDay - Date.now() / dayMs;
+            if (daysFromNow > 0 && daysFromNow <= PREDICTION_HORIZON_DAYS) {
+                prediction = { state: "dated", dateValue: crossDay * dayMs, daysFromNow: Math.round(daysFromNow) };
+            } else if (daysFromNow > PREDICTION_HORIZON_DAYS) {
+                prediction = { state: "far" };
+            } else {
+                prediction = { state: "converging" };
+            }
+        } else if (slopeDiffPerDay > 0.001) {
+            prediction = { state: "diverging" };
+        }
+    }
+
+    return { heavier, lighter, diff, prediction };
+}
+
+function renderComparison() {
+    if (!compareStrip) return;
+    const comparison = computeComparison();
+    if (!comparison) {
+        compareStrip.hidden = true;
+        compareStrip.replaceChildren();
+        return;
+    }
+
+    const items = [
+        el("div", { class: "weight-compare-item" }, [
+            el("span", { text: "현재 차이" }),
+            el("strong", {}, [
+                `${comparison.diff.toFixed(1)}kg `,
+                el("span", { class: "weight-compare-who", style: `color:${comparison.heavier.color}` }, [`${comparison.heavier.name} 우세`])
+            ])
+        ])
+    ];
+
+    const { prediction } = comparison;
+    if (prediction.state === "dated") {
+        items.push(el("div", { class: "weight-compare-item" }, [
+            el("span", { text: "예상 역전 시점" }),
+            el("strong", { text: `${formatFullDate(new Date(prediction.dateValue))} · ${prediction.daysFromNow}일 후` })
+        ]));
+    } else if (prediction.state === "far" || prediction.state === "converging") {
+        items.push(el("div", { class: "weight-compare-item" }, [
+            el("span", { text: "추세" }),
+            el("strong", { text: "차이가 좁혀지는 중 (1년 이상 소요 예상)" })
+        ]));
+    } else if (prediction.state === "diverging") {
+        items.push(el("div", { class: "weight-compare-item" }, [
+            el("span", { text: "추세" }),
+            el("strong", { text: "차이가 벌어지는 중" })
+        ]));
+    } else {
+        items.push(el("div", { class: "weight-compare-item" }, [
+            el("span", { text: "추세" }),
+            el("strong", { text: "안정적" })
+        ]));
+    }
+
+    compareStrip.hidden = false;
+    compareStrip.replaceChildren(...items);
+}
+
+// --- render orchestration ---
 
 function renderChart() {
     if (!canvas || !ctx) return;
     const rect = resizeCanvas();
+
+    if (chartMode === "diff" && weightData.length === 2) {
+        renderDiffChart(rect);
+        syncControls();
+        return;
+    }
+
     const series = viewportSeries();
     const hasData = series.some((person) => person.records.length > 0);
 
@@ -358,7 +674,7 @@ function renderChart() {
     if (!hasData) {
         ctx.clearRect(0, 0, rect.width, rect.height);
         plottedPoints = [];
-        syncRangeButtons();
+        syncControls();
         return;
     }
 
@@ -366,10 +682,32 @@ function renderChart() {
     const scales = createScales(rect, bounds);
     drawGrid(rect, bounds, scales);
     drawSeries(series, scales, rect);
-    syncRangeButtons();
+    syncControls();
+}
+
+function renderDiffChart(rect) {
+    tooltip.hidden = true;
+    const [personRawA, personRawB] = weightData;
+    const personA = { ...personRawA, records: recordsForViewport(personRawA.records) };
+    const personB = { ...personRawB, records: recordsForViewport(personRawB.records) };
+    const hasData = personA.records.length > 0 && personB.records.length > 0;
+
+    emptyState.hidden = hasData;
+    if (!hasData) {
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        plottedPoints = [];
+        return;
+    }
+
+    const diffPoints = buildDiffSeries(personA, personB);
+    const bounds = getDiffBounds(diffPoints);
+    const scales = createScales(rect, bounds);
+    drawDiffGrid(rect, bounds, scales);
+    drawDiffSeries(diffPoints, scales, personA, personB);
 }
 
 function nearestPoint(event) {
+    if (chartMode !== "overlay") return null;
     const rect = canvas.getBoundingClientRect();
     const pointer = {
         x: event.clientX - rect.left,
@@ -444,10 +782,19 @@ function selectRange(range) {
     setViewport(fullDateBounds.maxDate - (days - 1) * dayMs, fullDateBounds.maxDate);
 }
 
-function syncRangeButtons() {
+function toggleDiffMode() {
+    chartMode = chartMode === "diff" ? "overlay" : "diff";
+    renderChart();
+}
+
+function syncControls() {
     document.querySelectorAll("[data-range]").forEach((button) => {
         button.setAttribute("aria-pressed", String(button.dataset.range === selectedRange));
     });
+    if (diffToggleBtn) {
+        diffToggleBtn.setAttribute("aria-pressed", String(chartMode === "diff"));
+        diffToggleBtn.textContent = chartMode === "diff" ? "겹쳐 보기" : "차이 보기";
+    }
 }
 
 function panViewport(direction) {
@@ -483,8 +830,8 @@ function anchorRatio(clientX) {
 
 function initializeViewport() {
     fullDateBounds = getFullDateBounds(allRecords());
-    selectedRange = "30";
-    viewStart = Math.max(fullDateBounds.minDate, fullDateBounds.maxDate - 29 * dayMs);
+    selectedRange = "7";
+    viewStart = Math.max(fullDateBounds.minDate, fullDateBounds.maxDate - 6 * dayMs);
     viewEnd = fullDateBounds.maxDate;
 }
 
@@ -523,6 +870,21 @@ async function loadWeightData() {
     }));
 }
 
+function renderLegend() {
+    legend.replaceChildren(
+        ...weightData.map((person) => {
+            return el("span", { class: "legend-item" }, [
+                el("span", { class: "swatch" }),
+                el("span", { text: `${person.name} (${person.goal === "loss" ? "감량" : "증량"})` })
+            ]);
+        })
+    );
+
+    [...legend.querySelectorAll(".swatch")].forEach((swatch, index) => {
+        swatch.style.background = weightData[index].color;
+    });
+}
+
 function renderShell() {
     const root = document.getElementById("screen");
     const wrapper = el("section", { class: "page-shell weight-shell" });
@@ -532,8 +894,10 @@ function renderShell() {
         el("button", { class: "icon-button", type: "button", "data-action": "zoom-out", "aria-label": "축소", text: "-" }),
         el("button", { class: "icon-button", type: "button", "data-action": "zoom-in", "aria-label": "확대", text: "+" }),
         el("button", { class: "icon-button", type: "button", "data-action": "pan-right", "aria-label": "오른쪽으로 이동", text: ">" }),
-        el("button", { type: "button", "data-range": "30", text: "최근 30일" }),
-        el("button", { type: "button", "data-range": "all", text: "전체" })
+        el("button", { type: "button", "data-range": "7", text: "1주" }),
+        el("button", { type: "button", "data-range": "30", text: "1개월" }),
+        el("button", { type: "button", "data-range": "all", text: "전체" }),
+        el("button", { id: "weightDiffToggle", type: "button", text: "차이 보기" })
     ]);
 
     panel.append(
@@ -543,6 +907,7 @@ function renderShell() {
         ]),
         el("section", { class: "weight-chart-shell", "aria-label": "체중 추이 그래프" }, [
             el("div", { class: "legend", id: "weightLegend" }),
+            el("div", { class: "weight-compare", id: "weightCompare", hidden: "" }),
             el("div", { class: "chart-wrap" }, [
                 el("canvas", { id: "weightChart", "aria-label": "시간별 체중 변화 선 그래프" }),
                 el("div", { class: "tooltip", id: "weightTooltip", hidden: "" }),
@@ -567,6 +932,10 @@ function bindControls() {
             if (action === "zoom-out") zoomViewport(1.55);
         });
     });
+
+    diffToggleBtn = document.getElementById("weightDiffToggle");
+    diffToggleBtn.hidden = weightData.length !== 2;
+    diffToggleBtn.addEventListener("click", toggleDiffMode);
 
     canvas.addEventListener("wheel", (event) => {
         event.preventDefault();
@@ -614,6 +983,8 @@ export function cleanupWeightTracker() {
     tooltip = null;
     emptyState = null;
     legend = null;
+    compareStrip = null;
+    diffToggleBtn = null;
 }
 
 export async function renderWeightTracker() {
@@ -628,7 +999,9 @@ export async function renderWeightTracker() {
     tooltip = document.getElementById("weightTooltip");
     emptyState = document.getElementById("weightEmptyState");
     legend = document.getElementById("weightLegend");
-    selectedRange = "30";
+    compareStrip = document.getElementById("weightCompare");
+    selectedRange = "7";
+    chartMode = "overlay";
     plottedPoints = [];
     isDragging = false;
 
@@ -639,6 +1012,7 @@ export async function renderWeightTracker() {
         initializeViewport();
         bindControls();
         renderLegend();
+        renderComparison();
         renderChart();
     } catch (error) {
         console.warn(error);
