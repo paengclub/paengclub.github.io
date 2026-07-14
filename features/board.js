@@ -55,7 +55,7 @@ async function ensureProfile() {
 
     const { data: profile } = await supabase
         .from("profiles")
-        .select("id, display_name, avatar_url")
+        .select("id, display_name, avatar_url, nickname, bio, mbti")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -84,7 +84,7 @@ async function ensureProfile() {
             display_name: userName(user),
             avatar_url: googleAvatar(user)
         })
-        .select("id, display_name, avatar_url")
+        .select("id, display_name, avatar_url, nickname, bio, mbti")
         .single();
 
     currentProfile = inserted || {
@@ -200,6 +200,38 @@ async function updateProfileAvatar(avatarUrl) {
     renderAuthArea();
 }
 
+function normalizeMbti(value) {
+    const trimmed = value.trim().toUpperCase();
+    return /^[EI][NS][TF][JP]$/.test(trimmed) ? trimmed : "";
+}
+
+async function saveProfileDetails(fields) {
+    const user = currentSession?.user;
+    if (!user) return;
+
+    const mbti = normalizeMbti(fields.mbti);
+    if (fields.mbti.trim() && !mbti) {
+        profileStatus("MBTI는 ENFP처럼 4글자로 입력해 주세요.", "danger");
+        return;
+    }
+
+    const payload = {
+        nickname: fields.nickname.trim().slice(0, 24) || null,
+        bio: fields.bio.trim().slice(0, 140) || null,
+        mbti: mbti || null,
+        updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabase.from("profiles").update(payload).eq("id", user.id);
+    if (error) {
+        profileStatus(error.message, "danger");
+        return;
+    }
+
+    currentProfile = { ...(currentProfile || { id: user.id, display_name: userName(user) }), ...payload };
+    profileStatus("프로필을 저장했어요.", "success");
+}
+
 async function uploadAvatar(file) {
     const user = currentSession?.user;
     if (!user) return;
@@ -264,6 +296,26 @@ export function renderProfile() {
         preview.src = URL.createObjectURL(file);
     });
 
+    const nicknameInput = el("input", {
+        class: "form-control",
+        maxlength: "24",
+        placeholder: userName(user),
+        value: currentProfile?.nickname || ""
+    });
+    const mbtiInput = el("input", {
+        class: "form-control profile-mbti-input",
+        maxlength: "4",
+        placeholder: "ENFP",
+        value: currentProfile?.mbti || ""
+    });
+    const bioInput = el("textarea", {
+        class: "form-control",
+        rows: "2",
+        maxlength: "140",
+        placeholder: "짧은 소개를 남겨보세요.",
+        text: currentProfile?.bio || ""
+    });
+
     const wrapper = el("section", { class: "page-shell profile-shell" });
     const panel = el("div", { class: "app-panel profile-panel" });
 
@@ -307,6 +359,21 @@ export function renderProfile() {
                                 profileStatus(error.message, "danger");
                             }
                         }
+                    })
+                ]),
+                el("div", { class: "profile-detail-fields" }, [
+                    el("label", { class: "pf-field" }, [el("span", { text: "별명" }), nicknameInput]),
+                    el("label", { class: "pf-field" }, [el("span", { text: "MBTI" }), mbtiInput]),
+                    el("label", { class: "pf-field" }, [el("span", { text: "소개" }), bioInput]),
+                    el("button", {
+                        class: "secondary-button",
+                        type: "button",
+                        text: "프로필 정보 저장",
+                        onclick: () => saveProfileDetails({
+                            nickname: nicknameInput.value,
+                            mbti: mbtiInput.value,
+                            bio: bioInput.value
+                        })
                     })
                 ]),
                 el("div", { id: "profileStatus", class: "profile-status" })

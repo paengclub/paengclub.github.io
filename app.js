@@ -9,6 +9,8 @@ import {cleanupGames, renderGames} from "/features/games.js";
 import {cleanupWeightTracker, renderWeightTracker} from "/features/weight.js";
 import {cleanupPortfolio, renderPortfolio} from "/features/portfolio.js";
 import {cleanupGameTier, renderGameTier} from "/features/tier.js";
+import {cleanupProfilesDirectory, renderProfilesDirectory} from "/features/profiles.js";
+import {cleanupTimetable, renderTimetable as renderTimetableGrid} from "/features/timetable.js";
 
 document.body.onload = init;
 let current_rendered_page = 0;
@@ -96,7 +98,7 @@ async function init() {
     // once (composer vs. login known up front) instead of rendering as a guest
     // and then re-rendering the whole page once the session resolves.
     await initBoardAuth(function() {
-        if (current_rendered_page == 0 || current_rendered_page == 1 || current_rendered_page == 5) myRenderFunction();
+        if (current_rendered_page == 0 || current_rendered_page == 1 || current_rendered_page == 5 || current_rendered_page == 7 || current_rendered_page == 8) myRenderFunction();
     });
 
     myRenderFunction();
@@ -111,6 +113,8 @@ function myRenderFunction() {
     if (current_rendered_page != 4) cleanupWeightTracker();
     if (current_rendered_page != 5) cleanupPortfolio();
     if (current_rendered_page != 6) cleanupGameTier();
+    if (current_rendered_page != 7) cleanupProfilesDirectory();
+    if (current_rendered_page != 8) cleanupTimetable();
     document.getElementById("screen").replaceChildren();
     setActiveNavButton();
 
@@ -121,6 +125,8 @@ function myRenderFunction() {
     if (current_rendered_page == 4) renderWeightTracker();
     if (current_rendered_page == 5) renderPortfolio();
     if (current_rendered_page == 6) renderGameTier();
+    if (current_rendered_page == 7) renderProfilesDirectory();
+    if (current_rendered_page == 8) renderTimetableGrid();
 }
 
 export {current_rendered_page, rankImageSet};

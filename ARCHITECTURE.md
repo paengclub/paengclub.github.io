@@ -42,16 +42,24 @@ codebase without reading every file.
   portfolio.js   자산관리 (asset dashboard: 현황 / 리밸런싱), login-gated
   tier.js        게임 티어 (drag-and-drop tier list), realtime + poll
   timer.js       디데이 (D-day / rank progress bars for each member)
+  profiles.js    프로필 (card directory of everyone who has signed in)
+  timetable.js   시간표 (Everytime-style weekly class grid, public view / owner edit)
 /migrations      applied SQL, one file per change (record only; run via Supabase)
 style.css        all styles. Uses --app-* CSS custom properties for theming.
 ```
 
 **Dependency direction:** `app.js → features/* → lib/* & supabaseClient.js`.
 Two exceptions, both intentional and pre-existing:
-- `features/games.js` and `features/portfolio.js` import auth helpers from
-  `features/board.js` (board is the de-facto "auth/session" module).
+- `features/games.js`, `features/portfolio.js`, `features/profiles.js` and
+  `features/timetable.js` import auth helpers from `features/board.js` (board
+  is the de-facto "auth/session" module, and also owns profile editing —
+  nickname/bio/MBTI live on its `renderProfile()` screen).
 - `features/timer.js` imports `current_rendered_page` from `/app.js` (a small
   circular edge; keep `app.js` at root so this keeps resolving).
+- `features/profiles.js` → `features/timetable.js`: a card's "시간표 보기"
+  button calls timetable's exported `setInitialViewer(userId)` then simulates
+  a click on nav button `id="8"`. This is the one intentional feature→feature
+  UI coupling (no shared state beyond that one setter).
 
 ## The app shell (`app.js`)
 
@@ -62,7 +70,7 @@ Two exceptions, both intentional and pre-existing:
   are *not* active (so timers / realtime channels / listeners are torn down),
   clears `#screen`, then calls the active tab's `renderX()`.
 - Page ids → tabs: `0` board, `1` games, `2` canvas, `3` dday(timer), `4`
-  weight, `5` portfolio, `6` tier.
+  weight, `5` portfolio, `6` tier, `7` profiles, `8` timetable.
 - Theme: `initTheme()` follows `prefers-color-scheme`; the floating button
   toggles `data-bs-theme` on `<html>`. All colors come from `--app-*` tokens in
   `style.css` (light values in `:root`, dark in `[data-bs-theme="dark"]`).
@@ -88,8 +96,10 @@ Build DOM with `el()` / `svg()` from `/lib/dom.js` (not innerHTML strings).
   signed-in-user change (ignores the initial replay and hourly token refreshes).
 - Others read the session via `getCurrentSession()` / `getCurrentPlayerName()`
   and start Google sign-in via `signInWithGoogle()`.
-- Login-gated tabs (only `portfolio`) show a login card when
-  `getCurrentSession()` is null.
+- Fully login-gated tabs (only `portfolio`) show a login card when
+  `getCurrentSession()` is null. `profiles` and `timetable` are public to
+  *view*; editing (your own profile fields, or your own courses) is gated
+  per-action inside the tab instead of gating the whole tab.
 
 ## Data model (Supabase, project `zzxlzczjseeudhwjnwdm`)
 
@@ -98,13 +108,14 @@ per-user.
 
 | Feature | Tables | Notes |
 |---|---|---|
-| auth/profile | `profiles` | display_name, avatar_url; avatars in `avatars` storage bucket |
+| auth/profile | `profiles` | display_name, avatar_url, nickname, bio, mbti; avatars in `avatars` storage bucket; own row editable |
 | board | `board_posts`, `board_comments` | public read; insert/update/delete by author (`auth.uid()`) |
 | canvas | `canvas_pixels` (PK `x,y`) | public read + write within bounds; in `supabase_realtime` |
 | games | `game_scores` | public read + insert; `game_id ∈ {reaction,taprush,memory,tetris}` |
 | tier | `tier_games` | public read; insert(unranked)/update(move) by anyone; images in `tier-games` bucket; realtime |
 | portfolio | `portfolio_snapshots`, `portfolio_holdings`, `portfolio_categories`, `portfolio_events` | **per-user** (`user_id = auth.uid()`), login required |
 | weight | `weight_people`, `weight_records` | public read; writes are admin/SQL only |
+| timetable | `timetable_courses` | public read (schedules are meant to be shared); insert/update/delete **own only** (`user_id = auth.uid()`) |
 
 Schema changes: write a `migrations/<date>_<name>.sql` file for the record AND
 apply it to the project (via the Supabase MCP tools / dashboard). The SQL file
@@ -124,8 +135,10 @@ Hand-rolled, no chart lib:
    so `cleanup<Name>()` can release it.
 3. `index.html`: add `<button class="nav-buttons" id="<n>">라벨</button>`.
 4. `app.js`: import the two functions, add `cleanup` call for `!= n`, and a
-   `render` call for `== n` in `myRenderFunction()`. If the mobile nav grid is
-   count-specific, bump `grid-template-columns: repeat(N, ...)` in `style.css`.
+   `render` call for `== n` in `myRenderFunction()`. The mobile nav scrolls
+   horizontally (`.nav-tabs { overflow-x: auto }`), so no per-tab-count CSS is
+   needed. If the tab needs to react to login/logout while it's open, add its
+   page id to the whitelist in `app.js`'s `initBoardAuth(...)` callback.
 5. If it needs data: add tables + RLS (+ a `migrations/*.sql` record) and read
    through `/supabaseClient.js`.
 6. `style.css`: add styles; support light + dark via `--app-*` tokens.

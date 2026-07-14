@@ -403,6 +403,18 @@ button {
     gap: 8px;
 }
 
+.profile-detail-fields {
+    display: grid;
+    gap: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--app-line);
+}
+
+.profile-mbti-input {
+    max-width: 120px;
+    text-transform: uppercase;
+}
+
 .profile-status {
     min-height: 1.35em;
     color: var(--app-muted);
@@ -2591,6 +2603,379 @@ button {
     pointer-events: none;
 }
 
+/* ===== 프로필 디렉토리 (profiles.js) ===== */
+
+.pdir-shell {
+    max-width: 1040px;
+}
+
+.pdir-panel {
+    padding-bottom: 24px;
+}
+
+.pdir-body {
+    padding: 0 24px;
+}
+
+.pdir-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+}
+
+.pdir-card {
+    display: grid;
+    gap: 10px;
+    padding: 16px;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius);
+    background: var(--app-surface-strong);
+}
+
+.pdir-card.is-self {
+    border-color: color-mix(in srgb, var(--app-primary) 55%, var(--app-line));
+    background: color-mix(in srgb, var(--app-primary) 6%, var(--app-surface-strong));
+}
+
+.pdir-card-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.pdir-avatar {
+    width: 52px;
+    height: 52px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--app-surface);
+}
+
+.pdir-avatar-fallback {
+    display: grid;
+    place-items: center;
+    color: #ffffff;
+    background: var(--app-primary);
+    font-weight: 780;
+    font-size: 1.1rem;
+}
+
+.pdir-identity {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.pdir-name-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.pdir-name {
+    overflow: hidden;
+    color: var(--app-text);
+    font-size: 1.02rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pdir-mbti {
+    flex: 0 0 auto;
+    padding: 1px 8px;
+    border-radius: 999px;
+    color: var(--app-primary);
+    background: color-mix(in srgb, var(--app-primary) 14%, transparent);
+    font-size: 0.7rem;
+    font-weight: 780;
+    letter-spacing: 0.02em;
+}
+
+.pdir-realname {
+    font-size: 0.78rem;
+}
+
+.pdir-bio {
+    margin: 0;
+    color: var(--app-text);
+    font-size: 0.86rem;
+    line-height: 1.5;
+    min-height: 2.6em;
+}
+
+.pdir-card-foot {
+    display: grid;
+    gap: 8px;
+}
+
+.pdir-mini-grid {
+    position: relative;
+    height: 54px;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius-sm);
+    background: var(--app-bg);
+    overflow: hidden;
+}
+
+.pdir-mini-block {
+    position: absolute;
+    border-radius: 2px;
+    opacity: 0.88;
+}
+
+.pdir-mini-empty {
+    display: grid;
+    place-items: center;
+    height: 54px;
+    border: 1px dashed var(--app-line);
+    border-radius: var(--app-radius-sm);
+    color: var(--app-muted);
+    font-size: 0.76rem;
+}
+
+.pdir-card-actions {
+    display: flex;
+    justify-content: space-between;
+}
+
+.pdir-login-hint {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px dashed var(--app-line);
+    border-radius: var(--app-radius);
+    color: var(--app-muted);
+    font-size: 0.86rem;
+}
+
+/* ===== 시간표 (timetable.js) ===== */
+
+.tt-shell {
+    max-width: 1040px;
+}
+
+.tt-page-panel {
+    padding-bottom: 24px;
+}
+
+.tt-people {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 0 24px 12px;
+}
+
+.tt-person-chip {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px 6px 6px;
+    border: 1px solid var(--app-line);
+    border-radius: 999px;
+    color: var(--app-text);
+    background: var(--app-surface-strong);
+    font-size: 0.84rem;
+    font-weight: 650;
+}
+
+.tt-person-chip.active {
+    border-color: var(--app-primary);
+    color: #ffffff;
+    background: var(--app-primary);
+}
+
+.tt-person-chip.active .avatar-fallback {
+    color: var(--app-primary);
+    background: #ffffff;
+}
+
+.tt-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 24px 12px;
+}
+
+.tt-grid-wrap {
+    margin: 0 24px 16px;
+    overflow-x: auto;
+}
+
+.tt-grid {
+    display: grid;
+    min-width: 480px;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius);
+    overflow: hidden;
+}
+
+.tt-corner,
+.tt-day-head {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid var(--app-line);
+    background: var(--app-surface-strong);
+    color: var(--app-muted);
+    font-size: 0.8rem;
+    font-weight: 720;
+}
+
+.tt-time-col {
+    border-right: 1px solid var(--app-line);
+    background: var(--app-surface-strong);
+}
+
+.tt-time-label {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 2px;
+    color: var(--app-muted);
+    font-size: 0.68rem;
+    transform: translateY(-7px);
+}
+
+.tt-day-col {
+    position: relative;
+    border-left: 1px solid var(--app-line);
+    background-color: var(--app-bg);
+    background-image: linear-gradient(var(--app-line) 1px, transparent 1px);
+}
+
+.tt-block {
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    display: grid;
+    align-content: start;
+    gap: 1px;
+    padding: 3px 5px;
+    overflow: hidden;
+    border: 0;
+    border-radius: 5px;
+    color: #ffffff;
+    text-align: left;
+    cursor: pointer;
+}
+
+.tt-block strong {
+    overflow: hidden;
+    font-size: 0.72rem;
+    font-weight: 720;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tt-block span {
+    font-size: 0.64rem;
+    opacity: 0.9;
+}
+
+.tt-panel {
+    margin: 0 24px 16px;
+    padding: 16px;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius);
+    background: var(--app-surface-strong);
+}
+
+.tt-panel[hidden] {
+    display: none;
+}
+
+.tt-detail-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 6px;
+    color: var(--app-text);
+    font-size: 1.02rem;
+}
+
+.tt-detail {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.tt-form {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.tt-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.tt-swatch-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.tt-swatch {
+    width: 22px;
+    height: 22px;
+    border: 2px solid transparent;
+    border-radius: 50%;
+    padding: 0;
+    cursor: pointer;
+}
+
+.tt-swatch.active {
+    border-color: var(--app-text);
+}
+
+.tt-swatch-static {
+    flex: 0 0 auto;
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    cursor: default;
+}
+
+.tt-panel-status {
+    min-height: 1.2em;
+    color: var(--app-danger);
+    font-size: 0.84rem;
+}
+
+.tt-course-list {
+    display: grid;
+    gap: 8px;
+    margin: 0 24px 20px;
+}
+
+.tt-course-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 12px;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius-sm);
+    background: var(--app-surface-strong);
+    font-size: 0.84rem;
+}
+
+.tt-course-item-name {
+    flex: 0 0 auto;
+    min-width: 88px;
+    color: var(--app-text);
+    font-weight: 680;
+}
+
 @media (max-width: 1180px) {
     .portfolio-stats-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2619,20 +3004,30 @@ button {
         gap: 6px;
     }
 
+    /* With 9+ tabs a fixed-column grid gets too cramped for Korean labels, so
+       the mobile nav scrolls horizontally instead of wrapping/shrinking text.
+       No per-tab-count CSS to maintain when a tab is added or removed. */
     .nav-tabs {
-        display: grid;
-        grid-template-columns: repeat(7, minmax(0, 1fr));
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 4px;
         flex: 1;
+        overflow-x: auto;
         border-radius: var(--app-radius);
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .nav-tabs::-webkit-scrollbar {
+        display: none;
     }
 
     .nav-buttons {
+        flex: 0 0 auto;
         min-height: 32px;
-        padding: 0 1px;
-        font-size: 0.62rem;
-        line-height: 1.08;
-        white-space: normal;
-        word-break: keep-all;
+        padding: 0 11px;
+        font-size: 0.74rem;
+        white-space: nowrap;
     }
 
     .auth-area {
@@ -2884,6 +3279,39 @@ button {
 
     .comment-input-row {
         align-items: stretch;
+    }
+
+    .pdir-body {
+        padding: 0 14px;
+    }
+
+    .pdir-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .tt-people,
+    .tt-toolbar {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    .tt-grid-wrap {
+        margin-left: 14px;
+        margin-right: 14px;
+    }
+
+    .tt-panel {
+        margin-left: 14px;
+        margin-right: 14px;
+    }
+
+    .tt-course-list {
+        margin-left: 14px;
+        margin-right: 14px;
+    }
+
+    .tt-form-row {
+        grid-template-columns: 1fr;
     }
 
     #colorSwitcher {
