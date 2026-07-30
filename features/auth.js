@@ -1,6 +1,7 @@
-// features/board.js — 게시판 (posts + comments) AND the app's auth/session
-// module. Owns Google sign-in and the current session; other tabs import
-// getCurrentSession / getCurrentPlayerName / signInWithGoogle from here.
+// features/auth.js — the app's auth/session module + the profile-edit screen
+// (avatar upload, nickname, mbti, bio). Owns Google sign-in and the current
+// session; other tabs import getCurrentSession / getCurrentPlayerName /
+// signInWithGoogle from here.
 import { supabase } from "/supabaseClient.js";
 import { el } from "/lib/dom.js";
 
@@ -29,20 +30,13 @@ function userAvatar(user) {
     return currentProfile?.avatar_url || googleAvatar(user);
 }
 
-function formatDate(value) {
-    return new Intl.DateTimeFormat("ko-KR", {
-        dateStyle: "medium",
-        timeStyle: "short"
-    }).format(new Date(value));
-}
-
 export async function signInWithGoogle() {
     const redirectTo = `${window.location.origin}${window.location.pathname}`;
     const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo }
     });
-    if (error) showBoardAlert(error.message, "danger");
+    if (error) console.error(error.message);
 }
 
 async function signOut() {
@@ -136,7 +130,7 @@ function renderAuthArea() {
     }));
 }
 
-export async function initBoardAuth(onAuthChange) {
+export async function initAuth(onAuthChange) {
     rerenderApp = onAuthChange;
     const { data } = await supabase.auth.getSession();
     currentSession = data.session;
@@ -329,10 +323,7 @@ export function renderProfile() {
                 class: "secondary-button compact",
                 type: "button",
                 text: "닫기",
-                onclick: () => {
-                    if (rerenderApp) rerenderApp();
-                    else renderBoard();
-                }
+                onclick: () => rerenderApp && rerenderApp()
             })
         ]),
         el("div", { class: "profile-content" }, [
@@ -383,302 +374,4 @@ export function renderProfile() {
 
     wrapper.appendChild(panel);
     root.appendChild(wrapper);
-}
-
-function showBoardAlert(message, type = "info") {
-    const alertTarget = document.getElementById("boardAlert");
-    if (!alertTarget) return;
-    alertTarget.replaceChildren(el("div", {
-        class: `alert alert-${type} py-2 mb-3`,
-        role: "alert",
-        text: message
-    }));
-}
-
-function renderLoginPrompt(parent) {
-    const prompt = el("div", { class: "board-login-bar mb-3" }, [
-        el("button", {
-            class: "primary-button compact",
-            type: "button",
-            text: "Google 로그인",
-            onclick: signInWithGoogle
-        })
-    ]);
-    parent.appendChild(prompt);
-}
-
-function renderComposer(parent) {
-    const form = el("form", { class: "composer" });
-    const body = el("div", { class: "composer-body" });
-    const titleInput = el("input", {
-        class: "form-control",
-        name: "title",
-        maxlength: "120",
-        required: "",
-        placeholder: "제목"
-    });
-    const bodyInput = el("textarea", {
-        class: "form-control",
-        name: "body",
-        rows: "4",
-        maxlength: "5000",
-        required: "",
-        placeholder: "내용"
-    });
-    const submit = el("button", {
-        class: "primary-button",
-        type: "submit",
-        text: "글 쓰기"
-    });
-
-    form.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        submit.disabled = true;
-        const title = titleInput.value.trim();
-        const postBody = bodyInput.value.trim();
-        if (!title || !postBody) {
-            showBoardAlert("제목과 내용을 입력해주세요.", "warning");
-            submit.disabled = false;
-            return;
-        }
-
-        const { error } = await supabase.from("board_posts").insert({
-            title,
-            body: postBody,
-            author_id: currentSession.user.id
-        });
-
-        submit.disabled = false;
-        if (error) {
-            showBoardAlert(error.message, "danger");
-            return;
-        }
-        titleInput.value = "";
-        bodyInput.value = "";
-        await renderBoard();
-    });
-
-    body.append(titleInput, bodyInput, el("div", { class: "composer-actions" }, [submit]));
-    form.appendChild(body);
-    parent.appendChild(form);
-}
-
-async function loadPosts() {
-    const { data, error } = await supabase
-        .from("board_posts")
-        .select(`
-            id,
-            title,
-            body,
-            author_id,
-            created_at,
-            updated_at,
-            profiles:author_id(display_name, avatar_url),
-            board_comments(
-                id,
-                post_id,
-                author_id,
-                body,
-                created_at,
-                updated_at,
-                profiles:author_id(display_name, avatar_url)
-            )
-        `)
-        .order("created_at", { ascending: false });
-
-    if (error) throw error;
-    return data || [];
-}
-
-function renderPostActions(post, container) {
-    if (currentSession?.user?.id !== post.author_id) return;
-
-    container.appendChild(el("button", {
-        class: "text-action danger",
-        type: "button",
-        text: "삭제",
-        onclick: async () => {
-            if (!window.confirm("이 글을 삭제할까요?")) return;
-            const { error } = await supabase.from("board_posts").delete().eq("id", post.id);
-            if (error) showBoardAlert(error.message, "danger");
-            else await renderBoard();
-        }
-    }));
-}
-
-function renderCommentForm(post, parent) {
-    if (!currentSession) return;
-
-    const form = el("form", { class: "comment-form" });
-    const row = el("div", { class: "comment-input-row" });
-    const input = el("input", {
-        class: "form-control",
-        maxlength: "1000",
-        required: "",
-        placeholder: "댓글 쓰기"
-    });
-    const submit = el("button", {
-        class: "secondary-button",
-        type: "submit",
-        text: "댓글"
-    });
-
-    form.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const body = input.value.trim();
-        if (!body) return;
-        submit.disabled = true;
-        const { error } = await supabase.from("board_comments").insert({
-            post_id: post.id,
-            author_id: currentSession.user.id,
-            body
-        });
-        submit.disabled = false;
-        if (error) {
-            showBoardAlert(error.message, "danger");
-            return;
-        }
-        await renderBoard();
-    });
-
-    row.append(input, submit);
-    form.appendChild(row);
-    parent.appendChild(form);
-}
-
-function renderComment(comment) {
-    const profile = comment.profiles || {};
-    const item = el("div", { class: "comment-item" });
-    const header = el("div", { class: "comment-meta" });
-
-    if (profile.avatar_url) {
-        header.appendChild(el("img", {
-            class: "avatar small",
-            src: profile.avatar_url,
-            alt: ""
-        }));
-    }
-    header.appendChild(el("span", {
-        class: "comment-author",
-        text: profile.display_name || "Paengclub member"
-    }));
-    header.appendChild(el("span", {
-        class: "muted-text",
-        text: formatDate(comment.created_at)
-    }));
-
-    if (currentSession?.user?.id === comment.author_id) {
-        header.appendChild(el("button", {
-            class: "text-action danger ms-auto",
-            type: "button",
-            text: "삭제",
-            onclick: async () => {
-                const { error } = await supabase.from("board_comments").delete().eq("id", comment.id);
-                if (error) showBoardAlert(error.message, "danger");
-                else await renderBoard();
-            }
-        }));
-    }
-
-    item.append(header, el("div", { class: "board-comment-body", text: comment.body }));
-    return item;
-}
-
-function renderPost(post) {
-    const profile = post.profiles || {};
-    const card = el("article", { class: "post-card" });
-    const body = el("div", { class: "post-body" });
-    const header = el("div", { class: "post-header" });
-    const titleWrap = el("div", { class: "post-title-wrap" });
-    const actions = el("div", { class: "post-actions" });
-
-    if (profile.avatar_url) {
-        header.appendChild(el("img", {
-            class: "avatar",
-            src: profile.avatar_url,
-            alt: ""
-        }));
-    }
-
-    titleWrap.append(
-        el("h2", { class: "post-title", text: post.title }),
-        el("div", {
-            class: "post-meta",
-            text: `${profile.display_name || "Paengclub member"} · ${formatDate(post.created_at)}`
-        })
-    );
-    renderPostActions(post, actions);
-    header.append(titleWrap, actions);
-
-    body.append(
-        header,
-        el("div", { class: "board-post-body", text: post.body })
-    );
-
-    const comments = [...(post.board_comments || [])].sort((a, b) => {
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    });
-    const commentBox = el("div", { class: "comment-box" });
-    if (comments.length > 0) {
-        commentBox.appendChild(el("div", {
-            class: "comment-count",
-            text: `댓글 ${comments.length}`
-        }));
-        for (const comment of comments) commentBox.appendChild(renderComment(comment));
-    }
-    renderCommentForm(post, commentBox);
-    body.appendChild(commentBox);
-
-    card.appendChild(body);
-    return card;
-}
-
-export async function renderBoard() {
-    const root = screen();
-    if (!root) return;
-    root.replaceChildren();
-
-    const wrapper = el("section", { class: "page-shell board-shell" });
-    const panel = el("div", { class: "app-panel board-panel" });
-    wrapper.append(
-        panel
-    );
-    panel.append(
-        el("div", { id: "boardAlert" }),
-        el("div", { class: "section-header board-toolbar" }, [
-            el("div", {}, [
-                el("h1", { class: "section-title", text: "게시판" })
-            ]),
-            el("button", {
-                class: "secondary-button compact",
-                type: "button",
-                text: "새로고침",
-                onclick: renderBoard
-            })
-        ])
-    );
-
-    if (currentSession) renderComposer(panel);
-    else renderLoginPrompt(panel);
-
-    const list = el("div", { id: "boardFeed" });
-    list.appendChild(el("div", { class: "text-body-secondary py-4 text-center", text: "글을 불러오는 중..." }));
-    panel.appendChild(list);
-    root.appendChild(wrapper);
-
-    try {
-        const posts = await loadPosts();
-        list.replaceChildren();
-        if (posts.length === 0) {
-            list.appendChild(el("div", {
-                class: "board-empty p-4 text-center text-body-secondary",
-                text: "아직 글이 없습니다. 첫 글을 남겨보세요."
-            }));
-            return;
-        }
-        for (const post of posts) list.appendChild(renderPost(post));
-    } catch (error) {
-        list.replaceChildren();
-        showBoardAlert(error.message, "danger");
-    }
 }

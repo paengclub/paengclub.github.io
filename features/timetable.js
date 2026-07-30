@@ -4,7 +4,7 @@
 // this tab via setInitialViewer() + a simulated click on the nav button.
 // Exports renderTimetable, cleanupTimetable, setInitialViewer.
 import { supabase } from "/supabaseClient.js";
-import { getCurrentSession, signInWithGoogle } from "/features/board.js";
+import { getCurrentSession, signInWithGoogle } from "/features/auth.js";
 import { el } from "/lib/dom.js";
 
 const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];

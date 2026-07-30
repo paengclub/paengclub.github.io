@@ -1,13 +1,13 @@
 // features/profiles.js — 프로필, a card directory of everyone who has ever
-// signed in (every row in `profiles`, auto-created by features/board.js on
+// signed in (every row in `profiles`, auto-created by features/auth.js on
 // first login). Each card shows avatar/name/MBTI/bio plus a tiny preview of
 // that person's weekly schedule (from timetable_courses) linking into the
-// 시간표 tab. Editing your own details happens on board.js's existing
+// 시간표 tab. Editing your own details happens on auth.js's existing
 // renderProfile() screen (reached via the avatar button or the "내 프로필
 // 수정" action on your own card here). Exports renderProfilesDirectory,
 // cleanupProfilesDirectory.
 import { supabase } from "/supabaseClient.js";
-import { getCurrentSession, renderProfile, signInWithGoogle } from "/features/board.js";
+import { getCurrentSession, renderProfile, signInWithGoogle } from "/features/auth.js";
 import { setInitialViewer } from "/features/timetable.js";
 import { el } from "/lib/dom.js";
 
@@ -31,7 +31,7 @@ async function loadDirectory() {
             .order("created_at", { ascending: true }),
         supabase
             .from("timetable_courses")
-            .select("user_id, day_of_week, start_minute, end_minute, color")
+            .select("user_id, days, start_minute, end_minute, color")
     ]);
 
     if (profilesResult.error) throw profilesResult.error;
@@ -62,13 +62,15 @@ function renderMiniTimetable(courses) {
         const top = ((start - MINI_START_MINUTE) / MINI_RANGE) * 100;
         const height = ((end - start) / MINI_RANGE) * 100;
         const dayCount = 7;
-        const left = (course.day_of_week / dayCount) * 100;
         const width = (1 / dayCount) * 100;
 
-        grid.appendChild(el("span", {
-            class: "pdir-mini-block",
-            style: `top:${top}%;height:${Math.max(height, 3)}%;left:${left}%;width:${width}%;background:${course.color}`
-        }));
+        for (const day of course.days) {
+            const left = (day / dayCount) * 100;
+            grid.appendChild(el("span", {
+                class: "pdir-mini-block",
+                style: `top:${top}%;height:${Math.max(height, 3)}%;left:${left}%;width:${width}%;background:${course.color}`
+            }));
+        }
     }
     return grid;
 }

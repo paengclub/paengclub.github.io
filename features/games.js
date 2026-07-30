@@ -4,7 +4,7 @@
 // hold piece. Exports renderGames, cleanupGames (cleanupTimers releases every
 // game's timers + the tetris input loop/listeners).
 import { supabase } from "/supabaseClient.js";
-import { getCurrentPlayerName, getCurrentSession } from "/features/board.js";
+import { getCurrentPlayerName, getCurrentSession } from "/features/auth.js";
 import { el } from "/lib/dom.js";
 import { cssVar } from "/lib/format.js";
 
