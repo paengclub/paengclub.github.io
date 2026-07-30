@@ -11,6 +11,7 @@ const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 const HOUR_ROW_PX = 52;
 const DEFAULT_START_HOUR = 9;
 const DEFAULT_END_HOUR = 18;
+const TIME_STEP_MINUTES = 5;
 const COLOR_PALETTE = [
     "#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6",
     "#ec4899", "#14b8a6", "#f97316", "#6366f1", "#84cc16"
@@ -23,10 +24,19 @@ let pendingViewerId = null;
 let panelMode = null; // null | "view" | "edit" | "add"
 let selectedCourse = null;
 let chosenColor = COLOR_PALETTE[0];
+let selectedDays = new Set();
+
+function roundToStep(minute) {
+    return Math.round(minute / TIME_STEP_MINUTES) * TIME_STEP_MINUTES;
+}
 
 function minutesFromTimeInput(value) {
     const [h, m] = value.split(":").map(Number);
-    return h * 60 + m;
+    return roundToStep(h * 60 + m);
+}
+
+function dayLabelsFor(days) {
+    return [...days].sort((a, b) => a - b).map((day) => DAY_LABELS[day]).join("·");
 }
 
 function formatMinutes(minute) {
@@ -51,7 +61,7 @@ async function loadAll() {
             .order("created_at", { ascending: true }),
         supabase
             .from("timetable_courses")
-            .select("id, user_id, name, professor, location, day_of_week, start_minute, end_minute, color, memo")
+            .select("id, user_id, name, professor, location, days, start_minute, end_minute, color, memo")
             .order("start_minute", { ascending: true })
     ]);
 
@@ -66,13 +76,13 @@ function coursesFor(userId) {
 }
 
 function activeDays(viewerCourses) {
-    const days = [0, 1, 2, 3, 4];
+    const days = new Set([0, 1, 2, 3, 4]);
     for (const course of viewerCourses) {
-        if ((course.day_of_week === 5 || course.day_of_week === 6) && !days.includes(course.day_of_week)) {
-            days.push(course.day_of_week);
+        for (const day of course.days) {
+            if (day === 5 || day === 6) days.add(day);
         }
     }
-    return days.sort((a, b) => a - b);
+    return [...days].sort((a, b) => a - b);
 }
 
 function hourRange(viewerCourses) {
@@ -99,6 +109,7 @@ function openAddForm() {
     panelMode = "add";
     selectedCourse = null;
     chosenColor = COLOR_PALETTE[coursesFor(viewerId).length % COLOR_PALETTE.length];
+    selectedDays = new Set([0]);
     renderPanel();
 }
 
@@ -110,6 +121,7 @@ function openDetail(course) {
 
 function switchToEdit() {
     chosenColor = selectedCourse.color;
+    selectedDays = new Set(selectedCourse.days);
     panelMode = "edit";
     renderPanel();
 }
@@ -121,6 +133,10 @@ async function submitCourse(values, existingId) {
     const name = values.name.trim();
     if (!name) {
         setPanelStatus("과목명을 입력해 주세요.", "danger");
+        return;
+    }
+    if (selectedDays.size === 0) {
+        setPanelStatus("요일을 하나 이상 선택해 주세요.", "danger");
         return;
     }
     const startMinute = minutesFromTimeInput(values.start);
@@ -135,7 +151,7 @@ async function submitCourse(values, existingId) {
         name: name.slice(0, 60),
         professor: values.professor.trim().slice(0, 40),
         location: values.location.trim().slice(0, 40),
-        day_of_week: Number(values.day),
+        days: [...selectedDays].sort((a, b) => a - b),
         start_minute: startMinute,
         end_minute: endMinute,
         color: chosenColor,
@@ -175,6 +191,24 @@ function setPanelStatus(message, type = "") {
     status.textContent = message;
 }
 
+function dayToggleRow() {
+    const row = el("div", { class: "tt-day-toggle-row" });
+    DAY_LABELS.forEach((label, index) => {
+        const btn = el("button", {
+            type: "button",
+            class: `tt-day-toggle${selectedDays.has(index) ? " active" : ""}`,
+            text: label,
+            onclick: () => {
+                if (selectedDays.has(index)) selectedDays.delete(index);
+                else selectedDays.add(index);
+                btn.classList.toggle("active");
+            }
+        });
+        row.appendChild(btn);
+    });
+    return row;
+}
+
 function colorSwatchRow(container) {
     const row = el("div", { class: "tt-swatch-row" });
     COLOR_PALETTE.forEach((color) => {
@@ -199,20 +233,13 @@ function renderCourseForm(existing) {
     const nameInput = el("input", { class: "form-control", maxlength: "60", placeholder: "과목명", value: existing?.name || "" });
     const professorInput = el("input", { class: "form-control", maxlength: "40", placeholder: "교수님 (선택)", value: existing?.professor || "" });
     const locationInput = el("input", { class: "form-control", maxlength: "40", placeholder: "강의실 (선택)", value: existing?.location || "" });
-    const daySelect = el("select", { class: "form-control" }, DAY_LABELS.map((label, index) => el("option", {
-        value: String(index),
-        text: `${label}요일`,
-        selected: (existing ? existing.day_of_week : 0) === index ? "" : null
-    })));
-    const startInput = el("input", { class: "form-control", type: "time", value: existing ? formatMinutes(existing.start_minute) : "09:00" });
-    const endInput = el("input", { class: "form-control", type: "time", value: existing ? formatMinutes(existing.end_minute) : "10:15" });
+    const startInput = el("input", { class: "form-control", type: "time", step: String(TIME_STEP_MINUTES * 60), value: existing ? formatMinutes(existing.start_minute) : "09:00" });
+    const endInput = el("input", { class: "form-control", type: "time", step: String(TIME_STEP_MINUTES * 60), value: existing ? formatMinutes(existing.end_minute) : "10:15" });
     const memoInput = el("input", { class: "form-control", maxlength: "100", placeholder: "메모 (선택)", value: existing?.memo || "" });
 
     const form = el("div", { class: "tt-form" }, [
-        el("div", { class: "tt-form-row" }, [
-            el("label", { class: "pf-field" }, [el("span", { text: "과목명" }), nameInput]),
-            el("label", { class: "pf-field" }, [el("span", { text: "요일" }), daySelect])
-        ]),
+        el("label", { class: "pf-field" }, [el("span", { text: "과목명" }), nameInput]),
+        el("label", { class: "pf-field" }, [el("span", { text: "요일 (복수 선택 가능)" }), dayToggleRow()]),
         el("div", { class: "tt-form-row" }, [
             el("label", { class: "pf-field" }, [el("span", { text: "시작" }), startInput]),
             el("label", { class: "pf-field" }, [el("span", { text: "종료" }), endInput])
@@ -235,7 +262,6 @@ function renderCourseForm(existing) {
                 name: nameInput.value,
                 professor: professorInput.value,
                 location: locationInput.value,
-                day: daySelect.value,
                 start: startInput.value,
                 end: endInput.value,
                 memo: memoInput.value
@@ -262,7 +288,7 @@ function renderDetailView(course) {
             el("span", { class: "tt-swatch tt-swatch-static", style: `background:${course.color}` }),
             course.name
         ]),
-        el("div", { class: "muted-text", text: `${DAY_LABELS[course.day_of_week]}요일 · ${formatMinutes(course.start_minute)}–${formatMinutes(course.end_minute)}` }),
+        el("div", { class: "muted-text", text: `${dayLabelsFor(course.days)}요일 · ${formatMinutes(course.start_minute)}–${formatMinutes(course.end_minute)}` }),
         course.location ? el("div", { class: "muted-text", text: `📍 ${course.location}` }) : null,
         course.professor ? el("div", { class: "muted-text", text: `👤 ${course.professor}` }) : null,
         course.memo ? el("div", { class: "muted-text", text: course.memo }) : null,
@@ -333,7 +359,7 @@ function renderGrid(viewerCourses) {
         });
 
         coursesFor(viewerId)
-            .filter((course) => course.day_of_week === day)
+            .filter((course) => course.days.includes(day))
             .forEach((course) => {
                 const top = ((course.start_minute - rangeStart) / rangeMinutes) * 100;
                 const height = ((course.end_minute - course.start_minute) / rangeMinutes) * 100;
@@ -358,11 +384,11 @@ function renderCourseList(viewerCourses) {
     if (viewerCourses.length === 0) {
         return el("div", { class: "empty-line", text: "등록된 과목이 없어요." });
     }
-    const sorted = [...viewerCourses].sort((a, b) => a.day_of_week - b.day_of_week || a.start_minute - b.start_minute);
+    const sorted = [...viewerCourses].sort((a, b) => Math.min(...a.days) - Math.min(...b.days) || a.start_minute - b.start_minute);
     return el("div", { class: "tt-course-list" }, sorted.map((course) => el("div", { class: "tt-course-item" }, [
         el("span", { class: "tt-swatch tt-swatch-static", style: `background:${course.color}` }),
         el("span", { class: "tt-course-item-name", text: course.name }),
-        el("span", { class: "muted-text", text: `${DAY_LABELS[course.day_of_week]} ${formatMinutes(course.start_minute)}–${formatMinutes(course.end_minute)}${course.location ? " · " + course.location : ""}` })
+        el("span", { class: "muted-text", text: `${dayLabelsFor(course.days)} ${formatMinutes(course.start_minute)}–${formatMinutes(course.end_minute)}${course.location ? " · " + course.location : ""}` })
     ])));
 }
 

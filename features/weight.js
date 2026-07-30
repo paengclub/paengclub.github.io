@@ -32,6 +32,7 @@ let tooltip = null;
 let emptyState = null;
 let legend = null;
 let compareStrip = null;
+let statsPanel = null;
 let diffToggleBtn = null;
 let selectedRange = "7";
 let chartMode = "overlay"; // "overlay" | "diff"
@@ -653,6 +654,105 @@ function renderComparison() {
     compareStrip.replaceChildren(...items);
 }
 
+// --- quantitative stats panel (exact numbers, independent of chart zoom) ---
+
+function changeSince(records, days) {
+    if (records.length < 2) return null;
+    const latest = records[records.length - 1];
+    const cutoff = latest.dateValue - days * dayMs;
+    const candidates = records.filter((record) => record.dateValue <= cutoff);
+    const base = candidates.length > 0 ? candidates[candidates.length - 1] : records[0];
+    if (base.dateValue === latest.dateValue) return null;
+    return {
+        delta: latest.weight - base.weight,
+        actualDays: Math.max(1, Math.round((latest.dateValue - base.dateValue) / dayMs))
+    };
+}
+
+function computeStats(person) {
+    const records = sortedDatedRecords(person.records);
+    if (records.length === 0) return null;
+
+    const latest = records[records.length - 1];
+    const first = records[0];
+    const weights = records.map((record) => record.weight);
+    const min = Math.min(...weights);
+    const max = Math.max(...weights);
+    const avg = weights.reduce((sum, weight) => sum + weight, 0) / weights.length;
+    const totalChange = records.length >= 2 ? latest.weight - first.weight : null;
+    const totalDays = Math.max(1, Math.round((latest.dateValue - first.dateValue) / dayMs));
+
+    return {
+        latestWeight: latest.weight,
+        latestDate: latest.date,
+        change7: changeSince(records, 7),
+        change30: changeSince(records, 30),
+        totalChange,
+        totalDays,
+        recordCount: records.length,
+        min,
+        max,
+        avg
+    };
+}
+
+function statTile(label, value, tone = "") {
+    return el("div", { class: `weight-stat ${tone}` }, [
+        el("span", { class: "weight-stat-label", text: label }),
+        el("strong", { class: "weight-stat-value", text: value })
+    ]);
+}
+
+function changeLabel(change) {
+    if (!change) return "- (데이터 부족)";
+    const sign = change.delta > 0 ? "+" : "";
+    return `${sign}${change.delta.toFixed(1)}kg (${change.actualDays}일 전 대비)`;
+}
+
+function changeTone(change) {
+    if (!change || Math.abs(change.delta) < 0.05) return "";
+    return change.delta > 0 ? "plus" : "minus";
+}
+
+function renderStatsCard(person) {
+    const stats = computeStats(person);
+    if (!stats) {
+        return el("div", { class: "weight-stats-card" }, [
+            el("div", { class: "weight-stats-head" }, [
+                el("span", { class: "swatch", style: `background:${person.color}` }),
+                el("strong", { text: person.name })
+            ]),
+            el("div", { class: "empty-line", text: "기록이 없어요." })
+        ]);
+    }
+
+    return el("div", { class: "weight-stats-card" }, [
+        el("div", { class: "weight-stats-head" }, [
+            el("span", { class: "swatch", style: `background:${person.color}` }),
+            el("strong", { text: person.name }),
+            el("span", { class: "muted-text", text: `최근 기록 ${formatFullDate(parseDate(stats.latestDate))}` })
+        ]),
+        el("div", { class: "weight-stat-grid" }, [
+            statTile("현재 체중", `${stats.latestWeight.toFixed(1)}kg`),
+            statTile("최근 7일", changeLabel(stats.change7), changeTone(stats.change7)),
+            statTile("최근 30일", changeLabel(stats.change30), changeTone(stats.change30)),
+            statTile("전체 변화", stats.totalChange !== null ? `${stats.totalChange > 0 ? "+" : ""}${stats.totalChange.toFixed(1)}kg (${stats.totalDays}일간)` : "-", changeTone(stats.totalChange !== null ? { delta: stats.totalChange } : null)),
+            statTile("최고 / 최저", `${stats.max.toFixed(1)}kg / ${stats.min.toFixed(1)}kg`),
+            statTile("평균", `${stats.avg.toFixed(1)}kg`),
+            statTile("기록 수", `${stats.recordCount}회`)
+        ])
+    ]);
+}
+
+function renderStatsPanel() {
+    if (!statsPanel) return;
+    if (weightData.length === 0) {
+        statsPanel.replaceChildren();
+        return;
+    }
+    statsPanel.replaceChildren(...weightData.map(renderStatsCard));
+}
+
 // --- render orchestration ---
 
 function renderChart() {
@@ -913,7 +1013,8 @@ function renderShell() {
                 el("div", { class: "tooltip", id: "weightTooltip", hidden: "" }),
                 el("div", { class: "empty", id: "weightEmptyState", hidden: "", text: "표시할 데이터가 없습니다." })
             ])
-        ])
+        ]),
+        el("div", { class: "weight-stats", id: "weightStats" })
     );
     wrapper.appendChild(panel);
     root.appendChild(wrapper);
@@ -984,6 +1085,7 @@ export function cleanupWeightTracker() {
     emptyState = null;
     legend = null;
     compareStrip = null;
+    statsPanel = null;
     diffToggleBtn = null;
 }
 
@@ -1000,6 +1102,7 @@ export async function renderWeightTracker() {
     emptyState = document.getElementById("weightEmptyState");
     legend = document.getElementById("weightLegend");
     compareStrip = document.getElementById("weightCompare");
+    statsPanel = document.getElementById("weightStats");
     selectedRange = "7";
     chartMode = "overlay";
     plottedPoints = [];
@@ -1013,6 +1116,7 @@ export async function renderWeightTracker() {
         bindControls();
         renderLegend();
         renderComparison();
+        renderStatsPanel();
         renderChart();
     } catch (error) {
         console.warn(error);

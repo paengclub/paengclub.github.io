@@ -8,11 +8,16 @@ import { getCurrentPlayerName, getCurrentSession } from "/features/board.js";
 import { el } from "/lib/dom.js";
 import { cssVar } from "/lib/format.js";
 
+// timeBased games store score = max(0, cap - ms) so "higher score" still sorts
+// the leaderboard correctly (score DESC), but are always *displayed* as the
+// raw ms via this shared cap instead of each game special-casing its label.
 const GAMES = {
     reaction: {
         title: "반응속도",
         unit: "ms",
-        description: "초록색이 되면 바로 누르기"
+        description: "초록색이 되면 바로 누르기",
+        timeBased: true,
+        cap: 1200
     },
     taprush: {
         title: "10초 탭",
@@ -23,6 +28,23 @@ const GAMES = {
         title: "기억 순서",
         unit: "단계",
         description: "불이 들어온 순서를 따라 누르기"
+    },
+    schulte: {
+        title: "숫자 찾기",
+        unit: "ms",
+        description: "1부터 25까지 순서대로 빠르게 누르기",
+        timeBased: true,
+        cap: 60000
+    },
+    stroop: {
+        title: "색깔 일치",
+        unit: "연속",
+        description: "글자의 뜻과 글자색이 일치하는지 빠르게 판단하기"
+    },
+    rps: {
+        title: "가위바위보",
+        unit: "연승",
+        description: "컴퓨터를 상대로 연승을 이어가기"
     },
     tetris: {
         title: "테트리스",
@@ -40,6 +62,13 @@ let tapCount = 0;
 let memorySequence = [];
 let memoryInput = [];
 let memoryLocked = false;
+let schulteTimer = null;
+let schulteRunning = false;
+let schulteStartTime = 0;
+let schulteNext = 1;
+let stroopRunning = false;
+let stroopStreak = 0;
+let rpsStreak = 0;
 
 // --- tetris ---
 const TETRIS_COLS = 10;
@@ -139,7 +168,8 @@ async function submitScore(score, metadata = {}) {
         return;
     }
 
-    const label = activeGame === "reaction" && metadata.ms ? `${metadata.ms}ms` : `${score}${gameInfo().unit}`;
+    const info = gameInfo();
+    const label = info.timeBased && metadata.ms ? `${metadata.ms}ms` : `${score}${info.unit}`;
     setStatus(`${label} 기록 완료`, "success");
     await refreshGameData();
 }
@@ -190,11 +220,12 @@ function renderLeaderboard(rows) {
 }
 
 function scoreLabel(row) {
-    if (row.game_id === "reaction" || activeGame === "reaction") {
+    const info = GAMES[row.game_id || activeGame];
+    if (info?.timeBased) {
         const ms = row.metadata?.ms;
-        return ms ? `${ms}ms` : `${Math.max(0, 1200 - row.score)}ms`;
+        return `${ms ?? Math.max(0, info.cap - row.score)}ms`;
     }
-    return `${row.score}${GAMES[row.game_id || activeGame]?.unit || ""}`;
+    return `${row.score}${info?.unit || ""}`;
 }
 
 function renderStats(rows) {
@@ -215,7 +246,7 @@ function renderStats(rows) {
     for (const [gameId, info] of Object.entries(GAMES)) {
         const scores = rows.filter((row) => row.game_id === gameId).map((row) => row.score);
         const best = scores.length ? Math.max(...scores) : 0;
-        const bestLabel = gameId === "reaction" ? `${Math.max(0, 1200 - best)}ms` : `${best}${info.unit}`;
+        const bestLabel = info.timeBased ? `${Math.max(0, info.cap - best)}ms` : `${best}${info.unit}`;
         stats.appendChild(el("div", { class: "stat-row" }, [
             el("span", { text: info.title }),
             el("strong", { text: scores.length ? `${bestLabel} · ${scores.length}회` : "-" })
@@ -244,6 +275,10 @@ function cleanupTimers() {
     if (tapTimer) window.clearInterval(tapTimer);
     reactionTimer = null;
     tapTimer = null;
+    if (schulteTimer) window.clearInterval(schulteTimer);
+    schulteTimer = null;
+    schulteRunning = false;
+    stroopRunning = false;
     if (tetrisTimer) window.clearTimeout(tetrisTimer);
     tetrisTimer = null;
     if (tetrisKeyDownHandler) {
@@ -943,9 +978,203 @@ function renderTetrisGame() {
     return el("div", { class: "tetris-wrap" }, [hud, tetrisBoardWrap, controls]);
 }
 
+// --- 숫자 찾기 (Schulte table): find 1..25 in order, as fast as possible ---
+const SCHULTE_SIDE = 5;
+
+function shuffledSchulteNumbers() {
+    const numbers = Array.from({ length: SCHULTE_SIDE * SCHULTE_SIDE }, (_, i) => i + 1);
+    for (let i = numbers.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+    }
+    return numbers;
+}
+
+function renderSchulteGame() {
+    const timerLabel = el("div", { class: "schulte-timer", text: "시작을 눌러 진행하세요." });
+    const grid = el("div", { class: "schulte-grid" });
+    const startBtn = el("button", { class: "primary-button", type: "button", text: "시작" });
+
+    function layout() {
+        grid.replaceChildren(...shuffledSchulteNumbers().map((num) => {
+            const cell = el("button", {
+                type: "button",
+                class: "schulte-cell",
+                text: String(num),
+                onclick: () => handleClick(num, cell)
+            });
+            return cell;
+        }));
+    }
+
+    function handleClick(num, cellEl) {
+        if (!schulteRunning || cellEl.disabled) return;
+        if (num !== schulteNext) {
+            cellEl.classList.add("shake");
+            window.setTimeout(() => cellEl.classList.remove("shake"), 220);
+            return;
+        }
+        cellEl.disabled = true;
+        cellEl.classList.add("done");
+        schulteNext += 1;
+        if (schulteNext > SCHULTE_SIDE * SCHULTE_SIDE) finish();
+    }
+
+    function updateElapsed() {
+        const elapsedMs = performance.now() - schulteStartTime;
+        timerLabel.textContent = `${(elapsedMs / 1000).toFixed(1)}s · 다음: ${schulteNext}`;
+    }
+
+    async function finish() {
+        schulteRunning = false;
+        if (schulteTimer) window.clearInterval(schulteTimer);
+        schulteTimer = null;
+        const elapsedMs = Math.round(performance.now() - schulteStartTime);
+        timerLabel.textContent = `완료! ${(elapsedMs / 1000).toFixed(1)}s`;
+        startBtn.hidden = false;
+        startBtn.textContent = "다시 시작";
+        await submitScore(Math.max(0, GAMES.schulte.cap - elapsedMs), { ms: elapsedMs });
+    }
+
+    startBtn.addEventListener("click", () => {
+        schulteRunning = true;
+        schulteNext = 1;
+        schulteStartTime = performance.now();
+        startBtn.hidden = true;
+        layout();
+        updateElapsed();
+        if (schulteTimer) window.clearInterval(schulteTimer);
+        schulteTimer = window.setInterval(updateElapsed, 100);
+    });
+
+    layout();
+    return el("div", { class: "schulte-wrap" }, [timerLabel, grid, startBtn]);
+}
+
+// --- 색깔 일치 (Stroop match/mismatch): judge word-vs-ink-color as a streak ---
+const STROOP_WORDS = [
+    { name: "빨강", color: "#ef4444" },
+    { name: "파랑", color: "#3b82f6" },
+    { name: "초록", color: "#22c55e" },
+    { name: "노랑", color: "#eab308" },
+    { name: "보라", color: "#8b5cf6" },
+    { name: "주황", color: "#f97316" }
+];
+
+function randomStroopRound() {
+    const wordDef = STROOP_WORDS[Math.floor(Math.random() * STROOP_WORDS.length)];
+    const isMatch = Math.random() < 0.5;
+    const colorDef = isMatch
+        ? wordDef
+        : STROOP_WORDS.filter((word) => word.name !== wordDef.name)[Math.floor(Math.random() * (STROOP_WORDS.length - 1))];
+    return { word: wordDef.name, colorHex: colorDef.color, isMatch };
+}
+
+function renderStroopGame() {
+    stroopStreak = 0;
+    stroopRunning = false;
+    let current = null;
+
+    const streakEl = el("div", { class: "stroop-streak", text: "연속 0" });
+    const wordEl = el("div", { class: "stroop-word", text: "시작을 눌러주세요" });
+    const startBtn = el("button", { class: "primary-button", type: "button", text: "시작" });
+    const matchBtn = el("button", { class: "secondary-button stroop-answer", type: "button", text: "일치", disabled: "" });
+    const mismatchBtn = el("button", { class: "secondary-button stroop-answer", type: "button", text: "불일치", disabled: "" });
+
+    function nextRound() {
+        current = randomStroopRound();
+        wordEl.textContent = current.word;
+        wordEl.style.color = current.colorHex;
+    }
+
+    async function answer(pickMatch) {
+        if (!stroopRunning) return;
+        if (pickMatch === current.isMatch) {
+            stroopStreak += 1;
+            streakEl.textContent = `연속 ${stroopStreak}`;
+            nextRound();
+            return;
+        }
+        stroopRunning = false;
+        matchBtn.disabled = true;
+        mismatchBtn.disabled = true;
+        wordEl.style.color = "";
+        wordEl.textContent = "실패!";
+        startBtn.hidden = false;
+        startBtn.textContent = "다시 시작";
+        await submitScore(stroopStreak, {});
+    }
+
+    matchBtn.addEventListener("click", () => answer(true));
+    mismatchBtn.addEventListener("click", () => answer(false));
+    startBtn.addEventListener("click", () => {
+        stroopStreak = 0;
+        stroopRunning = true;
+        streakEl.textContent = "연속 0";
+        matchBtn.disabled = false;
+        mismatchBtn.disabled = false;
+        startBtn.hidden = true;
+        nextRound();
+    });
+
+    return el("div", { class: "stroop-wrap" }, [
+        streakEl,
+        wordEl,
+        el("div", { class: "stroop-actions" }, [matchBtn, mismatchBtn]),
+        startBtn
+    ]);
+}
+
+// --- 가위바위보 연승: keep winning against a random computer pick ---
+const RPS_CHOICES = ["가위", "바위", "보"];
+const RPS_BEATS = { 가위: "보", 바위: "가위", 보: "바위" };
+
+function renderRpsGame() {
+    rpsStreak = 0;
+    const streakEl = el("div", { class: "rps-streak", text: "연승 0" });
+    const resultEl = el("div", { class: "rps-result", text: "가위/바위/보 중 하나를 선택하세요" });
+    const buttons = RPS_CHOICES.map((choice) => el("button", {
+        class: "game-pad rps-pad",
+        type: "button",
+        text: choice,
+        onclick: () => play(choice)
+    }));
+
+    async function play(choice) {
+        const computer = RPS_CHOICES[Math.floor(Math.random() * RPS_CHOICES.length)];
+        if (choice === computer) {
+            resultEl.textContent = `비겼어요 (컴퓨터: ${computer}) · 다시 선택하세요`;
+            return;
+        }
+        if (RPS_BEATS[choice] === computer) {
+            rpsStreak += 1;
+            streakEl.textContent = `연승 ${rpsStreak}`;
+            resultEl.textContent = `승리! (컴퓨터: ${computer})`;
+            return;
+        }
+
+        const finalStreak = rpsStreak;
+        resultEl.textContent = `패배... (컴퓨터: ${computer}) · 최종 연승 ${finalStreak}`;
+        buttons.forEach((btn) => { btn.disabled = true; });
+        await submitScore(finalStreak, {});
+        rpsStreak = 0;
+        streakEl.textContent = "연승 0";
+        buttons.forEach((btn) => { btn.disabled = false; });
+    }
+
+    return el("div", { class: "rps-wrap" }, [
+        streakEl,
+        resultEl,
+        el("div", { class: "rps-buttons" }, buttons)
+    ]);
+}
+
 function renderActiveGame() {
     if (activeGame === "reaction") return renderReactionGame();
     if (activeGame === "taprush") return renderTapRushGame();
+    if (activeGame === "schulte") return renderSchulteGame();
+    if (activeGame === "stroop") return renderStroopGame();
+    if (activeGame === "rps") return renderRpsGame();
     if (activeGame === "tetris") return renderTetrisGame();
     return renderMemoryGame();
 }

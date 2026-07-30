@@ -539,6 +539,73 @@ button {
     font-weight: 720;
 }
 
+.weight-stats {
+    display: grid;
+    gap: 12px;
+    margin: 16px 24px 0;
+}
+
+.weight-stats-card {
+    padding: 14px 16px;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius);
+    background: var(--app-surface-strong);
+}
+
+.weight-stats-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.weight-stats-head strong {
+    color: var(--app-text);
+    font-size: 0.98rem;
+}
+
+.weight-stats-head .muted-text {
+    margin-left: auto;
+}
+
+.weight-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+}
+
+.weight-stat {
+    display: grid;
+    gap: 3px;
+    padding: 10px 12px;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius-sm);
+    background: var(--app-bg);
+}
+
+.weight-stat-label {
+    color: var(--app-muted);
+    font-size: 0.74rem;
+    font-weight: 640;
+}
+
+.weight-stat-value {
+    overflow: hidden;
+    color: var(--app-text);
+    font-size: 0.92rem;
+    font-weight: 720;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.weight-stat.plus .weight-stat-value {
+    color: var(--app-primary);
+}
+
+.weight-stat.minus .weight-stat-value {
+    color: var(--app-danger);
+}
+
 .chart-wrap {
     position: relative;
     height: 460px;
@@ -2046,6 +2113,7 @@ button {
 
 .game-tabs {
     display: inline-flex;
+    flex-wrap: wrap;
     gap: 6px;
     padding: 5px;
     border: 1px solid var(--app-line);
@@ -2172,6 +2240,116 @@ button {
 .memory-cell:active {
     color: #ffffff;
     background: var(--app-primary);
+}
+
+/* 숫자 찾기 (schulte) */
+.schulte-wrap {
+    display: grid;
+    gap: 14px;
+    justify-items: center;
+}
+
+.schulte-timer {
+    color: var(--app-text);
+    font-size: 1.02rem;
+    font-weight: 720;
+    font-variant-numeric: tabular-nums;
+}
+
+.schulte-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    max-width: 340px;
+}
+
+.schulte-cell {
+    aspect-ratio: 1;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius-sm);
+    color: var(--app-text);
+    background: color-mix(in srgb, var(--app-bg) 72%, var(--app-surface-strong));
+    font-size: 1.1rem;
+    font-weight: 780;
+    touch-action: manipulation;
+}
+
+.schulte-cell.done {
+    color: var(--app-muted);
+    background: color-mix(in srgb, var(--app-primary) 16%, var(--app-surface-strong));
+    opacity: 0.6;
+}
+
+.schulte-cell.shake {
+    animation: schulte-shake 0.22s ease;
+}
+
+@keyframes schulte-shake {
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
+
+/* 색깔 일치 (stroop) */
+.stroop-wrap {
+    display: grid;
+    gap: 16px;
+    justify-items: center;
+    padding: 12px 0;
+}
+
+.stroop-streak {
+    color: var(--app-muted);
+    font-size: 0.9rem;
+    font-weight: 680;
+}
+
+.stroop-word {
+    min-height: 3.4rem;
+    font-size: 2.4rem;
+    font-weight: 820;
+}
+
+.stroop-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.stroop-answer {
+    min-width: 96px;
+}
+
+/* 가위바위보 (rps) */
+.rps-wrap {
+    display: grid;
+    gap: 14px;
+    justify-items: center;
+    padding: 12px 0;
+}
+
+.rps-streak {
+    color: var(--app-muted);
+    font-size: 0.9rem;
+    font-weight: 680;
+}
+
+.rps-result {
+    min-height: 1.4em;
+    color: var(--app-text);
+    font-size: 0.92rem;
+    text-align: center;
+}
+
+.rps-buttons {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+.rps-pad {
+    flex: 1;
+    min-height: 110px;
+    font-size: 2rem;
 }
 
 .tetris-wrap {
@@ -2919,6 +3097,30 @@ button {
     gap: 10px;
 }
 
+.tt-day-toggle-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.tt-day-toggle {
+    min-width: 38px;
+    min-height: 32px;
+    padding: 0 8px;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius-sm);
+    color: var(--app-muted);
+    background: var(--app-surface-strong);
+    font-size: 0.86rem;
+    font-weight: 680;
+}
+
+.tt-day-toggle.active {
+    color: #ffffff;
+    border-color: var(--app-primary);
+    background: var(--app-primary);
+}
+
 .tt-swatch-row {
     display: flex;
     flex-wrap: wrap;
@@ -3194,6 +3396,10 @@ button {
     .weight-chart-shell {
         margin: 0 14px;
         padding: 12px;
+    }
+
+    .weight-stats {
+        margin: 14px 14px 0;
     }
 
     .chart-wrap {

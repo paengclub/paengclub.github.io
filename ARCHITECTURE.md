@@ -37,7 +37,7 @@ codebase without reading every file.
 /features        one module per tab; each renders into #screen and cleans up
   board.js       게시판 (board) + Google auth + profile.  ALSO owns the session.
   canvas.js      그림판 (shared pixel board), realtime + reconcile
-  games.js       미니게임 (reaction / taprush / memory / tetris) + leaderboard
+  games.js       미니게임 (reaction / taprush / memory / tetris / schulte / stroop / rps) + leaderboard
   weight.js      체중 (weight chart), reads from Supabase
   portfolio.js   자산관리 (asset dashboard: 현황 / 리밸런싱), login-gated
   tier.js        게임 티어 (drag-and-drop tier list), realtime + poll
@@ -111,11 +111,11 @@ per-user.
 | auth/profile | `profiles` | display_name, avatar_url, nickname, bio, mbti; avatars in `avatars` storage bucket; own row editable |
 | board | `board_posts`, `board_comments` | public read; insert/update/delete by author (`auth.uid()`) |
 | canvas | `canvas_pixels` (PK `x,y`) | public read + write within bounds; in `supabase_realtime` |
-| games | `game_scores` | public read + insert; `game_id ∈ {reaction,taprush,memory,tetris}` |
+| games | `game_scores` | public read + insert; `game_id ∈ {reaction,taprush,memory,tetris,schulte,stroop,rps}`, per-game score-bound CHECK constraints |
 | tier | `tier_games` | public read; insert(unranked)/update(move) by anyone; images in `tier-games` bucket; realtime |
 | portfolio | `portfolio_snapshots`, `portfolio_holdings`, `portfolio_categories`, `portfolio_events` | **per-user** (`user_id = auth.uid()`), login required |
 | weight | `weight_people`, `weight_records` | public read; writes are admin/SQL only |
-| timetable | `timetable_courses` | public read (schedules are meant to be shared); insert/update/delete **own only** (`user_id = auth.uid()`) |
+| timetable | `timetable_courses` | public read (schedules are meant to be shared); insert/update/delete **own only** (`user_id = auth.uid()`); `days` is a `smallint[]` (multi-day courses), `start_minute`/`end_minute` step in 5s |
 
 Schema changes: write a `migrations/<date>_<name>.sql` file for the record AND
 apply it to the project (via the Supabase MCP tools / dashboard). The SQL file
