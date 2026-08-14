@@ -621,7 +621,15 @@ textarea.form-control {
     pointer-events: none;
 }
 
+/* carries the full timeline width; the canvas rides along pinned to the view */
+.chart-track {
+    position: relative;
+    height: 100%;
+}
+
 #weightChart {
+    position: sticky;
+    left: 0;
     display: block;
     height: 100%;
     user-select: none;

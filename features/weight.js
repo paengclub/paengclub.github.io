@@ -37,6 +37,8 @@ const PX_PER_DAY = {
     week: 5,
     day: 14
 };
+// Sanity bound on the timeline's width, so an absurd span can't produce a plot
+// that takes hundreds of drags to cross.
 const MAX_PLOT_PX = 16000;
 
 let canvas = null;
@@ -44,6 +46,10 @@ let ctx = null;
 let axisCanvas = null;
 let axisCtx = null;
 let scroller = null;
+let track = null;
+let scrollHandler = null;
+let scrollFrame = null;
+let lastFrame = null;
 let tooltip = null;
 let emptyState = null;
 let legend = null;
@@ -198,37 +204,31 @@ function getBounds(series, slots) {
     };
 }
 
-// iOS caps a canvas's total backing area (~16.7M px) and renders nothing past
-// it. A long history at full device pixel ratio blows through that, so trade
-// crispness for a chart that actually draws.
-const MAX_CANVAS_AREA = 8000000;
-
 function sizeToDpr(target, context, width, height) {
-    const wanted = window.devicePixelRatio || 1;
-    const area = width * height;
-    const dpr = area > 0 ? Math.min(wanted, Math.sqrt(MAX_CANVAS_AREA / area)) : wanted;
-
+    const dpr = window.devicePixelRatio || 1;
     target.width = Math.round(width * dpr);
     target.height = Math.round(height * dpr);
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return dpr;
 }
 
-// Width comes from the elapsed time on show, so equal time is equal distance
-// everywhere on the axis. Anything past the container is what pans.
+// The track carries the full timeline width — that overflow is what pans. The
+// canvas itself stays viewport-sized and pinned, and redraws at an offset as
+// the track scrolls under it. Drawing a plot-wide canvas instead would force
+// the backing store down to a fraction of the device pixel ratio to stay inside
+// the browser's canvas limits, which is what made the 일 line look stepped.
 function resizeCanvas(spanMs) {
-    const available = scroller.clientWidth;
-    const needed = padding.left + padding.right + (spanMs / dayMs) * PX_PER_DAY[activeView];
-    // Browsers refuse to allocate a canvas past ~32k px on a side; clamp well
-    // short of it. Only a history far longer than this site's would hit it, and
-    // a compressed axis beats a blank one.
-    const width = Math.min(Math.max(available, Math.round(needed)), MAX_PLOT_PX);
+    const viewWidth = scroller.clientWidth;
     const height = scroller.clientHeight;
+    const needed = padding.left + padding.right + (spanMs / dayMs) * PX_PER_DAY[activeView];
+    const plotWidth = Math.min(Math.max(viewWidth, Math.round(needed)), MAX_PLOT_PX);
 
-    canvas.style.width = `${width}px`;
-    sizeToDpr(canvas, ctx, width, height);
+    track.style.width = `${plotWidth}px`;
+    canvas.style.width = `${viewWidth}px`;
+    sizeToDpr(canvas, ctx, viewWidth, height);
     sizeToDpr(axisCanvas, axisCtx, padding.left, height);
 
-    return { width, height };
+    return { width: plotWidth, viewWidth, height };
 }
 
 function createScales(rect, bounds) {
@@ -287,7 +287,6 @@ function drawAxis(rect, bounds, scales) {
 }
 
 function drawGrid(rect, bounds, scales, slots) {
-    ctx.clearRect(0, 0, rect.width, rect.height);
     ctx.lineWidth = 1;
     ctx.font = "12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
 
@@ -379,27 +378,45 @@ function renderChart({ keepScroll = false } = {}) {
     syncControls();
 
     if (!hasData) {
-        ctx.clearRect(0, 0, rect.width, rect.height);
+        ctx.clearRect(0, 0, rect.viewWidth, rect.height);
         axisCtx.clearRect(0, 0, padding.left, rect.height);
         plottedPoints = [];
+        lastFrame = null;
         return;
     }
-
-    const bounds = getBounds(series, slots);
-    const scales = createScales(rect, bounds);
-    drawAxis(rect, bounds, scales);
-    drawGrid(rect, bounds, scales, slots);
-    drawSeries(series, scales, rect);
 
     // Open on the most recent bucket, the one you actually came to look at.
     if (!keepScroll) scroller.scrollLeft = scroller.scrollWidth;
     canvas.classList.toggle("is-pannable", scroller.scrollWidth > scroller.clientWidth);
+
+    lastFrame = { series, slots, rect, bounds: getBounds(series, slots) };
+    paintFrame();
+}
+
+// Everything is drawn in timeline coordinates; the canvas is just a moving
+// window onto them, so panning only re-runs this.
+function paintFrame() {
+    if (!lastFrame || !canvas || !ctx) return;
+    const { series, slots, rect, bounds } = lastFrame;
+    const offset = scroller.scrollLeft;
+    const scales = createScales(rect, bounds);
+
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, rect.viewWidth, rect.height);
+    ctx.translate(-offset, 0);
+
+    drawAxis(rect, bounds, scales);
+    drawGrid(rect, bounds, scales, slots);
+    drawSeries(series, scales, rect);
 }
 
 function nearestPoint(event) {
     const rect = canvas.getBoundingClientRect();
     const pointer = {
-        x: event.clientX - rect.left,
+        // the canvas is pinned to the scrollport, so add the scroll offset to
+        // get back into timeline coordinates
+        x: event.clientX - rect.left + scroller.scrollLeft,
         y: event.clientY - rect.top
     };
 
@@ -516,8 +533,10 @@ function renderShell() {
             el("div", { class: "chart-wrap" }, [
                 el("canvas", { id: "weightAxis", class: "chart-axis", "aria-hidden": "true" }),
                 el("div", { class: "chart-scroll", id: "weightScroll" }, [
-                    el("canvas", { id: "weightChart", "aria-label": "시간별 체중 변화 선 그래프" }),
-                    el("div", { class: "tooltip", id: "weightTooltip", hidden: "" })
+                    el("div", { class: "chart-track", id: "weightTrack" }, [
+                        el("canvas", { id: "weightChart", "aria-label": "시간별 체중 변화 선 그래프" }),
+                        el("div", { class: "tooltip", id: "weightTooltip", hidden: "" })
+                    ])
                 ]),
                 el("div", { class: "empty", id: "weightEmptyState", hidden: "", text: "표시할 데이터가 없습니다." })
             ])
@@ -581,11 +600,27 @@ function bindControls() {
 
     resizeHandler = () => renderChart({ keepScroll: true });
     window.addEventListener("resize", resizeHandler);
+
+    // Panning moves the window, so repaint with the new offset — coalesced to
+    // one repaint per frame.
+    scrollHandler = () => {
+        if (scrollFrame !== null) return;
+        scrollFrame = window.requestAnimationFrame(() => {
+            scrollFrame = null;
+            paintFrame();
+        });
+    };
+    scroller.addEventListener("scroll", scrollHandler, { passive: true });
 }
 
 export function cleanupWeightTracker() {
     if (resizeHandler) window.removeEventListener("resize", resizeHandler);
+    if (scrollHandler && scroller) scroller.removeEventListener("scroll", scrollHandler);
+    if (scrollFrame !== null) window.cancelAnimationFrame(scrollFrame);
     resizeHandler = null;
+    scrollHandler = null;
+    scrollFrame = null;
+    lastFrame = null;
     drag = null;
     dragMoved = false;
     canvas = null;
@@ -593,6 +628,7 @@ export function cleanupWeightTracker() {
     axisCanvas = null;
     axisCtx = null;
     scroller = null;
+    track = null;
     tooltip = null;
     emptyState = null;
     legend = null;
@@ -610,21 +646,33 @@ export async function renderWeightTracker() {
     axisCanvas = document.getElementById("weightAxis");
     axisCtx = axisCanvas.getContext("2d");
     scroller = document.getElementById("weightScroll");
+    track = document.getElementById("weightTrack");
     tooltip = document.getElementById("weightTooltip");
     emptyState = document.getElementById("weightEmptyState");
     legend = document.getElementById("weightLegend");
-    activeView = DEFAULT_VIEW;
     plottedPoints = [];
+    bindControls();
 
-    try {
-        emptyState.hidden = false;
-        emptyState.textContent = "불러오는 중...";
-        await loadWeightData();
-        bindControls();
+    // Coming back to the tab: paint the records we already have straight away
+    // and refresh underneath, rather than showing a spinner for data that has
+    // almost certainly not changed.
+    const hadData = weightData.length > 0;
+    if (hadData) {
         renderLegend();
         renderChart();
+    } else {
+        emptyState.hidden = false;
+        emptyState.textContent = "불러오는 중...";
+    }
+
+    try {
+        await loadWeightData();
+        if (!canvas) return; // left the tab while loading
+        renderLegend();
+        renderChart({ keepScroll: hadData });
     } catch (error) {
         console.warn(error);
+        if (!canvas || hadData) return; // keep showing what we had
         emptyState.hidden = false;
         emptyState.textContent = "체중 데이터를 불러오지 못했습니다.";
     }

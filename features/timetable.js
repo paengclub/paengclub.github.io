@@ -466,21 +466,30 @@ export function cleanupTimetable() {
     selectedCourse = null;
 }
 
+function resolveViewer() {
+    const session = getCurrentSession();
+    // keep whoever was being viewed if they are still around
+    if (viewerId && people.some((person) => person.id === viewerId)) return;
+    if (session && people.some((person) => person.id === session.user.id)) viewerId = session.user.id;
+    else viewerId = people[0]?.id || null;
+}
+
 export async function renderTimetable() {
     cleanupTimetable();
     renderShell();
     const body = document.getElementById("ttGridWrap");
 
+    // Revisiting the tab: draw the schedule we already loaded, then refresh
+    // underneath instead of blanking the grid.
+    if (people.length > 0) {
+        resolveViewer();
+        renderBody();
+    }
+
     try {
         await loadAll();
         const session = getCurrentSession();
-
-        if (session && people.some((person) => person.id === session.user.id)) {
-            viewerId = session.user.id;
-        } else {
-            viewerId = people[0]?.id || null;
-        }
-
+        resolveViewer();
         renderBody();
 
         if (!session) {
@@ -490,6 +499,9 @@ export async function renderTimetable() {
             ]));
         }
     } catch (error) {
+        // if a cached schedule is already on screen, leave it rather than
+        // replacing it with an error
+        if (people.length > 0) return;
         body.replaceChildren(el("div", { class: "portfolio-error", text: error.message }));
     }
 }
