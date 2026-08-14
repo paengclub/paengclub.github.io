@@ -33,9 +33,9 @@ function formatScheduleDate(date) {
 
 // Percent of the way from enlistment to `targetDate`, uncapped so the caller
 // can tell "finished" from "nearly there".
-function progressFor(member, targetDate, hour) {
+function progressFor(member, targetDate) {
     const enlisted = new Date(member.dates[0] + "T00:00:00").getTime();
-    const target = new Date(`${targetDate}T${hour}`).getTime();
+    const target = new Date(`${targetDate}T00:00:00`).getTime();
     return (100 * (Date.now() - enlisted)) / (target - enlisted);
 }
 
@@ -67,13 +67,7 @@ function updater() {
     for (const meter of document.querySelectorAll(".meter[data-member]")) {
         const member = members[Number(meter.dataset.member)];
         if (!member) continue;
-        const isPre = meter.dataset.kind === "pre";
-        const targetDate = isPre ? member.dates[5] : member.dates[4];
-        paintMeter(
-            meter,
-            progressFor(member, targetDate, isPre ? "08:00:00" : "00:00:00"),
-            isPre ? "말출을 축하합니다!" : "전역을 축하합니다!"
-        );
+        paintMeter(meter, progressFor(member, member.dates[4]), "전역을 축하합니다!");
     }
 
     frameId = window.requestAnimationFrame(updater);
@@ -81,10 +75,10 @@ function updater() {
 
 // --- markup ----------------------------------------------------------------
 
-function createMeter(memberId, kind, label) {
-    return el("div", { class: "meter", "data-member": String(memberId), "data-kind": kind }, [
+function createMeter(memberId) {
+    return el("div", { class: "meter", "data-member": String(memberId) }, [
         el("div", { class: "meter-head" }, [
-            el("span", { class: "meter-label", text: label }),
+            el("span", { class: "meter-label", text: "전역까지" }),
             el("span", { class: "meter-value", text: "0%" })
         ]),
         el("div", { class: "meter-track" }, [el("div", { class: "meter-fill" })])
@@ -130,9 +124,6 @@ function createCard(memberId) {
     });
     toggle.addEventListener("click", () => setExpanded(toggle, schedule, schedule.hidden));
 
-    const meters = [createMeter(memberId, "discharge", "전역까지")];
-    if (member.dates[4] != member.dates[5]) meters.push(createMeter(memberId, "pre", "말출까지"));
-
     return el("article", { class: "dday-card" }, [
         el("div", { class: "dday-head" }, [
             el("img", { class: "dday-rank", src: rankImageFor(member), alt: "" }),
@@ -142,7 +133,7 @@ function createCard(memberId) {
             ]),
             el("span", { class: "dday-status", text: formatDDay(member.dates[4], "전역") })
         ]),
-        el("div", { class: "dday-meters" }, meters),
+        createMeter(memberId),
         toggle,
         schedule
     ]);

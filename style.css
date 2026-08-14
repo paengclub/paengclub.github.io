@@ -151,6 +151,7 @@ ul {
     background: transparent;
     font-size: 0.94rem;
     font-weight: 600;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
 .nav-buttons:hover {
@@ -177,6 +178,19 @@ ul {
     max-width: 1120px;
     margin: 0 auto;
     padding: 0 20px;
+    /* the shell is rebuilt on every tab switch, so this plays as a page-in */
+    animation: reveal 0.22s ease both;
+}
+
+@keyframes reveal {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
 }
 
 .app-panel {
@@ -363,6 +377,12 @@ textarea.form-control {
     border-radius: var(--app-radius);
     background: var(--app-surface);
     box-shadow: var(--app-shadow);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.dday-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 6px rgba(0, 23, 51, 0.06), 0 14px 32px rgba(0, 23, 51, 0.08);
 }
 
 .dday-head {
@@ -372,10 +392,14 @@ textarea.form-control {
     margin-bottom: 18px;
 }
 
+/* fixed box: rank art is a mix of square jpgs and wider svgs, and letting it
+   size itself pushes each card's name to a different x */
 .dday-rank {
-    width: auto;
+    flex: 0 0 auto;
+    width: 24px;
     height: 22px;
     border-radius: 4px;
+    object-fit: contain;
 }
 
 .dday-identity {
@@ -404,12 +428,6 @@ textarea.form-control {
     background: var(--app-surface-alt);
     font-size: 0.82rem;
     font-weight: 700;
-}
-
-.dday-meters {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
 }
 
 .meter-head {
@@ -473,6 +491,7 @@ textarea.form-control {
 
 .dday-schedule {
     margin-top: 4px;
+    animation: reveal 0.18s ease both;
 }
 
 .dday-item {
@@ -535,6 +554,10 @@ textarea.form-control {
     background: transparent;
     font-size: 0.88rem;
     font-weight: 700;
+}
+
+.weight-controls button {
+    transition: color 0.15s ease, background 0.15s ease;
 }
 
 .weight-controls button[aria-pressed="true"] {
@@ -811,14 +834,20 @@ textarea.form-control {
     margin-bottom: 16px;
 }
 
+/* flex, not the default block: otherwise the avatar sits on the text baseline
+   and the name rides visibly low against it */
 .tt-person-chip {
-    padding: 7px 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 13px 5px 5px;
     border: 0;
     border-radius: var(--app-radius-pill);
     color: var(--app-text-soft);
     background: var(--app-surface-alt);
     font-size: 0.87rem;
     font-weight: 600;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
 .tt-person-chip.active {
@@ -854,12 +883,14 @@ textarea.form-control {
     border-right: 1px solid var(--app-line);
 }
 
+/* each label sits just under its own hour line — centring it on the line made
+   09:00 straddle the header's bottom border */
 .tt-time-label {
-    padding-right: 8px;
+    padding: 4px 8px 0 0;
     color: var(--app-muted);
     font-size: 0.72rem;
+    line-height: 1;
     text-align: right;
-    transform: translateY(-6px);
 }
 
 .tt-day-col {
@@ -888,6 +919,14 @@ textarea.form-control {
 
 .tt-block strong {
     font-weight: 700;
+}
+
+.tt-block {
+    transition: filter 0.15s ease;
+}
+
+.tt-block:hover {
+    filter: brightness(1.08);
 }
 
 .tt-panel {
@@ -1067,6 +1106,19 @@ div.profile-avatar-preview {
 .profile-mbti-input {
     max-width: 140px;
     text-transform: uppercase;
+}
+
+/* ----------------------------------------------------------------- motion */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }
 
 /* ------------------------------------------------------------- responsive */
