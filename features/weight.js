@@ -10,6 +10,11 @@
 // It is deliberately not time-proportional — this data is a handful of records
 // spread over months followed by near-daily ones, which on a time axis collapses
 // every recent bucket into a few pixels.
+//
+// Slots keep a minimum width, so when they don't all fit the plot grows wider
+// than its container and scrolls horizontally (opening at the most recent
+// bucket). The y axis is a separate pinned canvas so it stays readable while
+// the plot scrolls under it.
 // Exports renderWeightTracker, cleanupWeightTracker.
 import { supabase } from "/supabaseClient.js";
 import { el } from "/lib/dom.js";
@@ -28,9 +33,15 @@ const VIEWS = [
     { key: "day", label: "일" }
 ];
 const DEFAULT_VIEW = "week";
+// Narrowest a bucket slot may get before the plot starts scrolling instead of
+// squeezing. Roughly a comfortable tap target.
+const MIN_SLOT_PX = 46;
 
 let canvas = null;
 let ctx = null;
+let axisCanvas = null;
+let axisCtx = null;
+let scroller = null;
 let tooltip = null;
 let emptyState = null;
 let legend = null;
@@ -197,13 +208,26 @@ function getBounds(series, slotCount) {
     };
 }
 
-function resizeCanvas() {
-    const rect = canvas.getBoundingClientRect();
+function sizeToDpr(target, context, width, height) {
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.round(rect.width * dpr);
-    canvas.height = Math.round(rect.height * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return rect;
+    target.width = Math.round(width * dpr);
+    target.height = Math.round(height * dpr);
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+// Widen the plot past its container when the slots need more room than fits —
+// that overflow is what the scroller scrolls.
+function resizeCanvas(slotCount) {
+    const available = scroller.clientWidth;
+    const needed = padding.left + padding.right + Math.max(slotCount - 1, 1) * MIN_SLOT_PX;
+    const width = Math.max(available, needed);
+    const height = scroller.clientHeight;
+
+    canvas.style.width = `${width}px`;
+    sizeToDpr(canvas, ctx, width, height);
+    sizeToDpr(axisCanvas, axisCtx, padding.left, height);
+
+    return { width, height };
 }
 
 function createScales(rect, bounds) {
@@ -241,28 +265,37 @@ function axisTicks(slots, maxTicks) {
     return thinned;
 }
 
+// The y labels live on their own canvas pinned over the left edge, so they stay
+// put while the plot scrolls beneath them.
+function drawAxis(rect, bounds, scales) {
+    axisCtx.clearRect(0, 0, padding.left, rect.height);
+    axisCtx.font = "12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+    axisCtx.textBaseline = "middle";
+    axisCtx.textAlign = "right";
+    axisCtx.fillStyle = cssVar("--app-muted");
+
+    for (const weight of bounds.yTicks) {
+        axisCtx.fillText(kg(weight), padding.left - 10, scales.y(weight));
+    }
+}
+
 function drawGrid(rect, bounds, scales, slots) {
     ctx.clearRect(0, 0, rect.width, rect.height);
     ctx.lineWidth = 1;
     ctx.font = "12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
-    ctx.textBaseline = "middle";
 
     for (const weight of bounds.yTicks) {
         const y = scales.y(weight);
-
         ctx.strokeStyle = cssVar("--app-line");
         ctx.beginPath();
         ctx.moveTo(padding.left, y);
         ctx.lineTo(rect.width - padding.right, y);
         ctx.stroke();
-
-        ctx.fillStyle = cssVar("--app-muted");
-        ctx.textAlign = "right";
-        ctx.fillText(kg(weight), padding.left - 10, y);
     }
 
     ctx.textBaseline = "top";
-    const ticks = axisTicks(slots, rect.width > 760 ? 7 : 4);
+    // A wider plot has room for more labels; keep roughly one per 110px.
+    const ticks = axisTicks(slots, Math.max(3, Math.floor(rect.width / 110)));
     ticks.forEach((tick, index) => {
         const x = scales.x(tick.index);
 
@@ -328,11 +361,11 @@ function drawSeries(series, scales, rect) {
 
 // --- render orchestration --------------------------------------------------
 
-function renderChart() {
+function renderChart({ keepScroll = false } = {}) {
     if (!canvas || !ctx) return;
-    const rect = resizeCanvas();
     const { series, slots } = buildChartModel();
     const hasData = series.length > 0;
+    const rect = resizeCanvas(slots.length);
 
     emptyState.hidden = hasData;
     tooltip.hidden = true;
@@ -340,14 +373,19 @@ function renderChart() {
 
     if (!hasData) {
         ctx.clearRect(0, 0, rect.width, rect.height);
+        axisCtx.clearRect(0, 0, padding.left, rect.height);
         plottedPoints = [];
         return;
     }
 
     const bounds = getBounds(series, slots.length);
     const scales = createScales(rect, bounds);
+    drawAxis(rect, bounds, scales);
     drawGrid(rect, bounds, scales, slots);
     drawSeries(series, scales, rect);
+
+    // Open on the most recent bucket, the one you actually came to look at.
+    if (!keepScroll) scroller.scrollLeft = scroller.scrollWidth;
 }
 
 function nearestPoint(event) {
@@ -468,8 +506,11 @@ function renderShell() {
         el("section", { class: "weight-chart-shell", "aria-label": "체중 추이 그래프" }, [
             el("div", { class: "legend", id: "weightLegend" }),
             el("div", { class: "chart-wrap" }, [
-                el("canvas", { id: "weightChart", "aria-label": "시간별 체중 변화 선 그래프" }),
-                el("div", { class: "tooltip", id: "weightTooltip", hidden: "" }),
+                el("canvas", { id: "weightAxis", class: "chart-axis", "aria-hidden": "true" }),
+                el("div", { class: "chart-scroll", id: "weightScroll" }, [
+                    el("canvas", { id: "weightChart", "aria-label": "시간별 체중 변화 선 그래프" }),
+                    el("div", { class: "tooltip", id: "weightTooltip", hidden: "" })
+                ]),
                 el("div", { class: "empty", id: "weightEmptyState", hidden: "", text: "표시할 데이터가 없습니다." })
             ])
         ])
@@ -490,7 +531,7 @@ function bindControls() {
     // click/tap so touch devices (no hover) can still read a point's exact value
     canvas.addEventListener("click", (event) => showTooltip(nearestPoint(event)));
 
-    resizeHandler = renderChart;
+    resizeHandler = () => renderChart({ keepScroll: true });
     window.addEventListener("resize", resizeHandler);
 }
 
@@ -499,6 +540,9 @@ export function cleanupWeightTracker() {
     resizeHandler = null;
     canvas = null;
     ctx = null;
+    axisCanvas = null;
+    axisCtx = null;
+    scroller = null;
     tooltip = null;
     emptyState = null;
     legend = null;
@@ -513,6 +557,9 @@ export async function renderWeightTracker() {
 
     canvas = document.getElementById("weightChart");
     ctx = canvas.getContext("2d");
+    axisCanvas = document.getElementById("weightAxis");
+    axisCtx = axisCanvas.getContext("2d");
+    scroller = document.getElementById("weightScroll");
     tooltip = document.getElementById("weightTooltip");
     emptyState = document.getElementById("weightEmptyState");
     legend = document.getElementById("weightLegend");
