@@ -2,16 +2,19 @@
 // tracked person. Data comes from Supabase (weight_people + weight_records).
 //
 // Three fixed granularities (연/주/일), no zoom and no pan: each view buckets
-// the same full history by year / week / day and plots one dot per bucket.
-// A bucket's value is the plain mean of the records inside it, and its x
-// position is the mean of those records' actual dates — so every plotted
-// coordinate is measured data. Nothing is smoothed, interpolated or
-// projected. Exports renderWeightTracker, cleanupWeightTracker.
+// the same full history by year / week / day and plots one dot per bucket,
+// whose value is the plain mean of the records inside it. Nothing is smoothed,
+// interpolated or projected — every plotted value is measured data.
+//
+// The x axis is categorical: one equal slot per bucket, shared by both people.
+// It is deliberately not time-proportional — this data is a handful of records
+// spread over months followed by near-daily ones, which on a time axis collapses
+// every recent bucket into a few pixels.
+// Exports renderWeightTracker, cleanupWeightTracker.
 import { supabase } from "/supabaseClient.js";
 import { el } from "/lib/dom.js";
 import { cssVar, num } from "/lib/format.js";
 
-const dayMs = 24 * 60 * 60 * 1000;
 const padding = {
     top: 22,
     right: 22,
@@ -54,14 +57,16 @@ function startOfWeek(date) {
     return start;
 }
 
-// A stable per-view key, plus the label shown on the axis and in the tooltip.
+// A stable per-view key, the labels shown on the axis and in the tooltip, and
+// the period's start — used to order buckets on the axis.
 function bucketOf(date, view) {
     if (view === "year") {
         const year = date.getFullYear();
         return {
             key: `${year}`,
-            axisLabel: `${year}년`,
-            fullLabel: `${year}년`
+            axisLabel: `${year}`,
+            fullLabel: `${year}년`,
+            periodStart: new Date(year, 0, 1).getTime()
         };
     }
     if (view === "week") {
@@ -71,7 +76,8 @@ function bucketOf(date, view) {
         return {
             key: `w${monday.getFullYear()}-${month}-${day}`,
             axisLabel: `${month}/${day}`,
-            fullLabel: `${monday.getFullYear()}년 ${month}월 ${day}일 주간`
+            fullLabel: `${monday.getFullYear()}년 ${month}월 ${day}일 주간`,
+            periodStart: monday.getTime()
         };
     }
     const month = date.getMonth() + 1;
@@ -79,49 +85,62 @@ function bucketOf(date, view) {
     return {
         key: `d${date.getFullYear()}-${month}-${day}`,
         axisLabel: `${month}/${day}`,
-        fullLabel: `${date.getFullYear()}년 ${month}월 ${day}일`
+        fullLabel: `${date.getFullYear()}년 ${month}월 ${day}일`,
+        periodStart: new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
     };
 }
 
-// Collapse a person's records into one point per bucket. The point's weight is
-// the mean of the bucket's records and its date is the mean of their dates, so
-// a bucket sits where its data actually is rather than at an invented centre.
+// Collapse a person's records into one entry per bucket, keyed by bucket. The
+// entry's weight is the plain mean of the records inside it.
 function bucketRecords(records, view) {
     const buckets = new Map();
 
     for (const record of records) {
         const date = parseDate(record.date);
-        const { key, axisLabel, fullLabel } = bucketOf(date, view);
-        if (!buckets.has(key)) {
-            buckets.set(key, { axisLabel, fullLabel, weights: [], dates: [] });
-        }
-        const bucket = buckets.get(key);
-        bucket.weights.push(record.weight);
-        bucket.dates.push(date.getTime());
+        const meta = bucketOf(date, view);
+        if (!buckets.has(meta.key)) buckets.set(meta.key, { ...meta, weights: [] });
+        buckets.get(meta.key).weights.push(record.weight);
     }
 
-    return [...buckets.values()]
-        .map((bucket) => {
-            const total = bucket.weights.reduce((sum, weight) => sum + weight, 0);
-            const dateTotal = bucket.dates.reduce((sum, value) => sum + value, 0);
-            return {
-                axisLabel: bucket.axisLabel,
-                fullLabel: bucket.fullLabel,
-                count: bucket.weights.length,
-                weight: total / bucket.weights.length,
-                dateValue: dateTotal / bucket.dates.length
-            };
-        })
-        .sort((a, b) => a.dateValue - b.dateValue);
+    for (const bucket of buckets.values()) {
+        bucket.count = bucket.weights.length;
+        bucket.weight = bucket.weights.reduce((sum, weight) => sum + weight, 0) / bucket.count;
+    }
+
+    return buckets;
 }
 
-function bucketedSeries() {
-    return weightData
-        .map((person) => ({
+// Every bucket gets an equal slot on the axis, so one week reads as one step
+// regardless of how much clock time separates it from the next. A
+// time-proportional axis is unusable here: the early records are months apart
+// and would squeeze every recent bucket into a few pixels. Slots are shared
+// across people, so both series line up on the same bucket.
+function buildChartModel() {
+    const perPerson = weightData.map((person) => ({
+        person,
+        buckets: bucketRecords(person.records, activeView)
+    }));
+
+    const axis = new Map();
+    for (const { buckets } of perPerson) {
+        for (const bucket of buckets.values()) {
+            if (!axis.has(bucket.key)) axis.set(bucket.key, bucket);
+        }
+    }
+
+    const slots = [...axis.values()].sort((a, b) => a.periodStart - b.periodStart);
+    const indexOf = new Map(slots.map((bucket, index) => [bucket.key, index]));
+
+    const series = perPerson
+        .map(({ person, buckets }) => ({
             ...person,
-            points: bucketRecords(person.records, activeView)
+            points: [...buckets.values()]
+                .map((bucket) => ({ ...bucket, index: indexOf.get(bucket.key) }))
+                .sort((a, b) => a.index - b.index)
         }))
         .filter((person) => person.points.length > 0);
+
+    return { series, slots };
 }
 
 // --- scales ----------------------------------------------------------------
@@ -163,26 +182,15 @@ function niceWeightTicks(minWeight, maxWeight, targetCount = 5) {
     return ticks;
 }
 
-function getBounds(series) {
-    const points = series.flatMap((person) => person.points);
-    const weights = points.map((point) => point.weight);
-    const dates = points.map((point) => point.dateValue);
+function getBounds(series, slotCount) {
+    const weights = series.flatMap((person) => person.points).map((point) => point.weight);
     const minWeight = Math.min(...weights);
     const maxWeight = Math.max(...weights);
     const weightRange = Math.max(maxWeight - minWeight, 1);
     const yTicks = niceWeightTicks(minWeight - weightRange * 0.16, maxWeight + weightRange * 0.16);
 
-    let minDate = Math.min(...dates);
-    let maxDate = Math.max(...dates);
-    if (minDate === maxDate) {
-        // A single bucket would collapse the x scale; pad so the dot centres.
-        minDate -= dayMs;
-        maxDate += dayMs;
-    }
-
     return {
-        minDate,
-        maxDate,
+        slotCount,
         minWeight: yTicks[0],
         maxWeight: yTicks[yTicks.length - 1],
         yTicks
@@ -202,8 +210,9 @@ function createScales(rect, bounds) {
     const width = rect.width - padding.left - padding.right;
     const height = rect.height - padding.top - padding.bottom;
     return {
-        x(dateValue) {
-            const ratio = (dateValue - bounds.minDate) / (bounds.maxDate - bounds.minDate);
+        x(index) {
+            // A lone bucket has no span to spread across, so centre it.
+            const ratio = bounds.slotCount <= 1 ? 0.5 : index / (bounds.slotCount - 1);
             return padding.left + ratio * width;
         },
         y(weight) {
@@ -215,26 +224,24 @@ function createScales(rect, bounds) {
 
 // --- drawing ---------------------------------------------------------------
 
-// X labels come from the buckets themselves (never invented dates), thinned to
-// whatever fits the current width.
-function axisTicks(series, maxTicks) {
-    const seen = new Map();
-    for (const person of series) {
-        for (const point of person.points) {
-            if (!seen.has(point.axisLabel)) seen.set(point.axisLabel, point.dateValue);
-        }
-    }
-
-    const ticks = [...seen.entries()]
-        .map(([label, dateValue]) => ({ label, dateValue }))
-        .sort((a, b) => a.dateValue - b.dateValue);
+// X labels are the bucket slots themselves, thinned to whatever fits. The last
+// slot always gets a label so the axis ends on the most recent bucket.
+function axisTicks(slots, maxTicks) {
+    const ticks = slots.map((bucket, index) => ({ label: bucket.axisLabel, index }));
     if (ticks.length <= maxTicks) return ticks;
 
     const stride = Math.ceil(ticks.length / maxTicks);
-    return ticks.filter((_, index) => index % stride === 0);
+    const thinned = ticks.filter((tick) => tick.index % stride === 0);
+    const last = ticks[ticks.length - 1];
+    if (thinned[thinned.length - 1].index !== last.index) {
+        // Drop a label rather than let the final two collide.
+        if (last.index - thinned[thinned.length - 1].index < stride / 2) thinned.pop();
+        thinned.push(last);
+    }
+    return thinned;
 }
 
-function drawGrid(rect, bounds, scales, series) {
+function drawGrid(rect, bounds, scales, slots) {
     ctx.clearRect(0, 0, rect.width, rect.height);
     ctx.lineWidth = 1;
     ctx.font = "12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
@@ -255,9 +262,9 @@ function drawGrid(rect, bounds, scales, series) {
     }
 
     ctx.textBaseline = "top";
-    const ticks = axisTicks(series, rect.width > 760 ? 7 : 4);
+    const ticks = axisTicks(slots, rect.width > 760 ? 7 : 4);
     ticks.forEach((tick, index) => {
-        const x = scales.x(tick.dateValue);
+        const x = scales.x(tick.index);
 
         ctx.strokeStyle = cssVar("--app-line");
         ctx.beginPath();
@@ -287,7 +294,7 @@ function drawSeries(series, scales, rect) {
     series.forEach((person) => {
         const points = person.points.map((point) => ({
             ...point,
-            x: scales.x(point.dateValue),
+            x: scales.x(point.index),
             y: scales.y(point.weight),
             personName: person.name,
             color: person.color
@@ -324,7 +331,7 @@ function drawSeries(series, scales, rect) {
 function renderChart() {
     if (!canvas || !ctx) return;
     const rect = resizeCanvas();
-    const series = bucketedSeries();
+    const { series, slots } = buildChartModel();
     const hasData = series.length > 0;
 
     emptyState.hidden = hasData;
@@ -337,9 +344,9 @@ function renderChart() {
         return;
     }
 
-    const bounds = getBounds(series);
+    const bounds = getBounds(series, slots.length);
     const scales = createScales(rect, bounds);
-    drawGrid(rect, bounds, scales, series);
+    drawGrid(rect, bounds, scales, slots);
     drawSeries(series, scales, rect);
 }
 
