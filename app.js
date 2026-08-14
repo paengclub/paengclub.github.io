@@ -2,7 +2,7 @@
 // switches tabs: each numeric page id maps to one /features module's
 // render*/cleanup* pair (see myRenderFunction + ARCHITECTURE.md).
 import {itineraries, members} from "/data.js";
-import {renderTimer} from "/features/timer.js";
+import {cleanupTimer, renderTimer} from "/features/timer.js";
 import {initAuth} from "/features/auth.js";
 import {cleanupWeightTracker, renderWeightTracker} from "/features/weight.js";
 import {cleanupGameTier, renderGameTier} from "/features/tier.js";
@@ -37,32 +37,6 @@ function preprocessed() {
     }
 }
 
-let manualTheme = null;
-
-function setTheme(theme) {
-    document.documentElement.setAttribute("data-bs-theme", theme);
-    document.getElementById("colorSwitcher").classList.toggle("is-dark", theme == "dark");
-}
-
-function initTheme() {
-    localStorage.removeItem("paengclub-theme");
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const syncTheme = function(event) {
-        if (manualTheme) return;
-        setTheme(event.matches ? "dark" : "light");
-    };
-    setTheme(mediaQuery.matches ? "dark" : "light");
-    if (mediaQuery.addEventListener) mediaQuery.addEventListener("change", syncTheme);
-    else if (mediaQuery.addListener) mediaQuery.addListener(syncTheme);
-}
-
-function switchDarkMode() {
-    const currentTheme = document.documentElement.getAttribute("data-bs-theme");
-    const nextTheme = currentTheme == "light" ? "dark" : "light";
-    manualTheme = nextTheme;
-    setTheme(nextTheme);
-}
-
 function onButtonClick(buttonContent) {
     current_rendered_page = Number(buttonContent);
     myRenderFunction();
@@ -85,11 +59,6 @@ async function init() {
         });
     }
 
-    initTheme();
-    document.getElementById('colorSwitcher').addEventListener("click", function() {
-        switchDarkMode();
-    });
-
     preprocessed();
 
     // Resolve the auth session before the first render so a tab paints once
@@ -106,6 +75,7 @@ function myRenderFunction() {
     // what to do in this function
     // 1. delete all rendered elements
     // 2. add all new elements according to PAGE_YOURE_LOOKING_AT
+    if (current_rendered_page != 3) cleanupTimer();
     if (current_rendered_page != 4) cleanupWeightTracker();
     if (current_rendered_page != 6) cleanupGameTier();
     if (current_rendered_page != 8) cleanupTimetable();

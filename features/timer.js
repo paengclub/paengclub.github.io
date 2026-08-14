@@ -1,279 +1,190 @@
-// features/timer.js — 디데이, the original tab: a live progress card per member
+// features/timer.js — 디데이, the landing tab: a live progress card per member
 // (discharge % + rank/leave schedule) built from the static data in /data.js.
-// Imports current_rendered_page from /app.js so its interval only redraws while
-// this tab is showing (the one intentional feature -> app circular import).
-// Exports renderTimer.
+// Imports current_rendered_page from /app.js so its animation loop only redraws
+// while this tab is showing (the one intentional feature -> app circular
+// import). Exports renderTimer, cleanupTimer.
 import {itineraries, members} from "/data.js";
 import {current_rendered_page} from "/app.js";
+import {el} from "/lib/dom.js";
 
 const DAY_OF_WEEK = ['일', '월', '화', '수', '목', '금', '토'];
+const dayMs = 24 * 60 * 60 * 1000;
 
-function isDarkMode() {
-    if (document.documentElement.getAttribute("data-bs-theme") == "dark") return true;
-    return false;
+let frameId = null;
+
+function rankImageFor(member) {
+    if (member.isDischarged == 'true') return 'images/reserved.jpg';
+    if (member.ANF == '공익' && member.rank != 'PV2.jpg' && member.rank != 'GEN.svg') return 'images/social.svg';
+    return 'images/' + member.rank;
+}
+
+function formatDDay(targetDate, doneLabel) {
+    const days = Math.floor((new Date(targetDate + "T00:00:00").getTime() - Date.now()) / dayMs) + 1;
+    if (days > 0) return `D-${days}`;
+    if (days === 0) return "D-DAY";
+    return `${doneLabel} ${-days}일 차`;
+}
+
+function formatScheduleDate(date) {
+    const month = `${date.getMonth() + 1}`.padStart(2, "0");
+    const day = `${date.getDate()}`.padStart(2, "0");
+    return `${date.getFullYear()}년 ${month}월 ${day}일(${DAY_OF_WEEK[date.getDay()]})`;
+}
+
+// Percent of the way from enlistment to `targetDate`, uncapped so the caller
+// can tell "finished" from "nearly there".
+function progressFor(member, targetDate, hour) {
+    const enlisted = new Date(member.dates[0] + "T00:00:00").getTime();
+    const target = new Date(`${targetDate}T${hour}`).getTime();
+    return (100 * (Date.now() - enlisted)) / (target - enlisted);
+}
+
+// --- live update loop ------------------------------------------------------
+
+function paintMeter(meter, progress, doneLabel) {
+    const fill = meter.querySelector(".meter-fill");
+    const value = meter.querySelector(".meter-value");
+
+    if (progress >= 100) {
+        fill.style.width = "100%";
+        meter.classList.add("is-done");
+        value.textContent = doneLabel;
+        return;
+    }
+
+    fill.style.width = `${Math.max(progress, 0)}%`;
+    meter.classList.remove("is-done");
+    // Six decimals, ticking every frame — the original site's party trick.
+    value.textContent = `${(Math.floor(progress * 1000000) / 1000000).toFixed(6)}%`;
 }
 
 function updater() {
-    if (current_rendered_page != 3) return;
-    for (let user_id = 0; user_id < members.length; user_id++) {
-        let progressBarElement = document.getElementById("progressDisplayer" + user_id);
-        let preProgressBarElement = document.getElementById("preProgressDisplayer" + user_id);
-
-        let now = new Date().getTime();
-        let enlistDateObject = new Date(members[user_id].dates[0] + "T00:00:00");
-
-        // 1. Dischargement Progress
-        let dischargeDateObject = new Date(members[user_id].dates[4] + "T00:00:00");
-        let dischargeCurrentProgress = 100 * (now - enlistDateObject.getTime()) / (dischargeDateObject.getTime() - enlistDateObject.getTime());
-        if (dischargeCurrentProgress > 100) {
-            progressBarElement.innerText = "전역을 축하합니다!";
-            progressBarElement.setAttribute("style", "width:100%;");
-            if (isDarkMode()) progressBarElement.setAttribute("class", "progress-bar bg-success-subtle");
-            else progressBarElement.setAttribute("class", "progress-bar bg-success");
-        }
-        else {
-            progressBarElement.innerText = Math.floor(dischargeCurrentProgress * 1000000) / 1000000 + "%";
-            progressBarElement.setAttribute("style", "width:"+Math.max(Math.ceil(dischargeCurrentProgress), 0)+"%;");
-        }
-        
-        // 2. PreDischargement Progress
-        if (members[user_id].dates[4] == members[user_id].dates[5]) continue;
-        let preDateObject = new Date(members[user_id].dates[5] + "T08:00:00");
-        let preCurrentProgress = 100 * (now - enlistDateObject.getTime()) / (preDateObject.getTime() - enlistDateObject.getTime());
-        if (preCurrentProgress > 100) {
-            preProgressBarElement.innerText = "말출을 축하합니다!";
-            preProgressBarElement.setAttribute("style", "width:100%;");
-            if (isDarkMode()) preProgressBarElement.setAttribute("class", "progress-bar bg-success-subtle");
-            else preProgressBarElement.setAttribute("class", "progress-bar bg-success");
-        }
-        else {
-            preProgressBarElement.innerText = Math.floor(preCurrentProgress * 1000000) / 1000000 + "%";
-            preProgressBarElement.setAttribute("style", "width:"+Math.max(Math.round(preCurrentProgress), 0)+"%;");
-        }       
-    }
-}
-
-
-/*
-<div class = "container my-3 mt-3" id = "wrapper">
-    <div class = "row" id = "row2">
-        <div class = "col-sm-6 mt-2"><div class = "card text-white bg-info"></div></div>
-        <div class = "col-sm-6 mt-2"><div class = "card text-white bg-dark"></div></div>
-    </div>
-</div>
-*/
-function addElements() {
-    for (let i = 0; i < parseInt((members.length + 1) / 2); i++) {
-        const newDiv = document.createElement("div");
-        newDiv.setAttribute("class", "row");
-        newDiv.setAttribute("id", "row" + i);
-        document.getElementById("wrapper").insertBefore(newDiv, null);
-    }
-    for (let i = 0; i < members.length; i++) createUser(i, parseInt(i / 2));
-
-    setInterval(updater, 10);
-}
-
-function createCollapse(upperElement, user_id) {
-    //<div class="collapse multi-collapse mt-1" id="collapsedData0"><ul class="list-group list-flush"><li class="list-group-item">2024년 09월 19일(목) : 전역 ( D-100 )</li></ul></div>
-
-    // collapse div 추가
-    const collapseDivElement = document.createElement("div");
-    collapseDivElement.setAttribute("class", "collapse multi-collapse mt-1");
-    collapseDivElement.setAttribute("id", "collapsedData" + user_id);
-    upperElement.insertBefore(collapseDivElement, null);
-
-    // second card body element 추가
-    const secCardBodyElement = document.createElement("ul");
-    secCardBodyElement.setAttribute("class", "list-group list-group-flush");
-    collapseDivElement.insertBefore(secCardBodyElement, null);
-
-    // <li class="list-group-item">2024년 09월 19일(목) 08시: 전역(480일 22시간 46분 10초)</li>
-    for (let itin_id = 0; itin_id < itineraries.length; itin_id++) {
-        if (itineraries[itin_id].name != members[user_id].name) continue;
-        const tempString = itineraries[itin_id].type[3] + itineraries[itin_id].type[4];
-        if (tempString != '입대' && tempString != '진급' && tempString != '전역' && itineraries[itin_id].type[0] != '보' && itineraries[itin_id].type[4] != '입') {
-            if (new Date(itineraries[itin_id].date).getTime() < new Date().getTime()) continue;
-        }
-        const scheduleElement = document.createElement("li");
-        let scheduleElementClass = "list-group-item";
-        if (members[user_id].ANF == '해병') scheduleElementClass += " bg-danger border-warning text-warning";
-        if (members[user_id].ANF == '공익') scheduleElementClass += " bg-dark border-white text-white";
-        scheduleElement.setAttribute("class", scheduleElementClass);
-        
-
-        let target = new Date(itineraries[itin_id].date + 'T00:00:00');
-        let distance = target.getTime() - new Date().getTime();
-        
-        let innerTextString = target.getFullYear().toString() + "년 "
-        + ((target.getMonth() + 1 < 10) ? "0" : "") + (target.getMonth() + 1).toString() + "월 "
-        + ((target.getDate() < 10) ? "0" : "") + target.getDate().toString() + "일"
-        + "(" + DAY_OF_WEEK[target.getDay()] +") : "
-        + itineraries[itin_id].type;
-        if (distance > 0) {
-            distance += 1000 * 60 * 60 * 24;
-            innerTextString += " ( D-"
-            + Math.floor(distance / (1000 * 60 * 60 * 24))
-            + " )";
-        }
-        scheduleElement.innerText = innerTextString;
-        secCardBodyElement.insertBefore(scheduleElement, null);
-    }
-}
-
-/*
-<div class="card">
-    <div class="card-header">
-        <span>팽지원</span>
-        <button type="button" data-toggle="collapse" data-target=".prediselement">말출</button>
-        <button class="float-right">D-480</button>
-    </div>
-    <div class="card-body">
-        <div class="progress mb-3">
-            <div class="progress-bar" style="width: 25%;">25%</div>
-        </div>
-        <div class="progress mb-3">
-            <div class="progress-bar" style="width: 25%;">25%</div>
-        </div>
-    </div>
-</div>
-*/
-function createUser(user_id, rowNumber) {
-    // col div 추가
-    const colElement = document.createElement("div");
-    colElement.setAttribute("class", "col-sm-6 mt-3");
-    document.getElementById("row" + rowNumber).insertBefore(colElement, null);
-
-    // card div 추가
-    const cardElement = document.createElement("div");
-    let cardElementAttributeContent = 'card shadow';
-    if (members[user_id].ANF == '해병') cardElementAttributeContent += ' text-white bg-danger';
-    if (members[user_id].ANF == '공익') cardElementAttributeContent += ' text-white bg-dark';
-    cardElement.setAttribute("class", cardElementAttributeContent);
-    colElement.insertBefore(cardElement, null);
-
-    // card header div 추가
-    const cardHeaderElement = document.createElement("div");
-    cardHeaderElement.setAttribute("class", "card-header px-2");
-    cardElement.insertBefore(cardHeaderElement, null);
-
-    // img div 추가
-    const imageElement = document.createElement("img");
-    if (members[user_id].isDischarged == 'true') imageElement.setAttribute("src", 'images/reserved.jpg');
-    else if (members[user_id].ANF == '공익' && members[user_id].rank != 'PV2.jpg' && members[user_id].rank != 'GEN.svg') imageElement.setAttribute("src", 'images/social.svg');
-    else imageElement.setAttribute("src", 'images/' + members[user_id].rank);
-    if (members[user_id].rank != 'LTG.svg' && members[user_id].rank != 'GEN.svg' && members[user_id].rank != 'AF_GEN.svg') imageElement.setAttribute("class", "img-thumbnail me-1 p-0");
-    else imageElement.setAttribute("class", "img-thumbnail me-1");
-    imageElement.setAttribute("style", "height:21px;");
-    cardHeaderElement.insertBefore(imageElement, null);
-    
-    // left span 추가
-    const leftSpanElement = document.createElement("span");
-    leftSpanElement.innerHTML = members[user_id].name;
-    let leftSpanElementContent = 'fw-bold';
-    if (members[user_id].ANF == '해병') leftSpanElementContent += " text-warning bg-danger rounded border border-warning";
-    if (members[user_id].ANF == '공군') leftSpanElementContent += " text-primary";
-    leftSpanElement.setAttribute("class", leftSpanElementContent);
-    cardHeaderElement.insertBefore(leftSpanElement, null);
-
-    // right button 추가
-    const rightSpanElement = document.createElement("button");
-    let contentcontent = "btn fw-bold float-end p-0";
-    if (members[user_id].ANF == '공익') contentcontent += ' text-white';
-    if (members[user_id].ANF == '해병') contentcontent += ' text-warning';
-    rightSpanElement.setAttribute("class", contentcontent);
-    rightSpanElement.setAttribute('type', 'button');
-    rightSpanElement.setAttribute('data-bs-toggle', 'collapse');
-    rightSpanElement.setAttribute('data-bs-target', '#collapsedData' + user_id);
-    let dayLeftTillDischarge = Math.floor((new Date(members[user_id].dates[4] + "T00:00:00").getTime() - new Date().getTime()) / 1000 / 60 / 60 / 24) + 1;
-    if (dayLeftTillDischarge > 0) rightSpanElement.innerHTML = "D-" + dayLeftTillDischarge;
-    else if (dayLeftTillDischarge == 0) rightSpanElement.innerHTML = "D-DAY";
-    else rightSpanElement.innerHTML = "전역 " + (-dayLeftTillDischarge) + "일 차";
-    cardHeaderElement.insertBefore(rightSpanElement, null);
-    
-    // 말출 button 추가
-    if (members[user_id].dates[4] != members[user_id].dates[5]) {
-        let preDisDDay = '';
-        let dayLeftTillPreDis = Math.floor((new Date(members[user_id].dates[5] + "T00:00:00").getTime() - new Date().getTime()) / 1000 / 60 / 60 / 24) + 1;
-        if (dayLeftTillPreDis > 0) preDisDDay = "D-" + dayLeftTillPreDis;
-        else if (dayLeftTillPreDis == 0) preDisDDay = "D-DAY";
-        else preDisDDay = "말출 " + (-dayLeftTillPreDis) + "일 차";
-
-        const predisButton = document.createElement("button");
-        predisButton.innerHTML = preDisDDay;
-        predisButton.setAttribute("class", "btn btn-sm btn-dark fw-bold float-end px-1 py-0 me-2");
-        predisButton.setAttribute("type", "button");
-        predisButton.setAttribute("data-bs-toggle", "collapse");
-        predisButton.setAttribute("data-bs-target", ".prediselement");
-        cardHeaderElement.insertBefore(predisButton, null);
+    if (current_rendered_page != 3) {
+        frameId = null;
+        return;
     }
 
-    // card body div 추가
-    const cardBodyElement = document.createElement("div");
-    cardBodyElement.setAttribute("class", "card-body");
-    cardElement.insertBefore(cardBodyElement, null);
-
-    // progress div 추가
-    const progressElement = document.createElement("div");
-    if (members[user_id].dates[4] == members[user_id].dates[5]) progressElement.setAttribute("class", "progress");
-    else progressElement.setAttribute("class", "progress prediselement collapse show");
-    progressElement.setAttribute("style", "height:25px");
-    cardBodyElement.insertBefore(progressElement, null);
-
-    // progress bar div 추가
-    const progressBarElement = document.createElement("div");
-    if (isDarkMode()) progressBarElement.setAttribute("class", "progress-bar bg-primary-subtle");
-    else progressBarElement.setAttribute("class", "progress-bar bg-primary");
-    progressBarElement.setAttribute("style", "width: 0%;");
-    progressBarElement.setAttribute("id", "progressDisplayer" + user_id);
-    progressBarElement.innerHTML = "50%";
-    progressElement.insertBefore(progressBarElement, null);
-    
-    if (members[user_id].dates[4] != members[user_id].dates[5]) {
-        // progress div 추가
-        const preProgressElement = document.createElement("div");
-        preProgressElement.setAttribute("class", "progress collapse prediselement");
-        preProgressElement.setAttribute("style", "height:25px");
-        cardBodyElement.insertBefore(preProgressElement, null);
-        
-        // progress bar div 추가
-        const preProgressBarElement = document.createElement("div");
-        if (isDarkMode()) preProgressBarElement.setAttribute("class", "progress-bar bg-info-subtle");
-        else preProgressBarElement.setAttribute("class", "progress-bar bg-info");
-        preProgressBarElement.setAttribute("style", "width: 0%;");
-        preProgressBarElement.setAttribute("id", "preProgressDisplayer" + user_id);
-        preProgressBarElement.innerHTML = "50%";
-        preProgressElement.insertBefore(preProgressBarElement, null);
-
+    for (const meter of document.querySelectorAll(".meter[data-member]")) {
+        const member = members[Number(meter.dataset.member)];
+        if (!member) continue;
+        const isPre = meter.dataset.kind === "pre";
+        const targetDate = isPre ? member.dates[5] : member.dates[4];
+        paintMeter(
+            meter,
+            progressFor(member, targetDate, isPre ? "08:00:00" : "00:00:00"),
+            isPre ? "말출을 축하합니다!" : "전역을 축하합니다!"
+        );
     }
-    
-    createCollapse(cardBodyElement, user_id);
+
+    frameId = window.requestAnimationFrame(updater);
 }
 
-function createOpenAll(upperElement) {
-    const buttonWrapper = document.createElement("div");
-    buttonWrapper.setAttribute("class", "d-grid gap-2");
-    upperElement.insertBefore(buttonWrapper, null);
+// --- markup ----------------------------------------------------------------
 
-    const collapseButtonElement = document.createElement("button");
-    collapseButtonElement.setAttribute("class", "btn btn-primary mt-3");
-    collapseButtonElement.setAttribute("type", "button");
-    collapseButtonElement.setAttribute("data-bs-toggle", "collapse");
-    collapseButtonElement.setAttribute("data-bs-target", ".multi-collapse");
-    collapseButtonElement.innerText = "모두 펼쳐보기";
-    buttonWrapper.insertBefore(collapseButtonElement, null);
+function createMeter(memberId, kind, label) {
+    return el("div", { class: "meter", "data-member": String(memberId), "data-kind": kind }, [
+        el("div", { class: "meter-head" }, [
+            el("span", { class: "meter-label", text: label }),
+            el("span", { class: "meter-value", text: "0%" })
+        ]),
+        el("div", { class: "meter-track" }, [el("div", { class: "meter-fill" })])
+    ]);
 }
 
-function renderTimer() {
-    // wrapper 추가
-    const wrapperElement = document.createElement("div");
-    wrapperElement.setAttribute("class", "container");
-    wrapperElement.setAttribute("id", "wrapper");
-    document.getElementById("screen").insertBefore(wrapperElement, null);
-    
-    addElements();
+function scheduleItems(member) {
+    const items = [];
 
-    createOpenAll(wrapperElement);
+    for (const itinerary of itineraries) {
+        if (itinerary.name != member.name) continue;
+
+        // Milestones (입대/진급/전역) always show; one-off events (휴가, 말출 …)
+        // only while they are still ahead.
+        const kind = itinerary.type[3] + itinerary.type[4];
+        const isMilestone = kind == '입대' || kind == '진급' || kind == '전역'
+            || itinerary.type[0] == '보' || itinerary.type[4] == '입';
+        const target = new Date(itinerary.date + 'T00:00:00');
+        const distance = target.getTime() - Date.now();
+        if (!isMilestone && distance < 0) continue;
+
+        items.push(el("li", { class: "dday-item" }, [
+            el("span", { class: "dday-item-date", text: formatScheduleDate(target) }),
+            el("span", { class: "dday-item-type", text: itinerary.type }),
+            distance > 0
+                ? el("span", { class: "dday-item-badge", text: `D-${Math.floor((distance + dayMs) / dayMs)}` })
+                : null
+        ]));
+    }
+
+    return items;
 }
 
-export {renderTimer};
+function createCard(memberId) {
+    const member = members[memberId];
+    const schedule = el("ul", { class: "dday-schedule", hidden: "" }, scheduleItems(member));
+
+    const toggle = el("button", {
+        class: "dday-toggle",
+        type: "button",
+        "aria-expanded": "false",
+        text: "일정 보기"
+    });
+    toggle.addEventListener("click", () => setExpanded(toggle, schedule, schedule.hidden));
+
+    const meters = [createMeter(memberId, "discharge", "전역까지")];
+    if (member.dates[4] != member.dates[5]) meters.push(createMeter(memberId, "pre", "말출까지"));
+
+    return el("article", { class: "dday-card" }, [
+        el("div", { class: "dday-head" }, [
+            el("img", { class: "dday-rank", src: rankImageFor(member), alt: "" }),
+            el("div", { class: "dday-identity" }, [
+                el("span", { class: "dday-name", text: member.name }),
+                el("span", { class: "dday-branch", text: member.ANF })
+            ]),
+            el("span", { class: "dday-status", text: formatDDay(member.dates[4], "전역") })
+        ]),
+        el("div", { class: "dday-meters" }, meters),
+        toggle,
+        schedule
+    ]);
+}
+
+function setExpanded(toggle, schedule, expand) {
+    schedule.hidden = !expand;
+    toggle.setAttribute("aria-expanded", String(expand));
+    toggle.textContent = expand ? "일정 접기" : "일정 보기";
+}
+
+function createExpandAll(cards) {
+    const button = el("button", { class: "secondary-button dday-expand-all", type: "button", text: "모두 펼쳐보기" });
+    let expanded = false;
+
+    button.addEventListener("click", () => {
+        expanded = !expanded;
+        for (const card of cards) {
+            setExpanded(card.querySelector(".dday-toggle"), card.querySelector(".dday-schedule"), expanded);
+        }
+        button.textContent = expanded ? "모두 접기" : "모두 펼쳐보기";
+    });
+
+    return button;
+}
+
+export function cleanupTimer() {
+    if (frameId !== null) window.cancelAnimationFrame(frameId);
+    frameId = null;
+}
+
+export function renderTimer() {
+    cleanupTimer();
+    const root = document.getElementById("screen");
+    if (!root) return;
+
+    const cards = members.map((_, memberId) => createCard(memberId));
+    const wrapper = el("section", { class: "page-shell dday-shell" }, [
+        el("div", { class: "dday-grid" }, cards),
+        createExpandAll(cards)
+    ]);
+
+    root.appendChild(wrapper);
+    updater();
+}

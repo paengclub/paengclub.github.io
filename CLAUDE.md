@@ -15,7 +15,8 @@ Must-knows:
 - Each `/features/*` exports `renderX()` (mount into `#screen`) + `cleanupX()`
   (release timers/listeners/realtime channels). The shell calls them by numeric
   page id. Build DOM with `el()`/`svg()`, never innerHTML strings.
-- Theme via `--app-*` CSS vars + `data-bs-theme`; support light + dark.
+- One light theme via `--app-*` CSS vars on `:root`. No dark mode, no
+  Bootstrap — the stylesheet is self-contained.
 - Schema changes: add a `migrations/*.sql` record **and** apply it to Supabase.
 - Workflow: commit + push to `main-v2` right after a change (that's the deploy).
   Verify observable changes in the browser preview first. Never bust a module's

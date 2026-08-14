@@ -12,7 +12,7 @@ codebase without reading every file.
 
 - **No build/bundler.** Files are served as-is. Don't add JSX, TypeScript, npm
   imports, or anything that needs compiling. Third-party libs come from a CDN
-  (`esm.sh` for supabase-js, jsDelivr for Bootstrap CSS).
+  (`esm.sh` for supabase-js, jsDelivr for the Pretendard webfont).
 - **Absolute import paths only**, rooted at the site root: `/app.js`,
   `/features/auth.js`, `/lib/dom.js`, `/supabaseClient.js`. GitHub Pages serves
   this repo at the domain root, so `/features/x.js` resolves to
@@ -27,8 +27,8 @@ codebase without reading every file.
 
 ```
 /                app shell + top-level singletons
-  index.html     nav markup, theme toggle, loads /app.js as a module
-  app.js         router + theme + nav wiring (the shell). Owns page switching.
+  index.html     nav markup, loads /app.js as a module
+  app.js         router + nav wiring (the shell). Owns page switching.
   supabaseClient.js  the single shared Supabase client (URL + publishable key)
   data.js        static seed data for the D-day tab (members, itineraries)
 /lib             shared, dependency-free helpers (no feature logic, no DOM state)
@@ -37,7 +37,7 @@ codebase without reading every file.
 /features        one module per tab; each renders into #screen and cleans up
   auth.js        Google auth/session + the profile-edit screen. Owns the session.
   timer.js       디데이 (D-day / rank progress bars) — the landing tab
-  weight.js      체중 (weight chart), reads from Supabase
+  weight.js      체중 (weight chart, 연/주/일 buckets), reads from Supabase
   tier.js        게임 티어 (drag-and-drop tier list), realtime + poll
   timetable.js   시간표 (Everytime-style weekly class grid, public view / owner edit)
 /migrations      applied SQL, one file per change (record only; run via Supabase)
@@ -67,9 +67,11 @@ There is no longer any feature→feature coupling.
   tier, `8` timetable. Ids `0`/`1`/`2`/`5`/`7` are retired (홈/미니게임/그림판/
   자산관리/프로필, all removed) — left unused rather than renumbering
   everything.
-- Theme: `initTheme()` follows `prefers-color-scheme`; the floating button
-  toggles `data-bs-theme` on `<html>`. All colors come from `--app-*` tokens in
-  `style.css` (light values in `:root`, dark in `[data-bs-theme="dark"]`).
+- Theme: **one light theme, no dark mode and no toggle.** Every colour is an
+  `--app-*` custom property defined once on `:root` in `style.css`. Palette is
+  Toss-inspired: near-white greys, a single blue accent (`--app-primary`
+  #3182F6), filled surfaces rather than borders. `features/weight.js` reads
+  these tokens at paint time via `cssVar()`, so renaming one breaks the chart.
 
 ## Per-feature contract
 
@@ -132,6 +134,13 @@ alone does nothing until applied.
 Hand-rolled, no chart lib: `weight.js` draws on a `<canvas>`, reading its
 colors via `cssVar("--app-...")` so it stays in step with the theme tokens.
 
+It has three fixed granularities (연/주/일) and no zoom or pan. Each view
+buckets the same full history and plots one dot per bucket; a bucket's value is
+the mean of its records and its x position the mean of their dates. Nothing is
+smoothed, interpolated or extrapolated — if you add a trend line or a
+projection, say so in the UI, because the tab's contract with the reader is
+that every plotted point is measured data.
+
 ## Adding a new tab (checklist)
 
 1. `features/<name>.js` exporting `render<Name>()` + `cleanup<Name>()`.
@@ -145,7 +154,7 @@ colors via `cssVar("--app-...")` so it stays in step with the theme tokens.
    page id to the whitelist in `app.js`'s `initAuth(...)` callback.
 5. If it needs data: add tables + RLS (+ a `migrations/*.sql` record) and read
    through `/supabaseClient.js`.
-6. `style.css`: add styles; support light + dark via `--app-*` tokens.
+6. `style.css`: add styles using the `--app-*` tokens (light theme only).
 
 ## Workflow notes
 
