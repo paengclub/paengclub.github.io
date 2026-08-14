@@ -423,13 +423,6 @@ button {
     background: var(--app-primary);
 }
 
-.weight-controls .icon-button {
-    display: grid;
-    width: 34px;
-    place-items: center;
-    padding: 0;
-}
-
 .weight-chart-shell {
     position: relative;
     margin: 0 24px;
@@ -462,41 +455,6 @@ button {
     border-radius: 999px;
 }
 
-.weight-compare {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.weight-compare[hidden] {
-    display: none;
-}
-
-.weight-compare-item {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    padding: 7px 12px;
-    border: 1px solid var(--app-line);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--app-bg) 55%, transparent);
-    font-size: 0.84rem;
-}
-
-.weight-compare-item span:first-child {
-    color: var(--app-muted);
-}
-
-.weight-compare-item strong {
-    color: var(--app-text);
-    font-weight: 720;
-}
-
-.weight-compare-who {
-    font-weight: 720;
-}
-
 .chart-wrap {
     position: relative;
     height: 460px;
@@ -506,13 +464,7 @@ button {
     display: block;
     width: 100%;
     height: 100%;
-    cursor: grab;
-    touch-action: none;
     user-select: none;
-}
-
-#weightChart.is-dragging {
-    cursor: grabbing;
 }
 
 .tooltip {
@@ -1776,12 +1728,8 @@ button {
 
     .weight-controls {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         justify-content: stretch;
-    }
-
-    .weight-controls button:not(.icon-button) {
-        grid-column: span 2;
     }
 
     .portfolio-error {
