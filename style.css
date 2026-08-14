@@ -574,12 +574,18 @@ textarea.form-control {
     height: 460px;
 }
 
-/* the plot overflows and scrolls; the y axis is pinned on top of its left edge */
+/* the plot overflows and pans by dragging; the y axis is pinned over its left
+   edge. The scrollbar is hidden — the canvas is the drag handle. */
 .chart-scroll {
     height: 100%;
     overflow-x: auto;
     overflow-y: hidden;
     overscroll-behavior-x: contain;
+    scrollbar-width: none;
+}
+
+.chart-scroll::-webkit-scrollbar {
+    display: none;
 }
 
 .chart-axis {
@@ -596,6 +602,16 @@ textarea.form-control {
     display: block;
     height: 100%;
     user-select: none;
+    /* vertical stays with the page; horizontal is ours to drag */
+    touch-action: pan-y;
+}
+
+#weightChart.is-pannable {
+    cursor: grab;
+}
+
+#weightChart.is-grabbing {
+    cursor: grabbing;
 }
 
 .tooltip {

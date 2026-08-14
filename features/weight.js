@@ -49,6 +49,8 @@ let activeView = DEFAULT_VIEW;
 let plottedPoints = [];
 let weightData = [];
 let resizeHandler = null;
+let drag = null;
+let dragMoved = false;
 
 function parseDate(date) {
     return new Date(`${date}T00:00:00`);
@@ -386,6 +388,7 @@ function renderChart({ keepScroll = false } = {}) {
 
     // Open on the most recent bucket, the one you actually came to look at.
     if (!keepScroll) scroller.scrollLeft = scroller.scrollWidth;
+    canvas.classList.toggle("is-pannable", scroller.scrollWidth > scroller.clientWidth);
 }
 
 function nearestPoint(event) {
@@ -524,12 +527,52 @@ function bindControls() {
         button.addEventListener("click", () => selectView(button.dataset.view));
     });
 
-    canvas.addEventListener("mousemove", (event) => showTooltip(nearestPoint(event)));
+    canvas.addEventListener("mousemove", (event) => {
+        if (drag) return;
+        showTooltip(nearestPoint(event));
+    });
     canvas.addEventListener("mouseleave", () => {
         tooltip.hidden = true;
     });
     // click/tap so touch devices (no hover) can still read a point's exact value
-    canvas.addEventListener("click", (event) => showTooltip(nearestPoint(event)));
+    canvas.addEventListener("click", (event) => {
+        // ignore the click that ends a pan
+        if (dragMoved) return;
+        showTooltip(nearestPoint(event));
+    });
+
+    // Grab-and-drag panning, in place of a scrollbar.
+    canvas.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        if (scroller.scrollWidth <= scroller.clientWidth) return;
+        drag = { x: event.clientX, from: scroller.scrollLeft };
+        dragMoved = false;
+        tooltip.hidden = true;
+        // capture keeps the pan alive if the pointer leaves the canvas; not
+        // being able to capture is not a reason to abandon the drag
+        try {
+            canvas.setPointerCapture(event.pointerId);
+        } catch (error) {
+            /* no active pointer to capture */
+        }
+        canvas.classList.add("is-grabbing");
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+        if (!drag) return;
+        const delta = event.clientX - drag.x;
+        if (Math.abs(delta) > 3) dragMoved = true;
+        scroller.scrollLeft = drag.from - delta;
+    });
+
+    const endDrag = (event) => {
+        if (!drag) return;
+        drag = null;
+        canvas.classList.remove("is-grabbing");
+        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    };
+    canvas.addEventListener("pointerup", endDrag);
+    canvas.addEventListener("pointercancel", endDrag);
 
     resizeHandler = () => renderChart({ keepScroll: true });
     window.addEventListener("resize", resizeHandler);
@@ -538,6 +581,8 @@ function bindControls() {
 export function cleanupWeightTracker() {
     if (resizeHandler) window.removeEventListener("resize", resizeHandler);
     resizeHandler = null;
+    drag = null;
+    dragMoved = false;
     canvas = null;
     ctx = null;
     axisCanvas = null;
