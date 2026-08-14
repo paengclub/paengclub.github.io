@@ -662,6 +662,10 @@ textarea.form-control {
     transform: translate(-50%, calc(-100% - 12px));
 }
 
+.tooltip.is-below {
+    transform: translate(-50%, 12px);
+}
+
 .tooltip[hidden] {
     display: none;
 }

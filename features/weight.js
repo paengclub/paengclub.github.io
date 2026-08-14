@@ -78,8 +78,8 @@ function startOfWeek(date) {
     return start;
 }
 
-// A stable per-view key, the labels shown on the axis and in the tooltip, and
-// the period's start — used to order buckets on the axis.
+// A stable per-view key, the label shown in the tooltip, and the period's
+// start, which is what places the bucket on the time axis.
 function bucketOf(date, view) {
     if (view === "week") {
         const monday = startOfWeek(date);
@@ -87,7 +87,6 @@ function bucketOf(date, view) {
         const day = monday.getDate();
         return {
             key: `w${monday.getFullYear()}-${month}-${day}`,
-            axisLabel: `${month}/${day}`,
             fullLabel: `${monday.getFullYear()}년 ${month}월 ${day}일 주간`,
             periodStart: monday.getTime()
         };
@@ -96,7 +95,6 @@ function bucketOf(date, view) {
     const day = date.getDate();
     return {
         key: `d${date.getFullYear()}-${month}-${day}`,
-        axisLabel: `${month}/${day}`,
         fullLabel: `${date.getFullYear()}년 ${month}월 ${day}일`,
         periodStart: new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
     };
@@ -250,26 +248,26 @@ function createScales(rect, bounds) {
 
 // --- drawing ---------------------------------------------------------------
 
-// X labels are the bucket slots themselves. Buckets are no longer evenly
-// spaced, so thin by actual pixel distance rather than by count: keep a slot
-// only once it clears the last kept label. The most recent bucket always keeps
-// its label, and yields to nothing.
-function axisTicks(slots, scales, minGapPx) {
-    const kept = [];
-    for (const bucket of slots) {
-        const x = scales.x(bucket.periodStart);
-        if (kept.length === 0 || x - kept[kept.length - 1].x >= minGapPx) {
-            kept.push({ label: bucket.axisLabel, periodStart: bucket.periodStart, x });
-        }
-    }
+// Whole numbers of weeks, so 주 ticks always land on the same weekday.
+const TICK_STEPS_DAYS = [1, 2, 3, 7, 14, 21, 28, 56, 91, 182, 364];
 
-    const last = slots[slots.length - 1];
-    if (kept[kept.length - 1].periodStart !== last.periodStart) {
-        const x = scales.x(last.periodStart);
-        if (x - kept[kept.length - 1].x < minGapPx) kept.pop();
-        kept.push({ label: last.axisLabel, periodStart: last.periodStart, x });
+// Gridlines are drawn on a fixed calendar interval, not at the buckets. Deriving
+// them from the data put the lines at whatever irregular dates happened to have
+// records, which gives an axis with no consistent scale to read against.
+function axisTicks(bounds, minGapPx) {
+    const perDay = PX_PER_DAY[activeView];
+    const stepDays = TICK_STEPS_DAYS.find((days) => days * perDay >= minGapPx)
+        || TICK_STEPS_DAYS[TICK_STEPS_DAYS.length - 1];
+    const step = stepDays * dayMs;
+
+    // Anchor on the most recent bucket and walk back, so the newest data — the
+    // part actually being read — always sits on a labelled line.
+    const ticks = [];
+    for (let t = bounds.maxTime; t >= bounds.minTime; t -= step) {
+        const date = new Date(t);
+        ticks.push({ time: t, label: `${date.getMonth() + 1}/${date.getDate()}` });
     }
-    return kept;
+    return ticks.reverse();
 }
 
 // The y labels live on their own canvas pinned over the left edge, so they stay
@@ -286,7 +284,7 @@ function drawAxis(rect, bounds, scales) {
     }
 }
 
-function drawGrid(rect, bounds, scales, slots) {
+function drawGrid(rect, bounds, scales) {
     ctx.lineWidth = 1;
     ctx.font = "12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
 
@@ -300,9 +298,9 @@ function drawGrid(rect, bounds, scales, slots) {
     }
 
     ctx.textBaseline = "top";
-    const ticks = axisTicks(slots, scales, 84);
-    ticks.forEach((tick, index) => {
-        const x = tick.x;
+    ctx.textAlign = "center";
+    for (const tick of axisTicks(bounds, 84)) {
+        const x = scales.x(tick.time);
 
         ctx.strokeStyle = cssVar("--app-line");
         ctx.beginPath();
@@ -311,9 +309,8 @@ function drawGrid(rect, bounds, scales, slots) {
         ctx.stroke();
 
         ctx.fillStyle = cssVar("--app-muted");
-        ctx.textAlign = index === 0 ? "left" : index === ticks.length - 1 ? "right" : "center";
         ctx.fillText(tick.label, x, rect.height - padding.bottom + 15);
-    });
+    }
 }
 
 function drawSeries(series, scales, rect) {
@@ -389,7 +386,7 @@ function renderChart({ keepScroll = false } = {}) {
     if (!keepScroll) scroller.scrollLeft = scroller.scrollWidth;
     canvas.classList.toggle("is-pannable", scroller.scrollWidth > scroller.clientWidth);
 
-    lastFrame = { series, slots, rect, bounds: getBounds(series, slots) };
+    lastFrame = { series, rect, bounds: getBounds(series, slots) };
     paintFrame();
 }
 
@@ -397,7 +394,7 @@ function renderChart({ keepScroll = false } = {}) {
 // window onto them, so panning only re-runs this.
 function paintFrame() {
     if (!lastFrame || !canvas || !ctx) return;
-    const { series, slots, rect, bounds } = lastFrame;
+    const { series, rect, bounds } = lastFrame;
     const offset = scroller.scrollLeft;
     const scales = createScales(rect, bounds);
 
@@ -407,7 +404,7 @@ function paintFrame() {
     ctx.translate(-offset, 0);
 
     drawAxis(rect, bounds, scales);
-    drawGrid(rect, bounds, scales, slots);
+    drawGrid(rect, bounds, scales);
     drawSeries(series, scales, rect);
 }
 
@@ -445,9 +442,22 @@ function showTooltip(point) {
         el("strong", { text: point.personName }),
         document.createTextNode(detail)
     );
-    tooltip.style.left = `${point.x}px`;
-    tooltip.style.top = `${point.y}px`;
+
+    // The tooltip lives outside the scroller, so convert the point back from
+    // timeline coordinates to a position within the chart frame.
     tooltip.hidden = false;
+    const frame = tooltip.parentElement.getBoundingClientRect();
+    const width = tooltip.offsetWidth;
+    const viewX = point.x - scroller.scrollLeft;
+    const half = width / 2;
+
+    // Keep it inside the frame rather than letting it hang off the panel.
+    tooltip.style.left = `${Math.min(Math.max(viewX, half), Math.max(frame.width - half, half))}px`;
+
+    // Flip below the dot when there is no room above.
+    const flip = point.y - tooltip.offsetHeight - 12 < 0;
+    tooltip.classList.toggle("is-below", flip);
+    tooltip.style.top = `${point.y}px`;
 }
 
 function selectView(view) {
@@ -534,10 +544,12 @@ function renderShell() {
                 el("canvas", { id: "weightAxis", class: "chart-axis", "aria-hidden": "true" }),
                 el("div", { class: "chart-scroll", id: "weightScroll" }, [
                     el("div", { class: "chart-track", id: "weightTrack" }, [
-                        el("canvas", { id: "weightChart", "aria-label": "시간별 체중 변화 선 그래프" }),
-                        el("div", { class: "tooltip", id: "weightTooltip", hidden: "" })
+                        el("canvas", { id: "weightChart", "aria-label": "시간별 체중 변화 선 그래프" })
                     ])
                 ]),
+                // outside the scroller: inside it, a tooltip near either edge
+                // gets clipped by the overflow
+                el("div", { class: "tooltip", id: "weightTooltip", hidden: "" }),
                 el("div", { class: "empty", id: "weightEmptyState", hidden: "", text: "표시할 데이터가 없습니다." })
             ])
         ])
@@ -587,6 +599,9 @@ function bindControls() {
         const delta = event.clientX - drag.x;
         if (Math.abs(delta) > 3) dragMoved = true;
         scroller.scrollLeft = drag.from - delta;
+        // Repaint straight from the drag rather than waiting on the scroll
+        // event, so the plot tracks the pointer with no lag.
+        paintFrame();
     });
 
     const endDrag = (event) => {
@@ -604,6 +619,8 @@ function bindControls() {
     // Panning moves the window, so repaint with the new offset — coalesced to
     // one repaint per frame.
     scrollHandler = () => {
+        // its position was resolved against the old offset
+        tooltip.hidden = true;
         if (scrollFrame !== null) return;
         scrollFrame = window.requestAnimationFrame(() => {
             scrollFrame = null;
