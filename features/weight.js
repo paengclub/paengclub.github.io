@@ -6,15 +6,12 @@
 // whose value is the plain mean of the records inside it. Nothing is smoothed,
 // interpolated or projected — every plotted value is measured data.
 //
-// The x axis is categorical: one equal slot per bucket, shared by both people.
-// It is deliberately not time-proportional — this data is a handful of records
-// spread over months followed by near-daily ones, which on a time axis collapses
-// every recent bucket into a few pixels.
-//
-// Slots keep a minimum width, so when they don't all fit the plot grows wider
-// than its container and scrolls horizontally (opening at the most recent
-// bucket). The y axis is a separate pinned canvas so it stays readable while
-// the plot scrolls under it.
+// The x axis is real time: a bucket sits at its period's start, so the gap
+// between two dots is proportional to the time between them. The plot is sized
+// from the span at a per-view pixels-per-day scale rather than squeezed into the
+// viewport — it grows as wide as the history needs and pans by dragging,
+// opening on the most recent bucket. The y axis is a separate pinned canvas so
+// it stays readable while the plot moves under it.
 // Exports renderWeightTracker, cleanupWeightTracker.
 import { supabase } from "/supabaseClient.js";
 import { el } from "/lib/dom.js";
@@ -33,9 +30,16 @@ const VIEWS = [
     { key: "day", label: "일" }
 ];
 const DEFAULT_VIEW = "week";
-// Narrowest a bucket slot may get before the plot starts scrolling instead of
-// squeezing. Roughly a comfortable tap target.
-const MIN_SLOT_PX = 46;
+const dayMs = 24 * 60 * 60 * 1000;
+// How much horizontal room one day of elapsed time gets, per view. Sets the
+// plot's total width: coarser views compress time harder so their whole
+// history stays reachable in a few drags.
+const PX_PER_DAY = {
+    year: 1.1,
+    week: 5,
+    day: 14
+};
+const MAX_PLOT_PX = 16000;
 
 let canvas = null;
 let ctx = null;
@@ -123,11 +127,8 @@ function bucketRecords(records, view) {
     return buckets;
 }
 
-// Every bucket gets an equal slot on the axis, so one week reads as one step
-// regardless of how much clock time separates it from the next. A
-// time-proportional axis is unusable here: the early records are months apart
-// and would squeeze every recent bucket into a few pixels. Slots are shared
-// across people, so both series line up on the same bucket.
+// Buckets are keyed per person but share one timeline, so the same period lands
+// at the same x for everyone.
 function buildChartModel() {
     const perPerson = weightData.map((person) => ({
         person,
@@ -142,14 +143,11 @@ function buildChartModel() {
     }
 
     const slots = [...axis.values()].sort((a, b) => a.periodStart - b.periodStart);
-    const indexOf = new Map(slots.map((bucket, index) => [bucket.key, index]));
 
     const series = perPerson
         .map(({ person, buckets }) => ({
             ...person,
-            points: [...buckets.values()]
-                .map((bucket) => ({ ...bucket, index: indexOf.get(bucket.key) }))
-                .sort((a, b) => a.index - b.index)
+            points: [...buckets.values()].sort((a, b) => a.periodStart - b.periodStart)
         }))
         .filter((person) => person.points.length > 0);
 
@@ -195,7 +193,7 @@ function niceWeightTicks(minWeight, maxWeight, targetCount = 5) {
     return ticks;
 }
 
-function getBounds(series, slotCount) {
+function getBounds(series, slots) {
     const weights = series.flatMap((person) => person.points).map((point) => point.weight);
     const minWeight = Math.min(...weights);
     const maxWeight = Math.max(...weights);
@@ -203,26 +201,38 @@ function getBounds(series, slotCount) {
     const yTicks = niceWeightTicks(minWeight - weightRange * 0.16, maxWeight + weightRange * 0.16);
 
     return {
-        slotCount,
+        minTime: slots[0].periodStart,
+        maxTime: slots[slots.length - 1].periodStart,
         minWeight: yTicks[0],
         maxWeight: yTicks[yTicks.length - 1],
         yTicks
     };
 }
 
+// iOS caps a canvas's total backing area (~16.7M px) and renders nothing past
+// it. A long history at full device pixel ratio blows through that, so trade
+// crispness for a chart that actually draws.
+const MAX_CANVAS_AREA = 8000000;
+
 function sizeToDpr(target, context, width, height) {
-    const dpr = window.devicePixelRatio || 1;
+    const wanted = window.devicePixelRatio || 1;
+    const area = width * height;
+    const dpr = area > 0 ? Math.min(wanted, Math.sqrt(MAX_CANVAS_AREA / area)) : wanted;
+
     target.width = Math.round(width * dpr);
     target.height = Math.round(height * dpr);
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
-// Widen the plot past its container when the slots need more room than fits —
-// that overflow is what the scroller scrolls.
-function resizeCanvas(slotCount) {
+// Width comes from the elapsed time on show, so equal time is equal distance
+// everywhere on the axis. Anything past the container is what pans.
+function resizeCanvas(spanMs) {
     const available = scroller.clientWidth;
-    const needed = padding.left + padding.right + Math.max(slotCount - 1, 1) * MIN_SLOT_PX;
-    const width = Math.max(available, needed);
+    const needed = padding.left + padding.right + (spanMs / dayMs) * PX_PER_DAY[activeView];
+    // Browsers refuse to allocate a canvas past ~32k px on a side; clamp well
+    // short of it. Only a history far longer than this site's would hit it, and
+    // a compressed axis beats a blank one.
+    const width = Math.min(Math.max(available, Math.round(needed)), MAX_PLOT_PX);
     const height = scroller.clientHeight;
 
     canvas.style.width = `${width}px`;
@@ -236,9 +246,10 @@ function createScales(rect, bounds) {
     const width = rect.width - padding.left - padding.right;
     const height = rect.height - padding.top - padding.bottom;
     return {
-        x(index) {
-            // A lone bucket has no span to spread across, so centre it.
-            const ratio = bounds.slotCount <= 1 ? 0.5 : index / (bounds.slotCount - 1);
+        x(periodStart) {
+            const span = bounds.maxTime - bounds.minTime;
+            // A single bucket has no span to spread across, so centre it.
+            const ratio = span <= 0 ? 0.5 : (periodStart - bounds.minTime) / span;
             return padding.left + ratio * width;
         },
         y(weight) {
@@ -250,21 +261,26 @@ function createScales(rect, bounds) {
 
 // --- drawing ---------------------------------------------------------------
 
-// X labels are the bucket slots themselves, thinned to whatever fits. The last
-// slot always gets a label so the axis ends on the most recent bucket.
-function axisTicks(slots, maxTicks) {
-    const ticks = slots.map((bucket, index) => ({ label: bucket.axisLabel, index }));
-    if (ticks.length <= maxTicks) return ticks;
-
-    const stride = Math.ceil(ticks.length / maxTicks);
-    const thinned = ticks.filter((tick) => tick.index % stride === 0);
-    const last = ticks[ticks.length - 1];
-    if (thinned[thinned.length - 1].index !== last.index) {
-        // Drop a label rather than let the final two collide.
-        if (last.index - thinned[thinned.length - 1].index < stride / 2) thinned.pop();
-        thinned.push(last);
+// X labels are the bucket slots themselves. Buckets are no longer evenly
+// spaced, so thin by actual pixel distance rather than by count: keep a slot
+// only once it clears the last kept label. The most recent bucket always keeps
+// its label, and yields to nothing.
+function axisTicks(slots, scales, minGapPx) {
+    const kept = [];
+    for (const bucket of slots) {
+        const x = scales.x(bucket.periodStart);
+        if (kept.length === 0 || x - kept[kept.length - 1].x >= minGapPx) {
+            kept.push({ label: bucket.axisLabel, periodStart: bucket.periodStart, x });
+        }
     }
-    return thinned;
+
+    const last = slots[slots.length - 1];
+    if (kept[kept.length - 1].periodStart !== last.periodStart) {
+        const x = scales.x(last.periodStart);
+        if (x - kept[kept.length - 1].x < minGapPx) kept.pop();
+        kept.push({ label: last.axisLabel, periodStart: last.periodStart, x });
+    }
+    return kept;
 }
 
 // The y labels live on their own canvas pinned over the left edge, so they stay
@@ -296,10 +312,9 @@ function drawGrid(rect, bounds, scales, slots) {
     }
 
     ctx.textBaseline = "top";
-    // A wider plot has room for more labels; keep roughly one per 110px.
-    const ticks = axisTicks(slots, Math.max(3, Math.floor(rect.width / 110)));
+    const ticks = axisTicks(slots, scales, 84);
     ticks.forEach((tick, index) => {
-        const x = scales.x(tick.index);
+        const x = tick.x;
 
         ctx.strokeStyle = cssVar("--app-line");
         ctx.beginPath();
@@ -329,7 +344,7 @@ function drawSeries(series, scales, rect) {
     series.forEach((person) => {
         const points = person.points.map((point) => ({
             ...point,
-            x: scales.x(point.index),
+            x: scales.x(point.periodStart),
             y: scales.y(point.weight),
             personName: person.name,
             color: person.color
@@ -367,7 +382,8 @@ function renderChart({ keepScroll = false } = {}) {
     if (!canvas || !ctx) return;
     const { series, slots } = buildChartModel();
     const hasData = series.length > 0;
-    const rect = resizeCanvas(slots.length);
+    const span = hasData ? slots[slots.length - 1].periodStart - slots[0].periodStart : 0;
+    const rect = resizeCanvas(span);
 
     emptyState.hidden = hasData;
     tooltip.hidden = true;
@@ -380,7 +396,7 @@ function renderChart({ keepScroll = false } = {}) {
         return;
     }
 
-    const bounds = getBounds(series, slots.length);
+    const bounds = getBounds(series, slots);
     const scales = createScales(rect, bounds);
     drawAxis(rect, bounds, scales);
     drawGrid(rect, bounds, scales, slots);
