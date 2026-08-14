@@ -1,8 +1,8 @@
 // features/timetable.js — 시간표, an Everytime-style weekly class grid.
 // Anyone can view anyone's schedule (public read); only the signed-in owner
-// can add/edit/delete their own courses. features/profiles.js links into
-// this tab via setInitialViewer() + a simulated click on the nav button.
-// Exports renderTimetable, cleanupTimetable, setInitialViewer.
+// can add/edit/delete their own courses. Switch whose schedule you're looking
+// at with the person chips above the grid.
+// Exports renderTimetable, cleanupTimetable.
 import { supabase } from "/supabaseClient.js";
 import { getCurrentSession, signInWithGoogle } from "/features/auth.js";
 import { el } from "/lib/dom.js";
@@ -20,7 +20,6 @@ const COLOR_PALETTE = [
 let people = [];
 let courses = [];
 let viewerId = null;
-let pendingViewerId = null;
 let panelMode = null; // null | "view" | "edit" | "add"
 let selectedCourse = null;
 let chosenColor = COLOR_PALETTE[0];
@@ -462,10 +461,6 @@ function renderShell() {
     root.appendChild(wrapper);
 }
 
-export function setInitialViewer(userId) {
-    pendingViewerId = userId;
-}
-
 export function cleanupTimetable() {
     panelMode = null;
     selectedCourse = null;
@@ -480,14 +475,11 @@ export async function renderTimetable() {
         await loadAll();
         const session = getCurrentSession();
 
-        if (pendingViewerId && people.some((person) => person.id === pendingViewerId)) {
-            viewerId = pendingViewerId;
-        } else if (session && people.some((person) => person.id === session.user.id)) {
+        if (session && people.some((person) => person.id === session.user.id)) {
             viewerId = session.user.id;
         } else {
             viewerId = people[0]?.id || null;
         }
-        pendingViewerId = null;
 
         renderBody();
 

@@ -36,12 +36,9 @@ codebase without reading every file.
   format.js      num() (comma-tolerant), cssVar() (read a --app-* theme token)
 /features        one module per tab; each renders into #screen and cleans up
   auth.js        Google auth/session + the profile-edit screen. Owns the session.
-  art.js         홈 (landing tab): mouse-reactive generative art, no data
-  games.js       미니게임 (reaction / taprush / memory / tetris / schulte / stroop / rps) + leaderboard
+  timer.js       디데이 (D-day / rank progress bars) — the landing tab
   weight.js      체중 (weight chart), reads from Supabase
   tier.js        게임 티어 (drag-and-drop tier list), realtime + poll
-  timer.js       디데이 (D-day / rank progress bars for each member)
-  profiles.js    프로필 (card directory of everyone who has signed in)
   timetable.js   시간표 (Everytime-style weekly class grid, public view / owner edit)
 /migrations      applied SQL, one file per change (record only; run via Supabase)
 style.css        all styles. Uses --app-* CSS custom properties for theming.
@@ -49,16 +46,14 @@ style.css        all styles. Uses --app-* CSS custom properties for theming.
 
 **Dependency direction:** `app.js → features/* → lib/* & supabaseClient.js`.
 Two exceptions, both intentional and pre-existing:
-- `features/games.js`, `features/profiles.js` and `features/timetable.js`
-  import auth helpers from `features/auth.js` (the de-facto "auth/session"
-  module, which also owns profile editing — nickname/bio/MBTI live on its
-  `renderProfile()` screen).
+- `features/timetable.js` imports auth helpers from `features/auth.js` (the
+  de-facto "auth/session" module, which also owns profile editing —
+  nickname/bio/MBTI live on its `renderProfile()` screen, reached by clicking
+  your avatar in the nav).
 - `features/timer.js` imports `current_rendered_page` from `/app.js` (a small
   circular edge; keep `app.js` at root so this keeps resolving).
-- `features/profiles.js` → `features/timetable.js`: a card's "시간표 보기"
-  button calls timetable's exported `setInitialViewer(userId)` then simulates
-  a click on nav button `id="8"`. This is the one intentional feature→feature
-  UI coupling (no shared state beyond that one setter).
+
+There is no longer any feature→feature coupling.
 
 ## The app shell (`app.js`)
 
@@ -68,10 +63,10 @@ Two exceptions, both intentional and pre-existing:
 - `myRenderFunction()` first calls each feature's `cleanupX()` for the tabs that
   are *not* active (so timers / realtime channels / listeners are torn down),
   clears `#screen`, then calls the active tab's `renderX()`.
-- Page ids → tabs: `0` art (홈, default landing page), `1` games, `3`
-  dday(timer), `4` weight, `6` tier, `7` profiles, `8` timetable. Ids `2` and
-  `5` are retired (그림판/자산관리, removed) — left unused rather than
-  renumbering everything.
+- Page ids → tabs: `3` dday(timer, the default landing page), `4` weight, `6`
+  tier, `8` timetable. Ids `0`/`1`/`2`/`5`/`7` are retired (홈/미니게임/그림판/
+  자산관리/프로필, all removed) — left unused rather than renumbering
+  everything.
 - Theme: `initTheme()` follows `prefers-color-scheme`; the floating button
   toggles `data-bs-theme` on `<html>`. All colors come from `--app-*` tokens in
   `style.css` (light values in `:root`, dark in `[data-bs-theme="dark"]`).
@@ -109,16 +104,21 @@ per-user.
 
 | Feature | Tables | Notes |
 |---|---|---|
-| auth/profile | `profiles` | display_name, avatar_url, nickname, bio, mbti; avatars in `avatars` storage bucket; own row editable |
-| games | `game_scores` | public read + insert; `game_id ∈ {reaction,taprush,memory,tetris,schulte,stroop,rps}`, per-game score-bound CHECK constraints |
+| auth/profile | `profiles` | display_name, avatar_url, nickname, bio, mbti; avatars in `avatars` storage bucket; own row editable. Still live: `timetable` reads names/avatars from it |
 | tier | `tier_games` | public read; insert(unranked)/update(move) by anyone; images in `tier-games` bucket; realtime |
 | weight | `weight_people`, `weight_records` | public read; writes are admin/SQL only |
 | timetable | `timetable_courses` | public read (schedules are meant to be shared); insert/update/delete **own only** (`user_id = auth.uid()`); `days` is a `smallint[]` (multi-day courses), `start_minute`/`end_minute` step in 5s |
 
-`portfolio_snapshots`/`portfolio_holdings`/`portfolio_categories`/`portfolio_events`
-still exist (per-user, `user_id = auth.uid()`) — 자산관리's frontend was removed
-from this site but the backend was deliberately kept as-is, since the plan is
-to rebuild the feature on a different site reusing this same Supabase backend.
+**Kept-but-unused backends.** These tables have no frontend on this site any
+more, but were deliberately left intact (with their data) rather than dropped:
+
+- `game_scores` — 미니게임's leaderboard, 263 rows across seven `game_id`s.
+- `portfolio_snapshots`/`portfolio_holdings`/`portfolio_categories`/`portfolio_events`
+  — 자산관리, per-user (`user_id = auth.uid()`); the plan is to rebuild that
+  feature on a different site against this same Supabase backend.
+- The `profiles` directory columns (`nickname`, `bio`, `mbti`) added by
+  `20260713_profile_directory_fields.sql` — the 프로필 directory tab is gone,
+  but the columns and the profile-edit screen in `auth.js` remain.
 
 `board_posts`, `board_comments`, and `canvas_pixels` (게시판/그림판) were
 dropped entirely — feature and data both removed, no backend kept.
@@ -127,14 +127,10 @@ Schema changes: write a `migrations/<date>_<name>.sql` file for the record AND
 apply it to the project (via the Supabase MCP tools / dashboard). The SQL file
 alone does nothing until applied.
 
-## Charts / canvas art
+## Charts
 
-Hand-rolled, no chart lib or graphics lib:
-- `weight.js` and `games.js` (tetris) draw on a `<canvas>`; theme colors read via
-  `cssVar("--app-...")`.
-- `art.js` also draws on a `<canvas>`, but runs its own fixed dark palette
-  (ember tones) rather than the `--app-*` theme tokens — it's a standalone
-  visual piece, not themed UI.
+Hand-rolled, no chart lib: `weight.js` draws on a `<canvas>`, reading its
+colors via `cssVar("--app-...")` so it stays in step with the theme tokens.
 
 ## Adding a new tab (checklist)
 

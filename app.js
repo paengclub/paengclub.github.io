@@ -4,15 +4,14 @@
 import {itineraries, members} from "/data.js";
 import {renderTimer} from "/features/timer.js";
 import {initAuth} from "/features/auth.js";
-import {cleanupArt, renderArt} from "/features/art.js";
-import {cleanupGames, renderGames} from "/features/games.js";
 import {cleanupWeightTracker, renderWeightTracker} from "/features/weight.js";
 import {cleanupGameTier, renderGameTier} from "/features/tier.js";
-import {cleanupProfilesDirectory, renderProfilesDirectory} from "/features/profiles.js";
 import {cleanupTimetable, renderTimetable as renderTimetableGrid} from "/features/timetable.js";
 
 document.body.onload = init;
-let current_rendered_page = 0;
+// 3 (디데이) is the landing page. Ids 0/1/2/5/7 are retired (홈/미니게임/
+// 그림판/자산관리/프로필) — left unused rather than renumbering the rest.
+let current_rendered_page = 3;
 
 const rankNameSet = ['일병 진급', '상병 진급', '병장 진급', '만기 전역'];
 const rankImageSet = ['PV2.jpg', 'PFC.jpg', 'CPL.jpg', 'SGT.jpg', 'GEN.svg', 'SSG.svg'];
@@ -93,11 +92,11 @@ async function init() {
 
     preprocessed();
 
-    // Resolve the auth session before the first render so the board paints
-    // once (composer vs. login known up front) instead of rendering as a guest
-    // and then re-rendering the whole page once the session resolves.
+    // Resolve the auth session before the first render so a tab paints once
+    // (owner controls vs. login known up front) instead of rendering as a
+    // guest and then re-rendering the whole page once the session resolves.
     await initAuth(function() {
-        if (current_rendered_page == 1 || current_rendered_page == 7 || current_rendered_page == 8) myRenderFunction();
+        if (current_rendered_page == 8) myRenderFunction();
     });
 
     myRenderFunction();
@@ -107,21 +106,15 @@ function myRenderFunction() {
     // what to do in this function
     // 1. delete all rendered elements
     // 2. add all new elements according to PAGE_YOURE_LOOKING_AT
-    if (current_rendered_page != 0) cleanupArt();
-    if (current_rendered_page != 1) cleanupGames();
     if (current_rendered_page != 4) cleanupWeightTracker();
     if (current_rendered_page != 6) cleanupGameTier();
-    if (current_rendered_page != 7) cleanupProfilesDirectory();
     if (current_rendered_page != 8) cleanupTimetable();
     document.getElementById("screen").replaceChildren();
     setActiveNavButton();
 
-    if (current_rendered_page == 0) renderArt();
-    if (current_rendered_page == 1) renderGames();
     if (current_rendered_page == 3) renderTimer();
     if (current_rendered_page == 4) renderWeightTracker();
     if (current_rendered_page == 6) renderGameTier();
-    if (current_rendered_page == 7) renderProfilesDirectory();
     if (current_rendered_page == 8) renderTimetableGrid();
 }
 
