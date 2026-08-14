@@ -37,7 +37,7 @@ codebase without reading every file.
 /features        one module per tab; each renders into #screen and cleans up
   auth.js        Google auth/session + the profile-edit screen. Owns the session.
   timer.js       디데이 (D-day / rank progress bars) — the landing tab
-  weight.js      체중 (weight chart, 연/주/일 buckets), reads from Supabase
+  weight.js      체중 (weight chart, 주/일 buckets), reads from Supabase
   tier.js        게임 티어 (drag-and-drop tier list), realtime + poll
   timetable.js   시간표 (Everytime-style weekly class grid, public view / owner edit)
 /migrations      applied SQL, one file per change (record only; run via Supabase)
@@ -134,12 +134,17 @@ alone does nothing until applied.
 Hand-rolled, no chart lib: `weight.js` draws on a `<canvas>`, reading its
 colors via `cssVar("--app-...")` so it stays in step with the theme tokens.
 
-It has three fixed granularities (연/주/일) and no zoom or pan. Each view
+It has two fixed granularities (주/일) and no zoom. Each view
 buckets the same full history and plots one dot per bucket; a bucket's value is
-the mean of its records and its x position the mean of their dates. Nothing is
+the mean of its records and its x position its period's start. Nothing is
 smoothed, interpolated or extrapolated — if you add a trend line or a
 projection, say so in the UI, because the tab's contract with the reader is
 that every plotted point is measured data.
+
+The x axis is real elapsed time (see PX_PER_DAY), so the plot is as wide as the
+history needs and pans by dragging rather than fitting the viewport. Two guards
+matter if you widen it further: a canvas fails past ~32k px on a side, and iOS
+silently renders nothing past ~16.7M px of backing area.
 
 ## Adding a new tab (checklist)
 

@@ -1,8 +1,8 @@
 // features/weight.js — 체중, a weight-over-time line chart (canvas) for each
 // tracked person. Data comes from Supabase (weight_people + weight_records).
 //
-// Three fixed granularities (연/주/일), no zoom and no pan: each view buckets
-// the same full history by year / week / day and plots one dot per bucket,
+// Two fixed granularities (주/일), no zoom: each view buckets the same full
+// history by week or day and plots one dot per bucket,
 // whose value is the plain mean of the records inside it. Nothing is smoothed,
 // interpolated or projected — every plotted value is measured data.
 //
@@ -25,7 +25,6 @@ const padding = {
 };
 
 const VIEWS = [
-    { key: "year", label: "연" },
     { key: "week", label: "주" },
     { key: "day", label: "일" }
 ];
@@ -35,7 +34,6 @@ const dayMs = 24 * 60 * 60 * 1000;
 // plot's total width: coarser views compress time harder so their whole
 // history stays reachable in a few drags.
 const PX_PER_DAY = {
-    year: 1.1,
     week: 5,
     day: 14
 };
@@ -77,15 +75,6 @@ function startOfWeek(date) {
 // A stable per-view key, the labels shown on the axis and in the tooltip, and
 // the period's start — used to order buckets on the axis.
 function bucketOf(date, view) {
-    if (view === "year") {
-        const year = date.getFullYear();
-        return {
-            key: `${year}`,
-            axisLabel: `${year}`,
-            fullLabel: `${year}년`,
-            periodStart: new Date(year, 0, 1).getTime()
-        };
-    }
     if (view === "week") {
         const monday = startOfWeek(date);
         const month = monday.getMonth() + 1;
