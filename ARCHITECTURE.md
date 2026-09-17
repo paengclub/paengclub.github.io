@@ -142,7 +142,10 @@ projection, say so in the UI, because the tab's contract with the reader is
 that every plotted point is measured data.
 
 The x axis is real elapsed time (see PX_PER_DAY), so the plot is as wide as the
-history needs and pans by dragging rather than fitting the viewport. Two guards
+history needs and pans by dragging rather than fitting the viewport. The y axis
+is refitted on every repaint to the points in view (plus the nearest point past
+each edge, so lines running off screen stay in bounds), with a fixed 14px edge
+margin — fitting it to the whole history left recent data in a thin band. Two guards
 matter if you widen it further: a canvas fails past ~32k px on a side, and iOS
 silently renders nothing past ~16.7M px of backing area.
 

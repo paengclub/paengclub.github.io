@@ -172,34 +172,67 @@ function niceStep(rawStep) {
     return 10 * magnitude;
 }
 
-function niceWeightTicks(minWeight, maxWeight, targetCount = 5) {
-    const span = Math.max(maxWeight - minWeight, 0.5);
-    const step = Math.max(0.1, niceStep(span / targetCount));
-    const start = Math.floor(minWeight / step) * step;
-    const end = Math.ceil(maxWeight / step) * step;
-    const ticks = [];
-
-    for (let value = start; value <= end + step / 2; value += step) {
-        ticks.push(Math.round(value * 10) / 10);
-    }
-
-    return ticks;
-}
-
-function getBounds(series, slots) {
-    const weights = series.flatMap((person) => person.points).map((point) => point.weight);
-    const minWeight = Math.min(...weights);
-    const maxWeight = Math.max(...weights);
-    const weightRange = Math.max(maxWeight - minWeight, 1);
-    const yTicks = niceWeightTicks(minWeight - weightRange * 0.16, maxWeight + weightRange * 0.16);
-
+function getTimeBounds(slots) {
     return {
         minTime: slots[0].periodStart,
-        maxTime: slots[slots.length - 1].periodStart,
-        minWeight: yTicks[0],
-        maxWeight: yTicks[yTicks.length - 1],
-        yTicks
+        maxTime: slots[slots.length - 1].periodStart
     };
+}
+
+// Room kept between the plot edge and the nearest dot, in pixels — enough for
+// the dot and its stroke, and no more.
+const Y_EDGE_MARGIN_PX = 14;
+// A near-flat window would otherwise magnify tenths of a kilo into cliffs.
+const MIN_Y_SPAN_KG = 1;
+
+// Weights that matter for the current window: every point in view, plus each
+// series' nearest point just outside either edge, so a line entering from off
+// screen still lands inside the plot instead of being cut at the top or bottom.
+function weightsInView(series, fromTime, toTime) {
+    const weights = [];
+    for (const person of series) {
+        let before = null;
+        let after = null;
+        for (const point of person.points) {
+            if (point.periodStart < fromTime) before = point;
+            else if (point.periodStart > toTime) {
+                after = point;
+                break;
+            } else weights.push(point.weight);
+        }
+        if (before) weights.push(before.weight);
+        if (after) weights.push(after.weight);
+    }
+    return weights;
+}
+
+// Fit the y range to what is on screen, so the visible data fills the plot
+// height. The history's full range is much wider than any one window, and
+// using it left the recent data squeezed into a quarter of the chart.
+function getYBounds(weights, plotHeight) {
+    let low = Math.min(...weights);
+    let high = Math.max(...weights);
+    if (high - low < MIN_Y_SPAN_KG) {
+        const mid = (low + high) / 2;
+        low = mid - MIN_Y_SPAN_KG / 2;
+        high = mid + MIN_Y_SPAN_KG / 2;
+    }
+
+    // Convert the pixel margin into kilos at this scale.
+    const usable = Math.max(plotHeight - 2 * Y_EDGE_MARGIN_PX, 1);
+    const pad = ((high - low) / usable) * Y_EDGE_MARGIN_PX;
+    const minWeight = low - pad;
+    const maxWeight = high + pad;
+
+    // Ticks fall on round values inside the range, rather than the range
+    // being stretched outward to reach round values.
+    const step = Math.max(0.1, niceStep((maxWeight - minWeight) / 4));
+    const yTicks = [];
+    for (let value = Math.ceil(minWeight / step) * step; value <= maxWeight + 1e-9; value += step) {
+        yTicks.push(Math.round(value * 10) / 10);
+    }
+
+    return { minWeight, maxWeight, yTicks };
 }
 
 function sizeToDpr(target, context, width, height) {
@@ -386,7 +419,7 @@ function renderChart({ keepScroll = false } = {}) {
     if (!keepScroll) scroller.scrollLeft = scroller.scrollWidth;
     canvas.classList.toggle("is-pannable", scroller.scrollWidth > scroller.clientWidth);
 
-    lastFrame = { series, rect, bounds: getBounds(series, slots) };
+    lastFrame = { series, rect, timeBounds: getTimeBounds(slots) };
     paintFrame();
 }
 
@@ -394,8 +427,24 @@ function renderChart({ keepScroll = false } = {}) {
 // window onto them, so panning only re-runs this.
 function paintFrame() {
     if (!lastFrame || !canvas || !ctx) return;
-    const { series, rect, bounds } = lastFrame;
+    const { series, rect, timeBounds } = lastFrame;
     const offset = scroller.scrollLeft;
+
+    // Which stretch of time is on screen right now (the pinned y axis covers
+    // the first padding.left px of the view).
+    const plotWidth = rect.width - padding.left - padding.right;
+    const span = timeBounds.maxTime - timeBounds.minTime;
+    const timeAt = (x) => span <= 0
+        ? timeBounds.minTime
+        : timeBounds.minTime + ((x - padding.left) / plotWidth) * span;
+    const fromTime = timeAt(offset + padding.left);
+    const toTime = timeAt(offset + rect.viewWidth - padding.right);
+
+    const plotHeight = rect.height - padding.top - padding.bottom;
+    const bounds = {
+        ...timeBounds,
+        ...getYBounds(weightsInView(series, fromTime, toTime), plotHeight)
+    };
     const scales = createScales(rect, bounds);
 
     const dpr = window.devicePixelRatio || 1;
