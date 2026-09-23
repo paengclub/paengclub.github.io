@@ -6,8 +6,9 @@
 // whose value is the plain mean of the records inside it. Nothing is smoothed,
 // interpolated or projected — every plotted value is measured data.
 //
-// The x axis is real time: a bucket sits at its period's start, so the gap
-// between two dots is proportional to the time between them. The plot is sized
+// The x axis is real time: a bucket sits at the mean date of its records, so
+// the gap between two dots is proportional to the time between them, and the
+// axis ends on the latest record rather than the start of its week. The plot is sized
 // from the span at a per-view pixels-per-day scale rather than squeezed into the
 // viewport — it grows as wide as the history needs and pans by dragging,
 // opening on the most recent bucket. The y axis is a separate pinned canvas so
@@ -78,73 +79,63 @@ function startOfWeek(date) {
     return start;
 }
 
-// A stable per-view key, the label shown in the tooltip, and the period's
-// start, which is what places the bucket on the time axis.
+// A stable per-view key and the label shown in the tooltip. A week is labelled
+// by its full Monday–Sunday range, so a record from Wednesday isn't read back
+// as "the week of Monday" and mistaken for a Monday reading.
 function bucketOf(date, view) {
     if (view === "week") {
         const monday = startOfWeek(date);
-        const month = monday.getMonth() + 1;
-        const day = monday.getDate();
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        const from = `${monday.getMonth() + 1}월 ${monday.getDate()}일`;
+        const to = sunday.getMonth() === monday.getMonth()
+            ? `${sunday.getDate()}일`
+            : `${sunday.getMonth() + 1}월 ${sunday.getDate()}일`;
         return {
-            key: `w${monday.getFullYear()}-${month}-${day}`,
-            fullLabel: `${monday.getFullYear()}년 ${month}월 ${day}일 주간`,
-            periodStart: monday.getTime()
+            key: `w${monday.getFullYear()}-${monday.getMonth() + 1}-${monday.getDate()}`,
+            fullLabel: `${monday.getFullYear()}년 ${from} – ${to}`
         };
     }
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
     return {
-        key: `d${date.getFullYear()}-${month}-${day}`,
-        fullLabel: `${date.getFullYear()}년 ${month}월 ${day}일`,
-        periodStart: new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+        key: `d${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`,
+        fullLabel: `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`
     };
 }
 
 // Collapse a person's records into one entry per bucket, keyed by bucket. The
-// entry's weight is the plain mean of the records inside it.
+// entry's weight is the plain mean of the records inside it, and its time is
+// the mean of their dates — so a week whose only record is a Wednesday sits
+// on that Wednesday, not on the Monday the week happens to start on.
 function bucketRecords(records, view) {
     const buckets = new Map();
 
     for (const record of records) {
         const date = parseDate(record.date);
         const meta = bucketOf(date, view);
-        if (!buckets.has(meta.key)) buckets.set(meta.key, { ...meta, weights: [] });
-        buckets.get(meta.key).weights.push(record.weight);
+        if (!buckets.has(meta.key)) buckets.set(meta.key, { ...meta, weights: [], times: [] });
+        const bucket = buckets.get(meta.key);
+        bucket.weights.push(record.weight);
+        bucket.times.push(date.getTime());
     }
 
     for (const bucket of buckets.values()) {
         bucket.count = bucket.weights.length;
         bucket.weight = bucket.weights.reduce((sum, weight) => sum + weight, 0) / bucket.count;
+        bucket.time = bucket.times.reduce((sum, time) => sum + time, 0) / bucket.count;
     }
 
     return buckets;
 }
 
-// Buckets are keyed per person but share one timeline, so the same period lands
-// at the same x for everyone.
 function buildChartModel() {
-    const perPerson = weightData.map((person) => ({
-        person,
-        buckets: bucketRecords(person.records, activeView)
-    }));
-
-    const axis = new Map();
-    for (const { buckets } of perPerson) {
-        for (const bucket of buckets.values()) {
-            if (!axis.has(bucket.key)) axis.set(bucket.key, bucket);
-        }
-    }
-
-    const slots = [...axis.values()].sort((a, b) => a.periodStart - b.periodStart);
-
-    const series = perPerson
-        .map(({ person, buckets }) => ({
+    const series = weightData
+        .map((person) => ({
             ...person,
-            points: [...buckets.values()].sort((a, b) => a.periodStart - b.periodStart)
+            points: [...bucketRecords(person.records, activeView).values()].sort((a, b) => a.time - b.time)
         }))
         .filter((person) => person.points.length > 0);
 
-    return { series, slots };
+    return { series, timeBounds: getTimeBounds() };
 }
 
 // --- scales ----------------------------------------------------------------
@@ -172,10 +163,13 @@ function niceStep(rawStep) {
     return 10 * magnitude;
 }
 
-function getTimeBounds(slots) {
+// The timeline runs from the first recorded day to the last — not from bucket
+// to bucket — so the right edge is the most recent record, whatever the view.
+function getTimeBounds() {
+    const times = weightData.flatMap((person) => person.records.map((record) => parseDate(record.date).getTime()));
     return {
-        minTime: slots[0].periodStart,
-        maxTime: slots[slots.length - 1].periodStart
+        minTime: Math.min(...times),
+        maxTime: Math.max(...times)
     };
 }
 
@@ -194,8 +188,8 @@ function weightsInView(series, fromTime, toTime) {
         let before = null;
         let after = null;
         for (const point of person.points) {
-            if (point.periodStart < fromTime) before = point;
-            else if (point.periodStart > toTime) {
+            if (point.time < fromTime) before = point;
+            else if (point.time > toTime) {
                 after = point;
                 break;
             } else weights.push(point.weight);
@@ -266,10 +260,10 @@ function createScales(rect, bounds) {
     const width = rect.width - padding.left - padding.right;
     const height = rect.height - padding.top - padding.bottom;
     return {
-        x(periodStart) {
+        x(time) {
             const span = bounds.maxTime - bounds.minTime;
             // A single bucket has no span to spread across, so centre it.
-            const ratio = span <= 0 ? 0.5 : (periodStart - bounds.minTime) / span;
+            const ratio = span <= 0 ? 0.5 : (time - bounds.minTime) / span;
             return padding.left + ratio * width;
         },
         y(weight) {
@@ -293,8 +287,8 @@ function axisTicks(bounds, minGapPx) {
         || TICK_STEPS_DAYS[TICK_STEPS_DAYS.length - 1];
     const step = stepDays * dayMs;
 
-    // Anchor on the most recent bucket and walk back, so the newest data — the
-    // part actually being read — always sits on a labelled line.
+    // Anchor on the latest record and walk back, so the right-most label is the
+    // most recent date actually in the data.
     const ticks = [];
     for (let t = bounds.maxTime; t >= bounds.minTime; t -= step) {
         const date = new Date(t);
@@ -362,7 +356,7 @@ function drawSeries(series, scales, rect) {
     series.forEach((person) => {
         const points = person.points.map((point) => ({
             ...point,
-            x: scales.x(point.periodStart),
+            x: scales.x(point.time),
             y: scales.y(point.weight),
             personName: person.name,
             color: person.color
@@ -398,9 +392,9 @@ function drawSeries(series, scales, rect) {
 
 function renderChart({ keepScroll = false } = {}) {
     if (!canvas || !ctx) return;
-    const { series, slots } = buildChartModel();
+    const { series, timeBounds } = buildChartModel();
     const hasData = series.length > 0;
-    const span = hasData ? slots[slots.length - 1].periodStart - slots[0].periodStart : 0;
+    const span = hasData ? timeBounds.maxTime - timeBounds.minTime : 0;
     const rect = resizeCanvas(span);
 
     emptyState.hidden = hasData;
@@ -419,7 +413,7 @@ function renderChart({ keepScroll = false } = {}) {
     if (!keepScroll) scroller.scrollLeft = scroller.scrollWidth;
     canvas.classList.toggle("is-pannable", scroller.scrollWidth > scroller.clientWidth);
 
-    lastFrame = { series, rect, timeBounds: getTimeBounds(slots) };
+    lastFrame = { series, rect, timeBounds };
     paintFrame();
 }
 
