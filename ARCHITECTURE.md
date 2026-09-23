@@ -86,14 +86,22 @@ Every feature module exports:
 
 Build DOM with `el()` / `svg()` from `/lib/dom.js` (not innerHTML strings).
 
+**State survives tab switches.** Loaded data lives in module-level variables
+that `cleanupX()` deliberately does not clear. On a revisit, 체중 / 게임 티어 /
+시간표 paint what they already have immediately and refresh from Supabase
+underneath; a failed refresh keeps the cached view instead of replacing it with
+an error. UI choices persist the same way (체중's 주/일 view, 시간표's selected
+person). Keep this when touching a render function — re-fetching before the
+first paint is what made tab switches feel slow.
+
 ## Auth (`features/auth.js`)
 
 - `initAuth(onAuthChange)` runs once from `app.js` *before* the first render,
   resolving the session up front. It also subscribes to `onAuthStateChange`
   but only re-renders on an actual signed-in-user change (ignores the initial
   replay and hourly token refreshes).
-- Others read the session via `getCurrentSession()` / `getCurrentPlayerName()`
-  and start Google sign-in via `signInWithGoogle()`.
+- Others read the session via `getCurrentSession()` and start Google sign-in
+  via `signInWithGoogle()`.
 - `profiles` and `timetable` are public to *view*; editing (your own profile
   fields, or your own courses) is gated per-action inside the tab instead of
   gating the whole tab. No fully login-gated tab currently exists (자산관리 was
@@ -134,20 +142,31 @@ alone does nothing until applied.
 Hand-rolled, no chart lib: `weight.js` draws on a `<canvas>`, reading its
 colors via `cssVar("--app-...")` so it stays in step with the theme tokens.
 
-It has two fixed granularities (주/일) and no zoom. Each view
-buckets the same full history and plots one dot per bucket; a bucket's value is
-the mean of its records and its x position its period's start. Nothing is
-smoothed, interpolated or extrapolated — if you add a trend line or a
+Two fixed granularities (주/일), no zoom. Each view buckets the full history and
+plots one dot per bucket. A bucket's **value is the mean of its records and its
+x position is the mean of their dates** — a week whose only record is a
+Wednesday sits on that Wednesday, not on the Monday the week starts. (Placing
+buckets at the period start made the latest record read as the week's Monday.)
+Nothing is smoothed, interpolated or extrapolated — if you add a trend line or a
 projection, say so in the UI, because the tab's contract with the reader is
 that every plotted point is measured data.
 
-The x axis is real elapsed time (see PX_PER_DAY), so the plot is as wide as the
-history needs and pans by dragging rather than fitting the viewport. The y axis
-is refitted on every repaint to the points in view (plus the nearest point past
-each edge, so lines running off screen stay in bounds), with a fixed 14px edge
-margin — fitting it to the whole history left recent data in a thin band. Two guards
-matter if you widen it further: a canvas fails past ~32k px on a side, and iOS
-silently renders nothing past ~16.7M px of backing area.
+- **x axis** is real elapsed time from the first record to the last
+  (`PX_PER_DAY`: 주 5, 일 14). The timeline is as wide as the history needs and
+  pans by dragging (scrollbar hidden). A `.chart-track` div carries the full
+  width; the canvas itself is viewport-sized, `position: sticky`, and redraws
+  at an offset on every pan — so its backing store stays at full device pixel
+  ratio at any span. (A timeline-wide canvas hit browser canvas-size limits
+  and had to drop resolution, which is what made the 일 line look stepped.)
+- **Gridlines** are on a fixed calendar step chosen from `PX_PER_DAY`, anchored
+  on the latest record, so every gap is identical and the right-most label is
+  the newest date in the data. They are never derived from bucket positions.
+- **y axis** is a separate pinned canvas, refitted on every repaint to the
+  points in view (plus the nearest point past each edge, so lines running off
+  screen stay in bounds), with a fixed 14px edge margin and a 1kg minimum span.
+- **Tooltip** lives outside the scroller (inside it, the overflow clips it near
+  the edges), converted from timeline to view coordinates and clamped to the
+  chart frame.
 
 ## Adding a new tab (checklist)
 
@@ -168,6 +187,12 @@ silently renders nothing past ~16.7M px of backing area.
 
 - Small trusted-friends site: commit and push to `main-v2` right after a change
   (that's the deploy). Verify observable changes in the browser preview first.
-- The preview tab caches modules aggressively across a long session; if a tab
-  looks stale, restart the preview server or re-fetch with `{cache:'reload'}`.
-  It's a preview artifact, not the deployed behavior.
+- Preview gotchas (preview artifacts, not deployed behaviour):
+  - The tab keeps an edited module's **old** copy even across a server
+    restart. Re-fetch each changed file with `fetch(url, {cache:'reload'})`,
+    then navigate with `force` — otherwise you are testing the previous code.
+  - When the browser pane is hidden, the page can report a 0×0 viewport and
+    never fire `requestAnimationFrame` or scroll events. Set an explicit
+    viewport size before measuring layout, and wait with timers, not rAF.
+  - Canvas text can't be read from the DOM; to check what the chart drew,
+    wrap `CanvasRenderingContext2D.prototype.fillText` / `arc` and log calls.

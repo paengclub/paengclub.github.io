@@ -1,7 +1,6 @@
 // features/auth.js — the app's auth/session module + the profile-edit screen
 // (avatar upload, nickname, mbti, bio). Owns Google sign-in and the current
-// session; other tabs import getCurrentSession / getCurrentPlayerName /
-// signInWithGoogle from here.
+// session; other tabs import getCurrentSession / signInWithGoogle from here.
 import { supabase } from "/supabaseClient.js";
 import { el } from "/lib/dom.js";
 
@@ -158,10 +157,6 @@ export function getCurrentSession() {
     return currentSession;
 }
 
-export function getCurrentPlayerName() {
-    return currentSession ? userName(currentSession.user) : "";
-}
-
 function profileStatus(message, type = "") {
     const status = document.getElementById("profileStatus");
     if (!status) return;
@@ -262,7 +257,7 @@ async function uploadAvatar(file) {
     profileStatus("프로필 사진을 바꿨어요.", "success");
 }
 
-export function renderProfile() {
+function renderProfile() {
     const root = screen();
     const user = currentSession?.user;
     if (!root || !user) return;

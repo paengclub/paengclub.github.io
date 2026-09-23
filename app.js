@@ -88,4 +88,4 @@ function myRenderFunction() {
     if (current_rendered_page == 8) renderTimetableGrid();
 }
 
-export {current_rendered_page, rankImageSet};
+export {current_rendered_page};
