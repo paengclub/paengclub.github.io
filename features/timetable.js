@@ -404,7 +404,7 @@ function renderPeopleRow() {
             }
         }, [
             person.avatar_url
-                ? el("img", { class: "avatar small", src: person.avatar_url, alt: "" })
+                ? el("img", { class: "avatar small", referrerpolicy: "no-referrer", src: person.avatar_url, alt: "" })
                 : el("span", { class: "avatar small avatar-fallback", text: initials(displayName(person)) }),
             el("span", { text: displayName(person) })
         ]));

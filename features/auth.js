@@ -113,6 +113,7 @@ function renderAuthArea() {
     }, avatar ? [
         el("img", {
             class: "avatar",
+            referrerpolicy: "no-referrer",
             src: avatar,
             alt: ""
         })
@@ -272,6 +273,7 @@ function renderProfile() {
 
     const preview = avatar ? el("img", {
         class: "profile-avatar-preview",
+        referrerpolicy: "no-referrer",
         src: avatar,
         alt: ""
     }) : el("div", {
