@@ -40,13 +40,15 @@ codebase without reading every file.
   weight.js      체중 (weight chart, 주/일 buckets), reads from Supabase
   tier.js        게임 티어 (drag-and-drop tier list), realtime + poll
   timetable.js   시간표 (Everytime-style weekly class grid, public view / owner edit)
+  ranks.js       랭크 (personal competitive-rank tracker: accounts, per-role ranks)
 /migrations      applied SQL, one file per change (record only; run via Supabase)
 style.css        all styles. Uses --app-* CSS custom properties for theming.
 ```
 
 **Dependency direction:** `app.js → features/* → lib/* & supabaseClient.js`.
 Two exceptions, both intentional and pre-existing:
-- `features/timetable.js` imports auth helpers from `features/auth.js` (the
+- `features/timetable.js` and `features/ranks.js` import auth helpers from
+  `features/auth.js` (the
   de-facto "auth/session" module, which also owns profile editing —
   nickname/bio/MBTI live on its `renderProfile()` screen, reached by clicking
   your avatar in the nav).
@@ -64,7 +66,7 @@ There is no longer any feature→feature coupling.
   are *not* active (so timers / realtime channels / listeners are torn down),
   clears `#screen`, then calls the active tab's `renderX()`.
 - Page ids → tabs: `3` dday(timer, the default landing page), `4` weight, `6`
-  tier, `8` timetable. Ids `0`/`1`/`2`/`5`/`7` are retired (홈/미니게임/그림판/
+  tier, `9` ranks, `8` timetable (nav order; ids are not positions). Ids `0`/`1`/`2`/`5`/`7` are retired (홈/미니게임/그림판/
   자산관리/프로필, all removed) — left unused rather than renumbering
   everything.
 - Theme: **one light theme, no dark mode and no toggle.** Every colour is an
@@ -88,7 +90,7 @@ Build DOM with `el()` / `svg()` from `/lib/dom.js` (not innerHTML strings).
 
 **State survives tab switches.** Loaded data lives in module-level variables
 that `cleanupX()` deliberately does not clear. On a revisit, 체중 / 게임 티어 /
-시간표 paint what they already have immediately and refresh from Supabase
+시간표 / 랭크 paint what they already have immediately and refresh from Supabase
 underneath; a failed refresh keeps the cached view instead of replacing it with
 an error. UI choices persist the same way (체중's 주/일 view, 시간표's selected
 person). Keep this when touching a render function — re-fetching before the
@@ -102,6 +104,9 @@ first paint is what made tab switches feel slow.
   replay and hourly token refreshes).
 - Others read the session via `getCurrentSession()` and start Google sign-in
   via `signInWithGoogle()`.
+- Tabs that render differently once signed in (시간표 `8`, 랭크 `9`) are
+  whitelisted in `app.js`'s `initAuth(...)` callback so they re-render on
+  login/logout.
 - `profiles` and `timetable` are public to *view*; editing (your own profile
   fields, or your own courses) is gated per-action inside the tab instead of
   gating the whole tab. No fully login-gated tab currently exists (자산관리 was
@@ -117,6 +122,7 @@ per-user.
 | auth/profile | `profiles` | display_name, avatar_url, nickname, bio, mbti; avatars in `avatars` storage bucket; own row editable. Still live: `timetable` reads names/avatars from it |
 | tier | `tier_games` | public read; insert(unranked)/update(move) by anyone; images in `tier-games` bucket; realtime |
 | weight | `weight_people`, `weight_records` | public read; writes are admin/SQL only |
+| ranks | `game_accounts`, `game_rank_records` | account: `game`, `name`, `is_public`, `sort_order` (lowest = 본계). Visible if public or yours; records inherit their account's visibility, so making an account private hides its history too. Writes own only, and a record can only be filed under your own account. CHECKs encode Overwatch values (roles, tiers, division 1–5, progress 0–100; Top 500 has neither) |
 | timetable | `timetable_courses` | public read (schedules are meant to be shared); insert/update/delete **own only** (`user_id = auth.uid()`); `days` is a `smallint[]` (multi-day courses), `start_minute`/`end_minute` step in 5s |
 
 **Kept-but-unused backends.** These tables have no frontend on this site any
@@ -136,6 +142,23 @@ dropped entirely — feature and data both removed, no backend kept.
 Schema changes: write a `migrations/<date>_<name>.sql` file for the record AND
 apply it to the project (via the Supabase MCP tools / dashboard). The SQL file
 alone does nothing until applied.
+
+## 랭크 (`features/ranks.js`)
+
+- **Game rules live in one place**: the `GAMES` registry (roles, tiers with
+  colours, divisions). Overwatch is the only entry. Adding a game = a `GAMES`
+  entry + a migration widening the CHECKs on `game_accounts.game` and
+  `game_rank_records.role`/`tier`.
+- Ranks are compared on one ladder: each division is a step (Bronze 5 = 0 …
+  Champion 1 = 39, Top 500 = 40). Progress % is kept apart and optional, so a
+  missing % never counts as a value.
+- Recording is built to be cheap: the form opens pre-filled from that role's
+  latest rank, % is optional, and each role card's ▲/▼ logs a one-division
+  change in one tap with an undo in the status line.
+- Open Queue (`open`) is always offered in the form, but its card only shows
+  once it has a record.
+- Dates are local (`todayString()`), never `toISOString()` — UTC would file
+  anything before 9am KST under the previous day.
 
 ## Charts
 

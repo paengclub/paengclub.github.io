@@ -785,7 +785,8 @@ textarea.form-control {
     background: var(--app-surface-alt);
 }
 
-.tier-add-form[hidden] {
+/* tier.js opens this by toggling .open, not the hidden attribute */
+.tier-add-form:not(.open) {
     display: none;
 }
 
@@ -1120,6 +1121,450 @@ div.profile-avatar-preview {
     text-transform: uppercase;
 }
 
+/* -------------------------------------------------------------------- 랭크 */
+
+.rk-game {
+    padding: 5px 11px;
+    border-radius: var(--app-radius-pill);
+    color: var(--app-text-soft);
+    background: var(--app-surface-alt);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.rk-accounts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.rk-account-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1px solid var(--app-line);
+    border-radius: 12px;
+    color: var(--app-text-soft);
+    background: var(--app-surface);
+    font-size: 0.9rem;
+    font-weight: 700;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.rk-account-tab.active {
+    border-color: var(--app-primary);
+    color: var(--app-primary);
+    background: var(--app-primary-weak);
+}
+
+.rk-account-tab.add {
+    border-style: dashed;
+    color: var(--app-muted);
+}
+
+.rk-badge {
+    padding: 1px 7px;
+    border-radius: var(--app-radius-pill);
+    color: var(--app-primary);
+    background: var(--app-surface);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.rk-account-tab:not(.active) .rk-badge {
+    color: var(--app-text-soft);
+    background: var(--app-surface-alt);
+}
+
+.rk-badge.muted {
+    color: var(--app-muted);
+}
+
+.rk-account-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 16px;
+}
+
+.rk-visibility {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 6px;
+    padding: 5px 12px;
+    border: 0;
+    border-radius: var(--app-radius-pill);
+    color: var(--app-text-soft);
+    background: var(--app-surface-alt);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.rk-visibility-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: var(--app-radius-pill);
+    background: var(--app-muted);
+}
+
+.rk-visibility.is-public {
+    color: var(--app-success);
+    background: #e8f8f1;
+}
+
+.rk-visibility.is-public .rk-visibility-dot {
+    background: var(--app-success);
+}
+
+.rk-account-editor {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 14px;
+    border-radius: var(--app-radius-sm);
+    background: var(--app-surface-alt);
+}
+
+.rk-account-editor .form-control {
+    flex: 1 1 260px;
+    background: var(--app-surface);
+}
+
+.rk-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--app-text-soft);
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+
+.rk-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px;
+}
+
+.rk-card {
+    --tier: var(--app-line-strong);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    border-radius: var(--app-radius);
+    background: var(--app-surface-alt);
+    /* the tier colour reads as an accent edge, not a painted card */
+    box-shadow: inset 3px 0 0 var(--tier);
+}
+
+.rk-card.is-empty {
+    align-items: flex-start;
+    box-shadow: none;
+}
+
+.rk-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.rk-role {
+    color: var(--app-text-soft);
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
+.rk-updated,
+.rk-empty-text {
+    color: var(--app-muted);
+    font-size: 0.78rem;
+}
+
+.rk-rank {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.2rem;
+}
+
+.rk-rank strong {
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.rk-tier-dot {
+    flex: 0 0 auto;
+    width: 10px;
+    height: 10px;
+    border-radius: var(--app-radius-pill);
+    background: var(--tier);
+}
+
+.rk-percent {
+    color: var(--app-text-soft);
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.rk-progress {
+    height: 6px;
+    border-radius: var(--app-radius-pill);
+    background: var(--app-line);
+    overflow: hidden;
+}
+
+.rk-progress-fill {
+    height: 100%;
+    border-radius: var(--app-radius-pill);
+    background: var(--tier);
+}
+
+.rk-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    min-height: 18px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.rk-trend.up {
+    color: var(--app-success);
+}
+
+.rk-trend.down {
+    color: var(--app-danger);
+}
+
+.rk-trend.flat,
+.rk-peak {
+    color: var(--app-muted);
+}
+
+.rk-spark {
+    display: block;
+    width: 100%;
+    height: 34px;
+}
+
+.rk-spark polyline {
+    stroke: var(--tier);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.rk-card-actions {
+    display: grid;
+    grid-template-columns: 44px 1fr 44px;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.rk-step,
+.rk-record {
+    min-height: 36px;
+    border: 0;
+    border-radius: var(--app-radius-sm);
+    color: var(--app-text-soft);
+    background: var(--app-surface);
+    font-size: 0.86rem;
+    font-weight: 700;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.rk-step:hover:not(:disabled),
+.rk-record:hover {
+    color: var(--app-primary);
+    background: var(--app-primary-weak);
+}
+
+.rk-step:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.rk-form {
+    margin-top: 16px;
+    border-radius: var(--app-radius);
+    background: var(--app-surface-alt);
+    animation: reveal 0.18s ease both;
+}
+
+.rk-form[hidden] {
+    display: none;
+}
+
+.rk-form-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+}
+
+.rk-form-title {
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.rk-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.rk-field-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.rk-field-label {
+    color: var(--app-text-soft);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.rk-segmented {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-self: flex-start;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--app-surface);
+}
+
+.rk-segmented button {
+    min-width: 44px;
+    min-height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 9px;
+    color: var(--app-text-soft);
+    background: transparent;
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+.rk-segmented button.active {
+    color: #ffffff;
+    background: var(--app-primary);
+}
+
+.rk-tier-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.rk-tier-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 12px;
+    border: 1px solid transparent;
+    border-radius: var(--app-radius-pill);
+    color: var(--app-text-soft);
+    background: var(--app-surface);
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.rk-tier-option.active {
+    border-color: var(--tier);
+    color: var(--app-text);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--tier) 25%, transparent);
+}
+
+.rk-progress-input,
+.rk-date-input {
+    max-width: 180px;
+    background: var(--app-surface);
+}
+
+.rk-form-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.rk-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 22px;
+    margin-top: 12px;
+    color: var(--app-muted);
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+
+.rk-status.success {
+    color: var(--app-success);
+}
+
+.rk-status.danger {
+    color: var(--app-danger);
+}
+
+.rk-history {
+    margin-top: 22px;
+}
+
+.rk-history-title {
+    margin-bottom: 6px;
+    font-size: 0.95rem;
+    font-weight: 800;
+}
+
+.rk-history-row {
+    display: grid;
+    grid-template-columns: 110px 72px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 0;
+    border-top: 1px solid var(--app-line);
+    font-size: 0.87rem;
+}
+
+.rk-history-date,
+.rk-history-role {
+    color: var(--app-muted);
+}
+
+.rk-history-rank {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-weight: 700;
+}
+
+.rk-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 12px;
+    padding: 18px;
+    border-radius: var(--app-radius);
+    color: var(--app-text-soft);
+    background: var(--app-surface-alt);
+    font-size: 0.9rem;
+}
+
+.rk-empty-state strong {
+    color: var(--app-text);
+    font-size: 1rem;
+}
+
 /* ----------------------------------------------------------------- motion */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1146,13 +1591,21 @@ div.profile-avatar-preview {
         padding: 10px 14px;
     }
 
+    /* Unwrap nav-actions so its children lay out in the nav row itself:
+       brand + login on the first line, the tabs alone on a full-width
+       second line. (width: 100% here lost to the base flex: 1.) */
     .nav-actions {
-        order: 3;
-        width: 100%;
+        display: contents;
     }
 
     .auth-area {
+        order: 2;
         margin-left: auto;
+    }
+
+    .nav-tabs {
+        order: 3;
+        flex: 1 1 100%;
     }
 
     .app-main {
@@ -1194,5 +1647,14 @@ div.profile-avatar-preview {
 
     .tier-item img {
         height: 58px;
+    }
+
+    .rk-history-row {
+        grid-template-columns: 1fr auto;
+        row-gap: 2px;
+    }
+
+    .rk-history-role {
+        text-align: right;
     }
 }
