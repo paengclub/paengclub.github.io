@@ -35,13 +35,15 @@ const GAMES = {
             { key: "bronze", label: "브론즈", color: "#a8703f" },
             { key: "silver", label: "실버", color: "#8e9aa8" },
             { key: "gold", label: "골드", color: "#d9a21b" },
-            { key: "platinum", label: "플래티넘", color: "#2aa9a0" },
-            { key: "diamond", label: "다이아몬드", color: "#4f7df3" },
-            { key: "master", label: "마스터", color: "#1f9e6e" },
+            { key: "platinum", label: "플래티넘", color: "#57b5c9" },
+            // added in Season 4, between Platinum and Diamond
+            { key: "emerald", label: "에메랄드", color: "#12b76a" },
+            { key: "diamond", label: "다이아몬드", color: "#4f6ef7" },
+            { key: "master", label: "마스터", color: "#e0702c" },
             { key: "grandmaster", label: "그랜드마스터", color: "#7c4dff" },
             { key: "champion", label: "챔피언", color: "#c2368f" },
             // a leaderboard placement, not a tier: no divisions, no progress
-            { key: "top500", label: "Top 500", color: "#ff7a1a", noDivision: true }
+            { key: "top500", label: "Top 500", color: "#1f2937", noDivision: true }
         ],
         // listed low to high, the way the game counts them
         divisions: [5, 4, 3, 2, 1]
@@ -82,7 +84,8 @@ function roleOf(key) {
 }
 
 // Ranks as one ladder: every division is one step (Bronze 5 = 0 … Champion 1
-// = 39, Top 500 = 40). Progress is kept apart so a missing % never counts as
+// = 44, Top 500 = 45). Steps are derived from GAMES on every render, never
+// stored, so inserting a tier (as Emerald was) re-ranks old records correctly. Progress is kept apart so a missing % never counts as
 // a value it wasn't.
 function stepOf(record) {
     const index = tierIndex(record.tier);
