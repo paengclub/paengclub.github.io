@@ -13,6 +13,8 @@
 // viewport — it grows as wide as the history needs and pans by dragging,
 // opening on the most recent bucket. The y axis is a separate pinned canvas so
 // it stays readable while the plot moves under it.
+// No legend: people are told apart by line colour, and a dot's tooltip names
+// them.
 // Exports renderWeightTracker, cleanupWeightTracker.
 import { supabase } from "/supabaseClient.js";
 import { el } from "/lib/dom.js";
@@ -58,7 +60,6 @@ let scrollFrame = null;
 let lastFrame = null;
 let tooltip = null;
 let emptyState = null;
-let legend = null;
 let activeView = DEFAULT_VIEW;
 let plottedPoints = [];
 let weightData = [];
@@ -588,21 +589,6 @@ async function loadWeightData() {
     }));
 }
 
-function renderLegend() {
-    legend.replaceChildren(
-        ...weightData.map((person) => {
-            return el("span", { class: "legend-item" }, [
-                el("span", { class: "swatch" }),
-                el("span", { text: `${person.name} (${person.goal === "loss" ? "감량" : "증량"})` })
-            ]);
-        })
-    );
-
-    [...legend.querySelectorAll(".swatch")].forEach((swatch, index) => {
-        swatch.style.background = weightData[index].color;
-    });
-}
-
 function renderShell() {
     const root = document.getElementById("screen");
     const wrapper = el("section", { class: "page-shell weight-shell" });
@@ -621,7 +607,6 @@ function renderShell() {
             controls
         ]),
         el("section", { class: "weight-chart-shell", "aria-label": "체중 추이 그래프" }, [
-            el("div", { class: "legend", id: "weightLegend" }),
             el("div", { class: "chart-wrap" }, [
                 el("canvas", { id: "weightAxis", class: "chart-axis", "aria-hidden": "true" }),
                 el("div", { class: "chart-scroll", id: "weightScroll" }, [
@@ -730,7 +715,6 @@ export function cleanupWeightTracker() {
     track = null;
     tooltip = null;
     emptyState = null;
-    legend = null;
 }
 
 export async function renderWeightTracker() {
@@ -748,7 +732,6 @@ export async function renderWeightTracker() {
     track = document.getElementById("weightTrack");
     tooltip = document.getElementById("weightTooltip");
     emptyState = document.getElementById("weightEmptyState");
-    legend = document.getElementById("weightLegend");
     plottedPoints = [];
     bindControls();
 
@@ -757,7 +740,6 @@ export async function renderWeightTracker() {
     // almost certainly not changed.
     const hadData = weightData.length > 0;
     if (hadData) {
-        renderLegend();
         renderChart();
     } else {
         emptyState.hidden = false;
@@ -767,7 +749,6 @@ export async function renderWeightTracker() {
     try {
         await loadWeightData();
         if (!canvas) return; // left the tab while loading
-        renderLegend();
         renderChart({ keepScroll: hadData });
     } catch (error) {
         console.warn(error);

@@ -570,28 +570,6 @@ textarea.form-control {
     position: relative;
 }
 
-.legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    margin-bottom: 12px;
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    color: var(--app-text-soft);
-    font-size: 0.86rem;
-    font-weight: 600;
-}
-
-.swatch {
-    width: 9px;
-    height: 9px;
-    border-radius: var(--app-radius-pill);
-}
-
 .chart-wrap {
     position: relative;
     height: 460px;
