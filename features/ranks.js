@@ -14,9 +14,10 @@
 //   - progress % is optional (most updates are just "moved a division"),
 //   - each role card has ▲/▼ to log a one-division change in one tap, with an
 //     undo in the status line.
-// With two or more accounts, a 전체 overview opens by default: the best current
-// rank per role across accounts, and an account x role grid of where each
-// account stands right now.
+// With two or more accounts, a 전체 dashboard opens by default: per role the
+// best current and all-time rank, a rank-over-time chart comparing accounts,
+// the current account x role grid, and a feed of recent changes. An account
+// page charts its own roles the same way.
 // Exports renderRanks, cleanupRanks.
 import { supabase } from "/supabaseClient.js";
 import { getCurrentSession, signInWithGoogle } from "/features/auth.js";
@@ -35,18 +36,18 @@ const GAMES = {
             { key: "open", label: "자유 경쟁", optional: true }
         ],
         tiers: [
-            { key: "bronze", label: "브론즈", color: "#a8703f" },
-            { key: "silver", label: "실버", color: "#8e9aa8" },
-            { key: "gold", label: "골드", color: "#d9a21b" },
-            { key: "platinum", label: "플래티넘", color: "#57b5c9" },
+            { key: "bronze", label: "브론즈", short: "브론즈", color: "#a8703f" },
+            { key: "silver", label: "실버", short: "실버", color: "#8e9aa8" },
+            { key: "gold", label: "골드", short: "골드", color: "#d9a21b" },
+            { key: "platinum", label: "플래티넘", short: "플래", color: "#57b5c9" },
             // added in Season 4, between Platinum and Diamond
-            { key: "emerald", label: "에메랄드", color: "#12b76a" },
-            { key: "diamond", label: "다이아몬드", color: "#4f6ef7" },
-            { key: "master", label: "마스터", color: "#e0702c" },
-            { key: "grandmaster", label: "그랜드마스터", color: "#7c4dff" },
-            { key: "champion", label: "챔피언", color: "#c2368f" },
+            { key: "emerald", label: "에메랄드", short: "에메", color: "#12b76a" },
+            { key: "diamond", label: "다이아몬드", short: "다이아", color: "#4f6ef7" },
+            { key: "master", label: "마스터", short: "마스터", color: "#e0702c" },
+            { key: "grandmaster", label: "그랜드마스터", short: "그마", color: "#7c4dff" },
+            { key: "champion", label: "챔피언", short: "챔피언", color: "#c2368f" },
             // a leaderboard placement, not a tier: no divisions, no progress
-            { key: "top500", label: "Top 500", color: "#1f2937", noDivision: true }
+            { key: "top500", label: "Top 500", short: "Top500", color: "#1f2937", noDivision: true }
         ],
         // listed low to high, the way the game counts them
         divisions: [5, 4, 3, 2, 1]
@@ -645,35 +646,6 @@ function renderAccountTools(account) {
     ]);
 }
 
-// A tiny trend line of the role's history, time on x and the rank ladder on
-// y. Records without a % sit at the bottom of their division — the one thing
-// such a record does tell us.
-function sparkline(list) {
-    if (list.length < 2) return null;
-    const width = 200;
-    const height = 40;
-    const times = list.map((record) => parseDay(record.recorded_on).getTime());
-    const scores = list.map(scoreOf);
-    const t0 = Math.min(...times);
-    const t1 = Math.max(...times);
-    let low = Math.min(...scores);
-    let high = Math.max(...scores);
-    if (high - low < 1) {
-        const mid = (low + high) / 2;
-        low = mid - 0.5;
-        high = mid + 0.5;
-    }
-    const points = list.map((record, index) => {
-        const x = t1 === t0 ? (index / (list.length - 1)) * width : ((times[index] - t0) / (t1 - t0)) * width;
-        const y = height - 4 - ((scores[index] - low) / (high - low)) * (height - 8);
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-    });
-
-    return svg("svg", { class: "rk-spark", viewBox: `0 0 ${width} ${height}`, preserveAspectRatio: "none", "aria-hidden": "true" }, [
-        svg("polyline", { points: points.join(" "), fill: "none", "vector-effect": "non-scaling-stroke" })
-    ]);
-}
-
 function trendOf(list) {
     if (list.length < 2) return null;
     const latest = list[list.length - 1];
@@ -725,7 +697,6 @@ function renderRoleCard(account, role, own) {
                 ? el("span", { class: "rk-peak", text: `최고 ${rankLabel(peak)}` })
                 : null
         ]),
-        sparkline(list),
         own ? el("div", { class: "rk-card-actions" }, [
             el("button", {
                 class: "rk-step",
@@ -747,6 +718,289 @@ function renderRoleCard(account, role, own) {
                 onclick: () => quickStep(account, role.key, 1)
             })
         ]) : null
+    ]);
+}
+
+// --- rank history chart ------------------------------------------------------
+//
+// One chart component, two uses: the 전체 dashboard (one line per account, for
+// a chosen role) and an account page (one line per role). Time runs on x, the
+// rank ladder on y, over tinted tier bands so a line reads as a rank at a
+// glance.
+//
+// Drawn without inventing anything between records:
+//   - lines are steps — a rank holds until the next record changes it,
+//   - a record without a % is a hollow dot at the bottom of its division (the
+//     one thing such a record tells us),
+//   - the stretch from the last record to today is dashed: assumed, not seen.
+
+const DAY_MS = 86400000;
+const ACCOUNT_COLORS = ["#3182f6", "#f04452", "#8b5cf6", "#f59e0b", "#0ea5e9", "#ec4899"];
+const ROLE_COLORS = { tank: "#3182f6", damage: "#f04452", support: "#f59e0b", open: "#8b5cf6" };
+const RANGES = [
+    { value: 30, label: "30일" },
+    { value: 90, label: "90일" },
+    { value: "all", label: "전체" }
+];
+
+let chartRange = "all";
+let overviewRole = null;
+// charts built during a render, drawn once mounted (they need a real width)
+let charts = [];
+let chartResizeHandler = null;
+
+function dayTime(record) {
+    return parseDay(record.recorded_on).getTime();
+}
+
+function rankChart(series) {
+    const node = el("div", { class: "rk-chart" });
+    charts.push({ node, draw: () => drawRankChart(node, series) });
+    return node;
+}
+
+function drawCharts() {
+    for (const chart of charts) if (chart.node.isConnected) chart.draw();
+}
+
+function chartLegend(series) {
+    return el("div", { class: "rk-legend" }, series.map((item) => el("span", { class: "rk-legend-item" }, [
+        el("span", { class: "rk-legend-swatch", style: `background:${item.color}` }),
+        el("span", { text: item.label })
+    ])));
+}
+
+function rangePicker() {
+    return segmented(RANGES, chartRange, (value) => {
+        chartRange = value;
+        renderBody();
+    });
+}
+
+// Gridlines on a calendar step: weeks for short spans, months beyond that,
+// thinned until labels sit at least minGap px apart.
+function timeTicks(start, end, scaleX, minGap) {
+    const ticks = [];
+    if ((end - start) / DAY_MS <= 60) {
+        const first = new Date(start);
+        first.setDate(first.getDate() + ((8 - first.getDay()) % 7)); // next Monday
+        let every = 7;
+        while ((every * DAY_MS / (end - start)) * (scaleX(end) - scaleX(start)) < minGap && every < 56) every += 7;
+        for (let t = first.getTime(); t <= end; t += every * DAY_MS) {
+            const date = new Date(t);
+            ticks.push({ time: t, label: `${date.getMonth() + 1}/${date.getDate()}` });
+        }
+        return ticks;
+    }
+    const perMonth = (30.44 * DAY_MS / (end - start)) * (scaleX(end) - scaleX(start));
+    const every = [1, 2, 3, 6, 12].find((months) => months * perMonth >= minGap) || 12;
+    const first = new Date(start);
+    let index = first.getFullYear() * 12 + first.getMonth() + (first.getDate() > 1 ? 1 : 0);
+    index = Math.ceil(index / every) * every;
+    for (; ; index += every) {
+        const year = Math.floor(index / 12);
+        const month = index % 12;
+        const time = new Date(year, month, 1).getTime();
+        if (time > end) break;
+        ticks.push({ time, label: month === 0 ? `${year}` : `${month + 1}월` });
+    }
+    return ticks;
+}
+
+function drawRankChart(node, series) {
+    const width = node.clientWidth;
+    if (!width) return;
+    const compact = width < 520;
+    const height = compact ? 220 : 270;
+    const pad = { top: 12, right: 12, bottom: 26, left: compact ? 46 : 58 };
+    const plotW = width - pad.left - pad.right;
+    const plotH = height - pad.top - pad.bottom;
+
+    const all = series.flatMap((item) => item.records);
+    if (!all.length) {
+        node.replaceChildren(el("div", { class: "rk-chart-empty", text: "아직 기록이 없어요." }));
+        return;
+    }
+
+    const end = parseDay(todayString()).getTime();
+    let start = chartRange === "all" ? Math.min(...all.map(dayTime)) : end - chartRange * DAY_MS;
+    if (end - start < 7 * DAY_MS) start = end - 7 * DAY_MS;
+
+    // each line enters the window at the rank it last held before the window
+    const lines = series
+        .map((item) => ({
+            ...item,
+            before: item.records.filter((record) => dayTime(record) < start).pop() || null,
+            inside: item.records.filter((record) => dayTime(record) >= start)
+        }))
+        .filter((line) => line.before || line.inside.length);
+    if (!lines.length) {
+        node.replaceChildren(el("div", { class: "rk-chart-empty", text: "이 기간에는 기록이 없어요." }));
+        return;
+    }
+
+    // y spans whole tiers, so every band shown is complete
+    const scores = lines.flatMap((line) => [line.before, ...line.inside].filter(Boolean).map(scoreOf));
+    const low = Math.floor(Math.min(...scores) / 5) * 5;
+    const high = Math.floor(Math.max(...scores) / 5) * 5 + 5;
+    const x = (time) => pad.left + ((time - start) / (end - start)) * plotW;
+    const y = (score) => pad.top + plotH - ((score - low) / (high - low)) * plotH;
+
+    const layers = [];
+    const tiers = game().tiers;
+    const stepPx = plotH / (high - low);
+
+    for (let base = low; base < high; base += 5) {
+        const tier = tiers[base / 5];
+        if (!tier) continue;
+        layers.push(svg("rect", {
+            x: pad.left, y: y(base + 5), width: plotW, height: y(base) - y(base + 5),
+            fill: tier.color, "fill-opacity": "0.09"
+        }));
+        // division lines, when there is room to tell them apart
+        if (!tier.noDivision && stepPx >= 9) {
+            for (let step = 1; step < 5; step += 1) {
+                layers.push(svg("line", {
+                    x1: pad.left, x2: pad.left + plotW, y1: y(base + step), y2: y(base + step),
+                    stroke: tier.color, "stroke-opacity": "0.18", "stroke-dasharray": "2 4"
+                }));
+            }
+        }
+        layers.push(svg("line", {
+            x1: pad.left, x2: pad.left + plotW, y1: y(base), y2: y(base),
+            stroke: tier.color, "stroke-opacity": "0.35"
+        }));
+        const label = svg("text", {
+            x: pad.left - 8, y: (y(base) + y(base + 5)) / 2,
+            "text-anchor": "end", "dominant-baseline": "middle",
+            fill: tier.color, "font-size": "11", "font-weight": "700"
+        });
+        label.textContent = tier.short;
+        layers.push(label);
+    }
+
+    for (const tick of timeTicks(start, end, x, compact ? 52 : 64)) {
+        layers.push(svg("line", {
+            x1: x(tick.time), x2: x(tick.time), y1: pad.top, y2: pad.top + plotH,
+            stroke: "#191f28", "stroke-opacity": "0.06"
+        }));
+        const label = svg("text", {
+            x: x(tick.time), y: height - 8, "text-anchor": "middle",
+            fill: "#8b95a1", "font-size": "11", "font-weight": "600"
+        });
+        label.textContent = tick.label;
+        layers.push(label);
+    }
+
+    const dots = [];
+    for (const line of lines) {
+        const points = line.inside.map((record) => ({ record, px: x(dayTime(record)), py: y(scoreOf(record)) }));
+        const enterY = line.before ? y(scoreOf(line.before)) : points[0].py;
+        let d = line.before ? `M${pad.left},${enterY}` : `M${points[0].px},${points[0].py}`;
+        for (const point of line.before ? points : points.slice(1)) d += ` H${point.px} V${point.py}`;
+        layers.push(svg("path", {
+            d, fill: "none", stroke: line.color, "stroke-width": "2.5",
+            "stroke-linejoin": "round", "stroke-linecap": "round"
+        }));
+
+        // assumed: from the last record to today
+        const last = points[points.length - 1];
+        const fromX = last ? last.px : pad.left;
+        const fromY = last ? last.py : enterY;
+        if (x(end) - fromX > 1) {
+            layers.push(svg("path", {
+                d: `M${fromX},${fromY} H${x(end)}`, fill: "none", stroke: line.color,
+                "stroke-width": "2", "stroke-opacity": "0.5", "stroke-dasharray": "4 4"
+            }));
+        }
+
+        for (const point of points) {
+            const measured = point.record.progress !== null;
+            layers.push(svg("circle", {
+                cx: point.px, cy: point.py, r: "3.5",
+                fill: measured ? line.color : "#ffffff", stroke: line.color, "stroke-width": "2"
+            }));
+            dots.push({ ...point, line });
+        }
+    }
+
+    const tooltip = el("div", { class: "tooltip", hidden: "" });
+    const chart = svg("svg", { width, height, viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": "랭크 추이 그래프" }, layers);
+    const showNearest = (event) => {
+        const box = node.getBoundingClientRect();
+        const px = event.clientX - box.left;
+        const py = event.clientY - box.top;
+        let best = null;
+        for (const dot of dots) {
+            const distance = Math.hypot(dot.px - px, dot.py - py);
+            if (distance <= 26 && (!best || distance < best.distance)) best = { ...dot, distance };
+        }
+        if (!best) {
+            tooltip.hidden = true;
+            return;
+        }
+        const { record } = best;
+        tooltip.replaceChildren(
+            el("strong", { text: best.line.label }),
+            document.createTextNode(`${rankLabel(record)}${record.progress !== null ? ` · ${record.progress}%` : ""} · ${shortDate(record.recorded_on)}`)
+        );
+        tooltip.hidden = false;
+        const half = tooltip.offsetWidth / 2;
+        tooltip.style.left = `${Math.min(Math.max(best.px, half), width - half)}px`;
+        tooltip.style.top = `${best.py}px`;
+        tooltip.classList.toggle("is-below", best.py - tooltip.offsetHeight - 12 < 0);
+    };
+    chart.addEventListener("pointermove", showNearest);
+    chart.addEventListener("pointerdown", showNearest);
+    chart.addEventListener("pointerleave", () => {
+        tooltip.hidden = true;
+    });
+
+    node.replaceChildren(chart, tooltip);
+}
+
+// Change from one record to the next on the same account and role.
+function changeChip(previous, record) {
+    if (!previous) return el("span", { class: "rk-chip flat", text: "첫 기록" });
+    const trend = trendOf([previous, record]);
+    return el("span", { class: `rk-chip ${trend.kind}`, text: trend.kind === "flat" ? "변동 없음" : trend.text });
+}
+
+// previous record on the same account + role, for every record
+function previousMap(list) {
+    const last = new Map();
+    const previous = new Map();
+    for (const record of list) {
+        const key = `${record.account_id}:${record.role}`;
+        previous.set(record.id, last.get(key) || null);
+        last.set(key, record);
+    }
+    return previous;
+}
+
+function renderRecentChanges(accountList) {
+    const ids = new Set(accountList.map((account) => account.id));
+    const mine = records.filter((record) => ids.has(record.account_id));
+    if (!mine.length) return null;
+    const previous = previousMap(mine);
+    const nameOf = new Map(accountList.map((account) => [account.id, account.name]));
+    const latest = [...mine].reverse().slice(0, 8);
+
+    return el("section", { class: "rk-feed" }, [
+        el("h2", { class: "rk-subtitle", text: "최근 변동" }),
+        el("ul", {}, latest.map((record) => {
+            const before = previous.get(record.id);
+            return el("li", { class: "rk-feed-row" }, [
+                el("span", { class: "rk-feed-date", text: shortDate(record.recorded_on) }),
+                el("span", { class: "rk-feed-who", text: `${nameOf.get(record.account_id)} · ${roleOf(record.role).label}` }),
+                el("span", { class: "rk-feed-rank" }, [
+                    before ? el("span", { class: "rk-feed-from", text: `${rankLabel(before)} →` }) : null,
+                    el("span", { class: "rk-tier-dot", style: `--tier:${tierOf(record.tier).color}` }),
+                    el("strong", { text: rankLabel(record) + (record.progress !== null ? ` · ${record.progress}%` : "") })
+                ]),
+                changeChip(before, record)
+            ]);
+        }))
     ]);
 }
 
@@ -791,7 +1045,8 @@ function renderOverview(own) {
                 el("strong", { text: rankLabel(record) }),
                 record.progress !== null ? el("span", { class: "rk-percent", text: `${record.progress}%` }) : null
             ]),
-            el("span", { class: "rk-ov-holder", text: holders.map(({ account }) => account.name).join(", ") })
+            el("span", { class: "rk-ov-holder", text: holders.map(({ account }) => account.name).join(", ") }),
+            peakLine(list, role, record)
         ]);
     }));
 
@@ -843,15 +1098,73 @@ function renderOverview(own) {
         ]);
     });
 
+    // chart: one line per account, for one role at a time
+    const charted = roles.filter((role) => list.some((account) => recordsFor(account.id, role.key).length > 0));
+    if (!charted.some((role) => role.key === overviewRole)) overviewRole = charted[0]?.key || null;
+    const chartSeries = overviewRole
+        ? list
+            .map((account, index) => ({
+                label: account.name,
+                color: ACCOUNT_COLORS[index % ACCOUNT_COLORS.length],
+                records: recordsFor(account.id, overviewRole)
+            }))
+            .filter((item) => item.records.length > 0)
+        : [];
+
+    const chartCard = charted.length ? el("section", { class: "rk-chart-card" }, [
+        el("div", { class: "rk-chart-head" }, [
+            el("h2", { class: "rk-subtitle", text: "랭크 추이" }),
+            el("div", { class: "rk-chart-controls" }, [
+                segmented(charted.map((role) => ({ value: role.key, label: role.label })), overviewRole, (role) => {
+                    overviewRole = role;
+                    renderBody();
+                }),
+                rangePicker()
+            ])
+        ]),
+        chartLegend(chartSeries),
+        rankChart(chartSeries)
+    ]) : null;
+
     return el("section", { class: "rk-overview" }, [
         summary,
-        el("div", { class: "rk-ov-table" }, [head, ...rows])
+        chartCard,
+        el("h2", { class: "rk-subtitle", text: "현재 현황" }),
+        el("div", { class: "rk-ov-table" }, [head, ...rows]),
+        renderRecentChanges(list)
+    ]);
+}
+
+// "역대 최고" on a summary card, when some account once stood higher in that
+// role than the best anyone holds now.
+function peakLine(list, role, current) {
+    const history = list.flatMap((account) => recordsFor(account.id, role.key));
+    const peak = history.reduce((best, record) => (!best || scoreOf(record) > scoreOf(best) ? record : best), null);
+    if (!peak || scoreOf(peak) <= scoreOf(current)) return null;
+    const holder = list.find((account) => account.id === peak.account_id);
+    return el("span", { class: "rk-ov-peak", text: `역대 최고 ${rankLabel(peak)} · ${holder.name} · ${shortDate(peak.recorded_on)}` });
+}
+
+// account page: one line per role
+function renderAccountChart(account) {
+    const series = game().roles
+        .map((role) => ({ label: role.label, color: ROLE_COLORS[role.key], records: recordsFor(account.id, role.key) }))
+        .filter((item) => item.records.length > 0);
+    if (!series.length) return null;
+    return el("section", { class: "rk-chart-card" }, [
+        el("div", { class: "rk-chart-head" }, [
+            el("h2", { class: "rk-subtitle", text: "랭크 추이" }),
+            el("div", { class: "rk-chart-controls" }, [rangePicker()])
+        ]),
+        chartLegend(series),
+        rankChart(series)
     ]);
 }
 
 function renderHistory(account, own) {
     const list = [...recordsFor(account.id)].reverse();
     if (list.length === 0) return null;
+    const previous = previousMap(recordsFor(account.id));
     const shown = showFullHistory ? list : list.slice(0, HISTORY_PREVIEW);
 
     return el("section", { class: "rk-history" }, [
@@ -863,6 +1176,7 @@ function renderHistory(account, own) {
                 el("span", { class: "rk-tier-dot" }),
                 el("span", { text: rankLabel(record) + (record.progress !== null ? ` · ${record.progress}%` : "") })
             ]),
+            changeChip(previous.get(record.id), record),
             own ? el("button", { class: "text-action danger", type: "button", text: "삭제", onclick: () => deleteRecord(record) }) : null
         ]))),
         list.length > HISTORY_PREVIEW
@@ -898,6 +1212,7 @@ function renderBody() {
     const account = selectedAccount();
     const overview = isOverview();
     const children = [renderPeople()];
+    charts = [];
 
     if (own && accountsOf(viewerId).length === 0) {
         // first visit: getting started is adding an account
@@ -914,6 +1229,7 @@ function renderBody() {
         if (own && accountEditor) children.push(renderAccountEditor());
         if (own) children.push(renderAccountTools(account));
 
+        children.push(renderAccountChart(account));
         const roles = game().roles.filter((role) => !role.optional || recordsFor(account.id, role.key).length > 0);
         children.push(el("div", { class: "rk-cards" }, roles.map((role) => renderRoleCard(account, role, own))));
         // the form opens right under the card that opened it, above the history
@@ -931,6 +1247,7 @@ function renderBody() {
     }
 
     body.replaceChildren(...children.filter(Boolean));
+    drawCharts();
     if (!own) form = null;
     renderForm();
 }
@@ -950,6 +1267,9 @@ function renderShell() {
 }
 
 export function cleanupRanks() {
+    if (chartResizeHandler) window.removeEventListener("resize", chartResizeHandler);
+    chartResizeHandler = null;
+    charts = [];
     form = null;
     accountEditor = null;
     undoRecordId = null;
@@ -959,6 +1279,8 @@ export function cleanupRanks() {
 export async function renderRanks() {
     cleanupRanks();
     renderShell();
+    chartResizeHandler = drawCharts;
+    window.addEventListener("resize", chartResizeHandler);
 
     // revisit: paint what we already have, refresh underneath
     if (people.length > 0) {

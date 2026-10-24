@@ -1349,19 +1349,6 @@ div.profile-avatar-preview {
     color: var(--app-muted);
 }
 
-.rk-spark {
-    display: block;
-    width: 100%;
-    height: 34px;
-}
-
-.rk-spark polyline {
-    stroke: var(--tier);
-    stroke-width: 2;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-}
-
 .rk-card-actions {
     display: grid;
     grid-template-columns: 44px 1fr 44px;
@@ -1527,7 +1514,7 @@ div.profile-avatar-preview {
 
 .rk-history-row {
     display: grid;
-    grid-template-columns: 110px 72px 1fr auto;
+    grid-template-columns: 110px 72px 1fr auto auto;
     align-items: center;
     gap: 8px;
     padding: 9px 0;
@@ -1711,6 +1698,160 @@ button.rk-ov-cell:hover {
     font-weight: 600;
 }
 
+/* 랭크 dashboard: chart, change chips, recent feed */
+
+.rk-subtitle {
+    margin: 22px 0 10px;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.rk-chart-card {
+    margin-top: 18px;
+    padding: 16px 16px 10px;
+    border: 1px solid var(--app-line);
+    border-radius: var(--app-radius);
+    background: var(--app-surface);
+}
+
+/* the account page's chart sits right under the account tools */
+.rk-account-tools + .rk-chart-card {
+    margin-top: 0;
+    margin-bottom: 14px;
+}
+
+.rk-chart-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.rk-chart-head .rk-subtitle {
+    margin: 0;
+}
+
+.rk-chart-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.rk-chart-card .rk-segmented {
+    background: var(--app-surface-alt);
+}
+
+.rk-chart-card .rk-segmented button {
+    min-width: 0;
+    min-height: 30px;
+    padding: 0 10px;
+    font-size: 0.82rem;
+}
+
+.rk-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-bottom: 4px;
+    color: var(--app-text-soft);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.rk-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.rk-legend-swatch {
+    width: 14px;
+    height: 3px;
+    border-radius: 2px;
+}
+
+.rk-chart {
+    position: relative;
+    width: 100%;
+}
+
+.rk-chart svg {
+    display: block;
+    overflow: visible;
+    touch-action: pan-y;
+}
+
+.rk-chart-empty {
+    padding: 48px 0;
+    color: var(--app-muted);
+    font-size: 0.88rem;
+    text-align: center;
+}
+
+.rk-ov-peak {
+    color: var(--app-muted);
+    font-size: 0.76rem;
+    font-weight: 600;
+}
+
+.rk-chip {
+    justify-self: start;
+    padding: 2px 8px;
+    border-radius: var(--app-radius-pill);
+    font-size: 0.74rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.rk-chip.up {
+    color: var(--app-success);
+    background: #e8f8f1;
+}
+
+.rk-chip.down {
+    color: var(--app-danger);
+    background: var(--app-danger-weak);
+}
+
+.rk-chip.flat {
+    color: var(--app-muted);
+    background: var(--app-surface-alt);
+}
+
+.rk-feed-row {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1.2fr) minmax(0, 1.6fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    border-top: 1px solid var(--app-line);
+    font-size: 0.86rem;
+}
+
+.rk-feed-date,
+.rk-feed-who {
+    color: var(--app-muted);
+}
+
+.rk-feed-who {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rk-feed-rank {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.rk-feed-from {
+    color: var(--app-muted);
+}
+
 /* ----------------------------------------------------------------- motion */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1837,5 +1978,24 @@ button.rk-ov-cell:hover {
 
     .rk-ov-cell-role {
         display: block;
+    }
+
+    .rk-chart-card {
+        padding: 12px 10px 6px;
+    }
+
+    .rk-chart-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .rk-feed-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+        row-gap: 3px;
+    }
+
+    .rk-feed-rank {
+        grid-column: 1 / -1;
+        order: 3;
     }
 }
