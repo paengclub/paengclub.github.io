@@ -14,6 +14,9 @@
 //   - progress % is optional (most updates are just "moved a division"),
 //   - each role card has ▲/▼ to log a one-division change in one tap, with an
 //     undo in the status line.
+// With two or more accounts, a 전체 overview opens by default: the best current
+// rank per role across accounts, and an account x role grid of where each
+// account stands right now.
 // Exports renderRanks, cleanupRanks.
 import { supabase } from "/supabaseClient.js";
 import { getCurrentSession, signInWithGoogle } from "/features/auth.js";
@@ -156,10 +159,35 @@ function accountsOf(userId) {
     return accounts.filter((account) => account.user_id === userId);
 }
 
+// The 전체 overview is a choice like any account, stored in accountByViewer
+// under OVERVIEW. It only exists with two or more accounts, and it is where
+// such a viewer lands until they pick an account.
+const OVERVIEW = "overview";
+
+function selectionFor(userId) {
+    const list = accountsOf(userId);
+    const wanted = accountByViewer.get(userId);
+    if (wanted === OVERVIEW && list.length >= 2) return OVERVIEW;
+    const found = list.find((account) => account.id === wanted);
+    if (found) return found;
+    return list.length >= 2 ? OVERVIEW : list[0] || null;
+}
+
+function isOverview() {
+    return selectionFor(viewerId) === OVERVIEW;
+}
+
 function selectedAccount() {
-    const list = accountsOf(viewerId);
-    const wanted = accountByViewer.get(viewerId);
-    return list.find((account) => account.id === wanted) || list[0] || null;
+    const selection = selectionFor(viewerId);
+    return selection === OVERVIEW ? null : selection;
+}
+
+function selectAccount(id) {
+    accountByViewer.set(viewerId, id);
+    setStatus("");
+    form = null;
+    showFullHistory = false;
+    renderBody();
 }
 
 // oldest first
@@ -557,21 +585,21 @@ function renderAccounts(own) {
     const list = accountsOf(viewerId);
     const current = selectedAccount();
 
-    const tabs = list.map((account, index) => el("button", {
+    const tabs = list.length >= 2 ? [el("button", {
+        type: "button",
+        class: `rk-account-tab${isOverview() ? " active" : ""}`,
+        onclick: () => selectAccount(OVERVIEW)
+    }, [el("span", { text: "전체" })])] : [];
+
+    tabs.push(...list.map((account, index) => el("button", {
         type: "button",
         class: `rk-account-tab${account.id === current?.id ? " active" : ""}`,
-        onclick: () => {
-            accountByViewer.set(viewerId, account.id);
-            setStatus("");
-            form = null;
-            showFullHistory = false;
-            renderBody();
-        }
+        onclick: () => selectAccount(account.id)
     }, [
         el("span", { text: account.name }),
         list.length > 1 ? el("span", { class: "rk-badge", text: index === 0 ? "본계" : "부계" }) : null,
         own && !account.is_public ? el("span", { class: "rk-badge muted", text: "비공개" }) : null
-    ]));
+    ])));
 
     if (own) {
         tabs.push(el("button", {
@@ -722,6 +750,105 @@ function renderRoleCard(account, role, own) {
     ]);
 }
 
+// Compact form of trendOf for a grid cell.
+function compactTrend(list) {
+    const trend = trendOf(list);
+    if (!trend) return null;
+    const text = trend.kind === "flat" ? "–" : trend.text.replace(/\s|단계/g, "");
+    return { text, kind: trend.kind };
+}
+
+// One screen for every account: per role, the best current rank and which
+// account holds it; then an account x role grid of each account's latest
+// rank, % and change. "Best" is current standing (latest record per
+// account), not an all-time peak — that stays on the account's own cards.
+function renderOverview(own) {
+    const list = accountsOf(viewerId);
+    const roles = game().roles.filter((role) => !role.optional || list.some((account) => recordsFor(account.id, role.key).length > 0));
+
+    const bestScore = new Map();
+    for (const role of roles) {
+        const scores = list.map((account) => latestFor(account.id, role.key)).filter(Boolean).map(scoreOf);
+        if (scores.length) bestScore.set(role.key, Math.max(...scores));
+    }
+    const isBest = (record) => record && bestScore.get(record.role) === scoreOf(record);
+
+    const summary = el("div", { class: "rk-ov-summary" }, roles.map((role) => {
+        const holders = list
+            .map((account) => ({ account, record: latestFor(account.id, role.key) }))
+            .filter(({ record }) => isBest(record));
+        if (!holders.length) {
+            return el("div", { class: "rk-ov-best is-empty" }, [
+                el("span", { class: "rk-role", text: role.label }),
+                el("span", { class: "rk-empty-text", text: "기록 없음" })
+            ]);
+        }
+        const { record } = holders[0];
+        return el("div", { class: "rk-ov-best", style: `--tier:${tierOf(record.tier).color}` }, [
+            el("span", { class: "rk-role", text: `${role.label} 최고` }),
+            el("div", { class: "rk-rank" }, [
+                el("span", { class: "rk-tier-dot" }),
+                el("strong", { text: rankLabel(record) }),
+                record.progress !== null ? el("span", { class: "rk-percent", text: `${record.progress}%` }) : null
+            ]),
+            el("span", { class: "rk-ov-holder", text: holders.map(({ account }) => account.name).join(", ") })
+        ]);
+    }));
+
+    const head = el("div", { class: "rk-ov-row rk-ov-head", style: `--cols:${roles.length}` }, [
+        el("span", { text: "계정" }),
+        ...roles.map((role) => el("span", { text: role.label }))
+    ]);
+
+    const rows = list.map((account, index) => {
+        const all = recordsFor(account.id);
+        const last = all[all.length - 1];
+        const cells = roles.map((role) => {
+            const history = recordsFor(account.id, role.key);
+            const latest = history[history.length - 1];
+            if (!latest) {
+                return el("div", { class: "rk-ov-cell is-empty" }, [
+                    el("span", { class: "rk-ov-cell-role", text: role.label }),
+                    el("span", { text: "—" })
+                ]);
+            }
+            const trend = compactTrend(history);
+            return el("button", {
+                type: "button",
+                class: `rk-ov-cell${isBest(latest) && list.length > 1 ? " is-best" : ""}`,
+                style: `--tier:${tierOf(latest.tier).color}`,
+                title: `${account.name} · ${role.label} · ${rankLabel(latest)} (${relativeDay(latest.recorded_on)})`,
+                onclick: () => selectAccount(account.id)
+            }, [
+                el("span", { class: "rk-ov-cell-role", text: role.label }),
+                el("span", { class: "rk-ov-cell-rank" }, [el("span", { class: "rk-tier-dot" }), el("strong", { text: rankLabel(latest) })]),
+                el("span", { class: "rk-ov-cell-meta" }, [
+                    latest.progress !== null ? el("span", { text: `${latest.progress}%` }) : null,
+                    trend ? el("span", { class: `rk-trend ${trend.kind}`, text: trend.text }) : null,
+                    el("span", { class: "rk-ov-cell-date", text: relativeDay(latest.recorded_on) })
+                ])
+            ]);
+        });
+
+        return el("div", { class: "rk-ov-row", style: `--cols:${roles.length}` }, [
+            el("button", { type: "button", class: "rk-ov-account", onclick: () => selectAccount(account.id) }, [
+                el("span", { class: "rk-ov-account-name" }, [
+                    el("strong", { text: account.name }),
+                    el("span", { class: "rk-badge", text: index === 0 ? "본계" : "부계" }),
+                    own && !account.is_public ? el("span", { class: "rk-badge muted", text: "비공개" }) : null
+                ]),
+                el("span", { class: "rk-ov-account-meta", text: last ? `최근 기록 ${relativeDay(last.recorded_on)}` : "기록 없음" })
+            ]),
+            ...cells
+        ]);
+    });
+
+    return el("section", { class: "rk-overview" }, [
+        summary,
+        el("div", { class: "rk-ov-table" }, [head, ...rows])
+    ]);
+}
+
 function renderHistory(account, own) {
     const list = [...recordsFor(account.id)].reverse();
     if (list.length === 0) return null;
@@ -769,14 +896,19 @@ function renderBody() {
     }
 
     const account = selectedAccount();
+    const overview = isOverview();
     const children = [renderPeople()];
 
-    if (own && !account) {
+    if (own && accountsOf(viewerId).length === 0) {
         // first visit: getting started is adding an account
         children.push(el("div", { class: "rk-empty-state" }, [
             el("strong", { text: "오버워치 계정을 추가해 보세요" }),
             el("span", { text: "본계와 부계를 따로 추가할 수 있고, 계정마다 공개 여부를 정할 수 있어요." })
         ]), renderAccountEditor());
+    } else if (overview) {
+        children.push(renderAccounts(own));
+        if (own && accountEditor) children.push(renderAccountEditor());
+        children.push(renderOverview(own));
     } else if (account) {
         children.push(renderAccounts(own));
         if (own && accountEditor) children.push(renderAccountEditor());

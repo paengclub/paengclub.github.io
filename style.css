@@ -1565,6 +1565,152 @@ div.profile-avatar-preview {
     font-size: 1rem;
 }
 
+/* 랭크 전체 overview */
+
+.rk-ov-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.rk-ov-best {
+    --tier: var(--app-line-strong);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 16px;
+    border-radius: var(--app-radius);
+    background: var(--app-surface-alt);
+    box-shadow: inset 3px 0 0 var(--tier);
+}
+
+.rk-ov-best.is-empty {
+    box-shadow: none;
+}
+
+.rk-ov-holder {
+    color: var(--app-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.rk-ov-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 1.3fr) repeat(var(--cols), minmax(0, 1fr));
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px 0;
+    border-top: 1px solid var(--app-line);
+}
+
+.rk-ov-head {
+    padding: 0 0 6px;
+    border-top: 0;
+    color: var(--app-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.rk-ov-account {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 4px;
+    border: 0;
+    background: transparent;
+    text-align: left;
+}
+
+.rk-ov-account-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.92rem;
+}
+
+.rk-ov-account-name .rk-badge {
+    color: var(--app-text-soft);
+    background: var(--app-surface-alt);
+}
+
+.rk-ov-account-meta {
+    color: var(--app-muted);
+    font-size: 0.76rem;
+}
+
+.rk-ov-cell {
+    --tier: var(--app-line-strong);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: var(--app-radius-sm);
+    color: var(--app-text);
+    background: var(--app-surface-alt);
+    box-shadow: inset 3px 0 0 var(--tier);
+    text-align: left;
+    transition: background 0.15s ease;
+}
+
+button.rk-ov-cell:hover {
+    background: var(--app-line);
+}
+
+/* the best current rank for that role across this person's accounts */
+.rk-ov-cell.is-best {
+    box-shadow: inset 3px 0 0 var(--tier), inset 0 0 0 1.5px color-mix(in srgb, var(--tier) 55%, transparent);
+}
+
+.rk-ov-cell.is-empty {
+    align-items: flex-start;
+    color: var(--app-muted);
+    box-shadow: none;
+}
+
+/* the column header names the role on desktop; cells name it on mobile */
+.rk-ov-cell-role {
+    display: none;
+    color: var(--app-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.rk-ov-cell-rank {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-size: 0.95rem;
+}
+
+.rk-ov-cell-rank strong {
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rk-ov-cell-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: var(--app-text-soft);
+    font-size: 0.76rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.rk-ov-cell-date {
+    color: var(--app-muted);
+    font-weight: 600;
+}
+
 /* ----------------------------------------------------------------- motion */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1656,5 +1802,40 @@ div.profile-avatar-preview {
 
     .rk-history-role {
         text-align: right;
+    }
+
+    /* overview: each account becomes a block — name on top, role cells
+       below, each cell naming its role since the header row is hidden */
+    .rk-ov-head {
+        display: none;
+    }
+
+    /* two per row: three columns cut names like 다이아몬드 / 에메랄드 to
+       "다이아…", which defeats an at-a-glance view */
+    .rk-ov-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        padding: 12px 0;
+    }
+
+    .rk-ov-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .rk-ov-best {
+        padding: 12px;
+    }
+
+    .rk-ov-best .rk-rank {
+        font-size: 1rem;
+    }
+
+    .rk-ov-account {
+        grid-column: 1 / -1;
+        padding: 0;
+    }
+
+    .rk-ov-cell-role {
+        display: block;
     }
 }

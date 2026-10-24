@@ -159,6 +159,12 @@ alone does nothing until applied.
   change in one tap with an undo in the status line.
 - Open Queue (`open`) is always offered in the form, but its card only shows
   once it has a record.
+- **전체 overview** (`renderOverview`): with two or more accounts it is the
+  default selection (`OVERVIEW` in `accountByViewer`). It shows the best
+  *current* rank per role across accounts (ties list every holder), then an
+  account × role grid of each account's latest rank, %, change and date, with
+  each role's best cell outlined. Clicking a cell or account opens that
+  account. Works for viewing other people's public accounts too.
 - Dates are local (`todayString()`), never `toISOString()` — UTC would file
   anything before 9am KST under the previous day.
 
