@@ -1,8 +1,13 @@
 // features/tier.js — 게임 티어, a shared S/A/B/C/D/F tier list. Anyone (even
 // logged out) can add a game (image upload to the tier-games bucket) and
 // drag/drop it between tiers; positions sync via Supabase realtime + a poll.
+// Logged-in members can also rename, re-image or delete a game: 편집 switches
+// the board from dragging to picking a game to edit (so a drag can never turn
+// into a delete). The database enforces the same split — see
+// migrations/20261024_tier_games_edit_delete.sql.
 // Exports renderGameTier, cleanupGameTier.
 import { supabase } from "/supabaseClient.js";
+import { getCurrentSession } from "/features/auth.js";
 import { el } from "/lib/dom.js";
 
 const TIERS = [
@@ -22,6 +27,8 @@ let gameChannel = null;
 let refreshTimer = null;
 let addFormOpen = false;
 let dragState = null;
+let editMode = false;
+let editingId = null;
 
 function setStatus(message, type = "") {
     const status = document.getElementById("tierStatus");
@@ -55,6 +62,7 @@ async function loadGames(showErrors = true) {
     games.clear();
     for (const game of data || []) games.set(game.id, game);
     renderBoard();
+    syncEditor();
 }
 
 function subscribeGames() {
@@ -67,6 +75,7 @@ function subscribeGames() {
             if (payload.eventType === "DELETE") games.delete(payload.old.id);
             else games.set(payload.new.id, payload.new);
             renderBoard();
+            syncEditor();
         })
         .subscribe();
 }
@@ -131,6 +140,87 @@ async function addGame(name, file) {
     setStatus(`"${cleanName}" 추가 완료`, "success");
     await loadGames(false);
     return true;
+}
+
+function validImage(file) {
+    if (!file.type.startsWith("image/")) {
+        setStatus("이미지 파일만 올릴 수 있어요.", "danger");
+        return false;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+        setStatus("2MB 이하 이미지로 올려 주세요.", "danger");
+        return false;
+    }
+    return true;
+}
+
+// "…/storage/v1/object/public/tier-games/games/x.png" -> "games/x.png"
+function storagePathOf(url) {
+    const marker = "/tier-games/";
+    const index = (url || "").indexOf(marker);
+    return index < 0 ? null : decodeURIComponent(url.slice(index + marker.length).split("?")[0]);
+}
+
+// Best effort: a leftover image costs storage, not correctness.
+async function removeImage(url) {
+    const storagePath = storagePathOf(url);
+    if (storagePath) await supabase.storage.from("tier-games").remove([storagePath]);
+}
+
+async function saveGame(game, name, file) {
+    const cleanName = name.trim().slice(0, MAX_NAME_LENGTH);
+    if (!cleanName) {
+        setStatus("게임 이름을 입력해 주세요.", "danger");
+        return false;
+    }
+    if (file && !validImage(file)) return false;
+
+    const changes = { name: cleanName };
+    let uploadedPath = null;
+    if (file) {
+        setStatus("업로드 중...");
+        uploadedPath = `games/${crypto.randomUUID()}.${imageExtension(file)}`;
+        const { error: uploadError } = await supabase.storage
+            .from("tier-games")
+            .upload(uploadedPath, file, { cacheControl: "3600" });
+        if (uploadError) {
+            setStatus(uploadError.message, "danger");
+            return false;
+        }
+        changes.image_url = supabase.storage.from("tier-games").getPublicUrl(uploadedPath).data.publicUrl;
+    }
+
+    // .select() so a write RLS silently skipped (0 rows, no error) is caught
+    const { data, error } = await supabase.from("tier_games").update(changes).eq("id", game.id).select("id");
+    if (error || !data?.length) {
+        if (uploadedPath) await supabase.storage.from("tier-games").remove([uploadedPath]);
+        // 42501: the database refused the columns (signed out mid-edit)
+        const denied = !error || error.code === "42501";
+        setStatus(denied ? "수정 권한이 없어요. 다시 로그인해 주세요." : error.message, "danger");
+        return false;
+    }
+    if (changes.image_url) await removeImage(game.image_url);
+
+    setStatus(`"${cleanName}" 수정 완료`, "success");
+    editingId = null;
+    await loadGames(false);
+    return true;
+}
+
+async function deleteGame(game) {
+    if (!window.confirm(`"${game.name}"을(를) 삭제할까요? 되돌릴 수 없어요.`)) return;
+    const { data, error } = await supabase.from("tier_games").delete().eq("id", game.id).select("id");
+    if (error || !data?.length) {
+        setStatus(error?.message || "삭제 권한이 없어요. 다시 로그인해 주세요.", "danger");
+        return;
+    }
+    await removeImage(game.image_url);
+    games.delete(game.id);
+    editingId = null;
+    setStatus(`"${game.name}" 삭제 완료`, "success");
+    renderBoard();
+    syncEditor();
+    await loadGames(false);
 }
 
 function computeDropIndex(dropzone, x, y, excludeId) {
@@ -229,17 +319,25 @@ function startDrag(event, gameId, itemEl) {
 
 function renderTierItem(game) {
     const item = el("div", {
-        class: "tier-item",
+        class: `tier-item${editMode && game.id === editingId ? " is-selected" : ""}`,
         "data-game-id": game.id,
-        title: game.name
+        title: editMode ? `${game.name} 수정` : game.name
     }, [
         el("img", { src: game.image_url, alt: game.name, draggable: "false" }),
-        el("span", { class: "tier-item-label", text: game.name })
+        el("span", { class: "tier-item-label", text: game.name }),
+        editMode ? el("span", { class: "tier-item-edit", "aria-hidden": "true", text: "✎" }) : null
     ]);
 
     item.addEventListener("pointerdown", (event) => {
+        if (editMode) return;
         if (event.pointerType === "mouse" && event.button !== 0) return;
         startDrag(event, game.id, item);
+    });
+    item.addEventListener("click", () => {
+        if (!editMode) return;
+        editingId = game.id;
+        renderBoard();
+        syncEditor(true);
     });
 
     return item;
@@ -274,7 +372,91 @@ function renderPoolRow() {
 function renderBoard() {
     const board = document.getElementById("tierBoard");
     if (!board) return;
+    board.classList.toggle("is-editing", editMode);
     board.replaceChildren(...TIERS.map(renderTierRow), renderPoolRow());
+}
+
+function setEditMode(on) {
+    if (on && !getCurrentSession()) {
+        setStatus("게임 수정·삭제는 로그인 후 할 수 있어요.", "danger");
+        return;
+    }
+    editMode = on;
+    editingId = null;
+    const toggle = document.getElementById("tierEditToggle");
+    if (toggle) {
+        toggle.textContent = editMode ? "완료" : "편집";
+        toggle.classList.toggle("active", editMode);
+    }
+    if (editMode) toggleAddForm(false);
+    setStatus("");
+    renderBoard();
+    syncEditor();
+}
+
+// The edit panel: a hint until a game is picked, then that game's form. Only
+// rebuilt when the picked game changes (or vanishes), so a poll refresh never
+// wipes what you're typing.
+let editorFor = undefined;
+
+function syncEditor(force = false) {
+    const target = document.getElementById("tierEditPanel");
+    if (!target) return;
+    if (editingId && !games.has(editingId)) editingId = null;
+    target.hidden = !editMode;
+    const key = editMode ? editingId : undefined;
+    if (!force && key === editorFor) return;
+    editorFor = key;
+
+    if (!editMode) {
+        target.replaceChildren();
+        return;
+    }
+    const game = editingId && games.get(editingId);
+    if (!game) {
+        target.replaceChildren(el("div", { class: "tier-edit-hint", text: "수정하거나 삭제할 게임을 눌러 주세요." }));
+        return;
+    }
+
+    const preview = el("img", { class: "tier-edit-preview", src: game.image_url, alt: "" });
+    const nameInput = el("input", { type: "text", class: "form-control", maxlength: String(MAX_NAME_LENGTH), value: game.name });
+    const fileInput = el("input", { type: "file", class: "form-control", accept: "image/*" });
+    fileInput.addEventListener("change", () => {
+        const file = fileInput.files?.[0];
+        if (file) preview.src = URL.createObjectURL(file);
+    });
+    const save = el("button", {
+        class: "primary-button",
+        type: "button",
+        text: "저장",
+        onclick: async () => {
+            save.disabled = true;
+            await saveGame(game, nameInput.value, fileInput.files?.[0]);
+            save.disabled = false;
+        }
+    });
+
+    target.replaceChildren(el("div", { class: "tier-edit-body" }, [
+        preview,
+        el("div", { class: "tier-edit-fields" }, [
+            el("label", { class: "tier-edit-field" }, [el("span", { text: "이름" }), nameInput]),
+            el("label", { class: "tier-edit-field" }, [el("span", { text: "이미지 교체 (선택)" }), fileInput]),
+            el("div", { class: "tier-edit-actions" }, [
+                save,
+                el("button", {
+                    class: "secondary-button",
+                    type: "button",
+                    text: "취소",
+                    onclick: () => {
+                        editingId = null;
+                        renderBoard();
+                        syncEditor();
+                    }
+                }),
+                el("button", { class: "secondary-button danger", type: "button", text: "삭제", onclick: () => deleteGame(game) })
+            ])
+        ])
+    ]));
 }
 
 function toggleAddForm(open) {
@@ -333,6 +515,11 @@ function teardown() {
     endDrag();
     window.removeEventListener("pointermove", onPointerMove);
     window.removeEventListener("pointerup", onPointerUp);
+    // transient UI: every visit starts out of edit mode with forms closed
+    editMode = false;
+    editingId = null;
+    editorFor = undefined;
+    addFormOpen = false;
 }
 
 export function cleanupGameTier() {
@@ -351,14 +538,27 @@ export async function renderGameTier() {
     panel.append(
         el("div", { class: "section-header" }, [
             el("h1", { class: "section-title", text: "게임 티어" }),
-            el("button", {
-                class: "secondary-button",
-                type: "button",
-                text: "+ 게임 추가",
-                onclick: () => toggleAddForm(!addFormOpen)
-            })
+            el("div", { class: "tier-header-actions" }, [
+                el("button", {
+                    id: "tierEditToggle",
+                    class: "secondary-button",
+                    type: "button",
+                    text: "편집",
+                    onclick: () => setEditMode(!editMode)
+                }),
+                el("button", {
+                    class: "secondary-button",
+                    type: "button",
+                    text: "+ 게임 추가",
+                    onclick: () => {
+                        if (editMode) setEditMode(false);
+                        toggleAddForm(!addFormOpen);
+                    }
+                })
+            ])
         ]),
         renderAddForm(),
+        el("div", { id: "tierEditPanel", class: "tier-edit-panel", hidden: "" }),
         el("div", { id: "tierStatus", class: "tier-status", text: "" }),
         el("div", { id: "tierBoard", class: "tier-board" })
     );

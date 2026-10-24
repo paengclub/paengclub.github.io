@@ -1852,6 +1852,155 @@ button.rk-ov-cell:hover {
     color: var(--app-muted);
 }
 
+/* 랭크: every role side by side */
+
+.rk-multiples {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.rk-multiples.is-four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.rk-mini {
+    min-width: 0;
+    padding: 10px 10px 2px;
+    border-radius: var(--app-radius-sm);
+    background: var(--app-bg);
+}
+
+.rk-mini-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.rk-mini-role {
+    font-size: 0.86rem;
+    font-weight: 800;
+}
+
+.rk-mini-best {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--app-text-soft);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+/* 게임 티어: edit mode */
+
+.tier-header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.tier-header-actions .secondary-button.active {
+    color: var(--app-primary);
+    background: var(--app-primary-weak);
+}
+
+.tier-board.is-editing .tier-item {
+    cursor: pointer;
+    touch-action: auto;
+    outline: 1.5px dashed var(--app-line-strong);
+    outline-offset: 2px;
+}
+
+.tier-board.is-editing .tier-item:hover {
+    outline-color: var(--app-primary);
+}
+
+.tier-item.is-selected,
+.tier-board.is-editing .tier-item.is-selected {
+    outline: 2px solid var(--app-primary);
+}
+
+.tier-item-edit {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--app-radius-pill);
+    color: #ffffff;
+    background: rgba(25, 31, 40, 0.72);
+    font-size: 0.7rem;
+}
+
+.tier-edit-panel {
+    margin-bottom: 16px;
+    padding: 16px;
+    border-radius: var(--app-radius-sm);
+    background: var(--app-surface-alt);
+    animation: reveal 0.18s ease both;
+}
+
+.tier-edit-panel[hidden] {
+    display: none;
+}
+
+.tier-edit-hint {
+    color: var(--app-text-soft);
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.tier-edit-body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.tier-edit-preview {
+    width: 96px;
+    height: 96px;
+    border-radius: var(--app-radius-sm);
+    object-fit: cover;
+    background: var(--app-surface);
+}
+
+.tier-edit-fields {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 220px;
+}
+
+.tier-edit-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--app-text-soft);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.tier-edit-field .form-control {
+    background: var(--app-surface);
+}
+
+.tier-edit-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.secondary-button.danger {
+    margin-left: auto;
+    color: var(--app-danger);
+    background: var(--app-danger-weak);
+}
+
 /* ----------------------------------------------------------------- motion */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1997,5 +2146,9 @@ button.rk-ov-cell:hover {
     .rk-feed-rank {
         grid-column: 1 / -1;
         order: 3;
+    }
+
+    .rk-multiples.is-four {
+        grid-template-columns: 1fr;
     }
 }

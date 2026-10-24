@@ -744,7 +744,9 @@ const RANGES = [
 ];
 
 let chartRange = "all";
-let overviewRole = null;
+// ALL_ROLES shows every role side by side; otherwise one role in full size
+const ALL_ROLES = "all";
+let overviewRole = ALL_ROLES;
 // charts built during a render, drawn once mounted (they need a real width)
 let charts = [];
 let chartResizeHandler = null;
@@ -753,10 +755,35 @@ function dayTime(record) {
     return parseDay(record.recorded_on).getTime();
 }
 
-function rankChart(series) {
+function rankChart(series, options = {}) {
     const node = el("div", { class: "rk-chart" });
-    charts.push({ node, draw: () => drawRankChart(node, series) });
+    charts.push({ node, draw: () => drawRankChart(node, series, options) });
     return node;
+}
+
+// The window and y range a set of series needs: from the first record (or the
+// chosen range) to today, and whole tiers covering every rank held in that
+// window — including the rank each line carries in from before it. Computed
+// over several role charts at once, it gives them one shared scale.
+function chartDomain(series) {
+    const all = series.flatMap((item) => item.records);
+    if (!all.length) return null;
+    const end = parseDay(todayString()).getTime();
+    let start = chartRange === "all" ? Math.min(...all.map(dayTime)) : end - chartRange * DAY_MS;
+    if (end - start < 7 * DAY_MS) start = end - 7 * DAY_MS;
+
+    const scores = series.flatMap((item) => {
+        const before = item.records.filter((record) => dayTime(record) < start).pop();
+        const inside = item.records.filter((record) => dayTime(record) >= start);
+        return [before, ...inside].filter(Boolean).map(scoreOf);
+    });
+    if (!scores.length) return { start, end, low: null, high: null };
+    return {
+        start,
+        end,
+        low: Math.floor(Math.min(...scores) / 5) * 5,
+        high: Math.floor(Math.max(...scores) / 5) * 5 + 5
+    };
 }
 
 function drawCharts() {
@@ -807,24 +834,21 @@ function timeTicks(start, end, scaleX, minGap) {
     return ticks;
 }
 
-function drawRankChart(node, series) {
+function drawRankChart(node, series, options = {}) {
     const width = node.clientWidth;
     if (!width) return;
     const compact = width < 520;
-    const height = compact ? 220 : 270;
+    const height = options.height || (compact ? 220 : 270);
     const pad = { top: 12, right: 12, bottom: 26, left: compact ? 46 : 58 };
     const plotW = width - pad.left - pad.right;
     const plotH = height - pad.top - pad.bottom;
 
-    const all = series.flatMap((item) => item.records);
-    if (!all.length) {
+    const domain = options.domain || chartDomain(series);
+    if (!domain) {
         node.replaceChildren(el("div", { class: "rk-chart-empty", text: "아직 기록이 없어요." }));
         return;
     }
-
-    const end = parseDay(todayString()).getTime();
-    let start = chartRange === "all" ? Math.min(...all.map(dayTime)) : end - chartRange * DAY_MS;
-    if (end - start < 7 * DAY_MS) start = end - 7 * DAY_MS;
+    const { start, end } = domain;
 
     // each line enters the window at the rank it last held before the window
     const lines = series
@@ -840,9 +864,7 @@ function drawRankChart(node, series) {
     }
 
     // y spans whole tiers, so every band shown is complete
-    const scores = lines.flatMap((line) => [line.before, ...line.inside].filter(Boolean).map(scoreOf));
-    const low = Math.floor(Math.min(...scores) / 5) * 5;
-    const high = Math.floor(Math.max(...scores) / 5) * 5 + 5;
+    const { low, high } = domain;
     const x = (time) => pad.left + ((time - start) / (end - start)) * plotW;
     const y = (score) => pad.top + plotH - ((score - low) / (high - low)) * plotH;
 
@@ -1100,30 +1122,61 @@ function renderOverview(own) {
 
     // chart: one line per account, for one role at a time
     const charted = roles.filter((role) => list.some((account) => recordsFor(account.id, role.key).length > 0));
-    if (!charted.some((role) => role.key === overviewRole)) overviewRole = charted[0]?.key || null;
-    const chartSeries = overviewRole
-        ? list
-            .map((account, index) => ({
-                label: account.name,
-                color: ACCOUNT_COLORS[index % ACCOUNT_COLORS.length],
-                records: recordsFor(account.id, overviewRole)
-            }))
-            .filter((item) => item.records.length > 0)
-        : [];
+    if (overviewRole !== ALL_ROLES && !charted.some((role) => role.key === overviewRole)) overviewRole = ALL_ROLES;
+
+    // account colours stay the same in every chart and in the legend
+    const seriesFor = (roleKey) => list
+        .map((account, index) => ({
+            label: account.name,
+            color: ACCOUNT_COLORS[index % ACCOUNT_COLORS.length],
+            records: recordsFor(account.id, roleKey)
+        }))
+        .filter((item) => item.records.length > 0);
+    const legendSeries = list
+        .map((account, index) => ({ label: account.name, color: ACCOUNT_COLORS[index % ACCOUNT_COLORS.length] }))
+        .filter((item, index) => charted.some((role) => recordsFor(list[index].id, role.key).length > 0));
+
+    let chartBody;
+    if (overviewRole === ALL_ROLES) {
+        // one small chart per role, on a shared time window and shared y range,
+        // so "tank is a tier above damage" reads straight off the heights
+        const perRole = charted.map((role) => ({ role, series: seriesFor(role.key) }));
+        const domain = chartDomain(perRole.flatMap((item) => item.series));
+        // four charts sit 2 x 2 rather than 3 + a lone one
+        chartBody = el("div", { class: `rk-multiples${perRole.length === 4 ? " is-four" : ""}` }, perRole.map(({ role, series }) => {
+            const best = holderOf(list, role);
+            return el("div", { class: "rk-mini" }, [
+                el("div", { class: "rk-mini-head" }, [
+                    el("span", { class: "rk-mini-role", text: role.label }),
+                    best ? el("span", { class: "rk-mini-best", style: `--tier:${tierOf(best.tier).color}` }, [
+                        el("span", { class: "rk-tier-dot" }),
+                        el("span", { text: rankLabel(best) })
+                    ]) : null
+                ]),
+                rankChart(series, { domain, height: 190 })
+            ]);
+        }));
+    } else {
+        chartBody = rankChart(seriesFor(overviewRole));
+    }
 
     const chartCard = charted.length ? el("section", { class: "rk-chart-card" }, [
         el("div", { class: "rk-chart-head" }, [
             el("h2", { class: "rk-subtitle", text: "랭크 추이" }),
             el("div", { class: "rk-chart-controls" }, [
-                segmented(charted.map((role) => ({ value: role.key, label: role.label })), overviewRole, (role) => {
-                    overviewRole = role;
-                    renderBody();
-                }),
+                segmented(
+                    [{ value: ALL_ROLES, label: "전체" }, ...charted.map((role) => ({ value: role.key, label: role.label }))],
+                    overviewRole,
+                    (role) => {
+                        overviewRole = role;
+                        renderBody();
+                    }
+                ),
                 rangePicker()
             ])
         ]),
-        chartLegend(chartSeries),
-        rankChart(chartSeries)
+        chartLegend(legendSeries),
+        chartBody
     ]) : null;
 
     return el("section", { class: "rk-overview" }, [
@@ -1133,6 +1186,13 @@ function renderOverview(own) {
         el("div", { class: "rk-ov-table" }, [head, ...rows]),
         renderRecentChanges(list)
     ]);
+}
+
+function holderOf(list, role) {
+    return list
+        .map((account) => latestFor(account.id, role.key))
+        .filter(Boolean)
+        .reduce((best, record) => (!best || scoreOf(record) > scoreOf(best) ? record : best), null);
 }
 
 // "역대 최고" on a summary card, when some account once stood higher in that

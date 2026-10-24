@@ -38,7 +38,7 @@ codebase without reading every file.
   auth.js        Google auth/session + the profile-edit screen. Owns the session.
   timer.js       디데이 (D-day / rank progress bars) — the landing tab
   weight.js      체중 (weight chart, 년/주/일 buckets), reads from Supabase
-  tier.js        게임 티어 (drag-and-drop tier list), realtime + poll
+  tier.js        게임 티어 (drag-and-drop tier list, member edit/delete), realtime + poll
   timetable.js   시간표 (Everytime-style weekly class grid, public view / owner edit)
   ranks.js       랭크 (personal competitive-rank tracker: accounts, per-role ranks)
 /migrations      applied SQL, one file per change (record only; run via Supabase)
@@ -120,7 +120,7 @@ per-user.
 | Feature | Tables | Notes |
 |---|---|---|
 | auth/profile | `profiles` | display_name, avatar_url, nickname, bio, mbti; avatars in `avatars` storage bucket; own row editable. Still live: `timetable` reads names/avatars from it |
-| tier | `tier_games` | public read; insert(unranked)/update(move) by anyone; images in `tier-games` bucket; realtime |
+| tier | `tier_games` | public read; anyone (anon too) can insert (unranked) and move — anon's UPDATE is narrowed by column privileges to `tier, position`; logged-in members can also rename / re-image (full UPDATE) and delete. Images in `tier-games` bucket (anyone uploads, members delete). Realtime |
 | weight | `weight_people`, `weight_records` | public read; writes are admin/SQL only |
 | ranks | `game_accounts`, `game_rank_records` | account: `game`, `name`, `is_public`, `sort_order` (lowest = 본계). Visible if public or yours; records inherit their account's visibility, so making an account private hides its history too. Writes own only, and a record can only be filed under your own account. CHECKs encode Overwatch values (roles, tiers, division 1–5, progress 0–100; Top 500 has neither) |
 | timetable | `timetable_courses` | public read (schedules are meant to be shared); insert/update/delete **own only** (`user_id = auth.uid()`); `days` is a `smallint[]` (multi-day courses), `start_minute`/`end_minute` step in 5s |
@@ -163,7 +163,9 @@ alone does nothing until applied.
   default selection (`OVERVIEW` in `accountByViewer`). Top to bottom: per role
   the best *current* rank (ties list every holder) plus the all-time peak when
   it was higher; a rank-over-time chart (pick a role, one line per account,
-  30일/90일/전체); the account × role grid of latest rank, %, change and date
+  30일/90일/전체) whose 전체 option shows every role side by side on one
+  shared time window and y range (2 × 2 when there are four), so roles compare
+  by height; the account × role grid of latest rank, %, change and date
   with each role's best cell outlined; and a feed of the 8 latest changes
   ("에메랄드 1 → 다이아몬드 5 ▲"). Works for other people's public accounts too.
 - **Account page** opens with the same chart, one line per role; history rows
@@ -178,6 +180,19 @@ alone does nothing until applied.
   (listener released in `cleanupRanks`).
 - Dates are local (`todayString()`), never `toISOString()` — UTC would file
   anything before 9am KST under the previous day.
+
+## 게임 티어 edit mode (`features/tier.js`)
+
+- 편집 switches the board from dragging to picking: a tap selects a game and
+  opens a panel to rename it, replace its image, or delete it. Dragging is
+  off in edit mode so a drag can never become a delete.
+- Entering edit mode needs a session; the database enforces the same
+  (`migrations/20261024_tier_games_edit_delete.sql`). Writes use
+  `.select()` and treat 0 affected rows as a refusal — RLS skips rows
+  silently, so without it a refused delete would report success.
+- The edit panel is rebuilt only when the picked game changes, so the 1.5s
+  poll never wipes what you're typing. Replaced/deleted images are removed
+  from storage best-effort.
 
 ## Charts
 

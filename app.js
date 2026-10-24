@@ -66,7 +66,7 @@ async function init() {
     // (owner controls vs. login known up front) instead of rendering as a
     // guest and then re-rendering the whole page once the session resolves.
     await initAuth(function() {
-        if (current_rendered_page == 8 || current_rendered_page == 9) myRenderFunction();
+        if (current_rendered_page == 6 || current_rendered_page == 8 || current_rendered_page == 9) myRenderFunction();
     });
 
     myRenderFunction();
