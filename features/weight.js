@@ -1,8 +1,8 @@
 // features/weight.js — 체중, a weight-over-time line chart (canvas) for each
 // tracked person. Data comes from Supabase (weight_people + weight_records).
 //
-// Two fixed granularities (주/일), no zoom: each view buckets the same full
-// history by week or day and plots one dot per bucket,
+// Three fixed granularities (년/주/일), no zoom: each view buckets the same
+// full history by month, week or day and plots one dot per bucket,
 // whose value is the plain mean of the records inside it. Nothing is smoothed,
 // interpolated or projected — every plotted value is measured data.
 //
@@ -25,7 +25,10 @@ const padding = {
     left: 56
 };
 
+// 년 plots one dot per month: a month's average is the useful yearly grain,
+// where a single dot per year would flatten a whole season of change.
 const VIEWS = [
+    { key: "year", label: "년" },
     { key: "week", label: "주" },
     { key: "day", label: "일" }
 ];
@@ -35,6 +38,8 @@ const dayMs = 24 * 60 * 60 * 1000;
 // plot's total width: coarser views compress time harder so their whole
 // history stays reachable in a few drags.
 const PX_PER_DAY = {
+    // low enough that the whole history fits a desktop chart as an overview
+    year: 1,
     week: 5,
     day: 14
 };
@@ -83,6 +88,12 @@ function startOfWeek(date) {
 // by its full Monday–Sunday range, so a record from Wednesday isn't read back
 // as "the week of Monday" and mistaken for a Monday reading.
 function bucketOf(date, view) {
+    if (view === "year") {
+        return {
+            key: `m${date.getFullYear()}-${date.getMonth() + 1}`,
+            fullLabel: `${date.getFullYear()}년 ${date.getMonth() + 1}월`
+        };
+    }
     if (view === "week") {
         const monday = startOfWeek(date);
         const sunday = new Date(monday);
@@ -277,11 +288,39 @@ function createScales(rect, bounds) {
 
 // Whole numbers of weeks, so 주 ticks always land on the same weekday.
 const TICK_STEPS_DAYS = [1, 2, 3, 7, 14, 21, 28, 56, 91, 182, 364];
+const TICK_STEPS_MONTHS = [1, 2, 3, 6, 12];
+
+// 년 view: its dots are months, so its gridlines fall on month starts, every
+// N months, aligned to January so each year gets a labelled line. The interval
+// is a constant number of months; in pixels it varies by a few percent with
+// month length, which reads as regular where day-stepped lines labelled
+// "6/24" across several years would not.
+function monthTicks(bounds, minGapPx) {
+    const perMonth = 30.44 * PX_PER_DAY.year;
+    const step = TICK_STEPS_MONTHS.find((months) => months * perMonth >= minGapPx)
+        || TICK_STEPS_MONTHS[TICK_STEPS_MONTHS.length - 1];
+
+    // first month start on or after the first record, on a multiple of step
+    const first = new Date(bounds.minTime);
+    let index = first.getFullYear() * 12 + first.getMonth() + (first.getDate() > 1 ? 1 : 0);
+    index = Math.ceil(index / step) * step;
+
+    const ticks = [];
+    for (; ; index += step) {
+        const year = Math.floor(index / 12);
+        const month = index % 12;
+        const time = new Date(year, month, 1).getTime();
+        if (time > bounds.maxTime) break;
+        ticks.push({ time, label: month === 0 ? `${year}년` : `${month + 1}월` });
+    }
+    return ticks;
+}
 
 // Gridlines are drawn on a fixed calendar interval, not at the buckets. Deriving
 // them from the data put the lines at whatever irregular dates happened to have
 // records, which gives an axis with no consistent scale to read against.
 function axisTicks(bounds, minGapPx) {
+    if (activeView === "year") return monthTicks(bounds, minGapPx);
     const perDay = PX_PER_DAY[activeView];
     const stepDays = TICK_STEPS_DAYS.find((days) => days * perDay >= minGapPx)
         || TICK_STEPS_DAYS[TICK_STEPS_DAYS.length - 1];

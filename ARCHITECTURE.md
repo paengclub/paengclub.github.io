@@ -37,7 +37,7 @@ codebase without reading every file.
 /features        one module per tab; each renders into #screen and cleans up
   auth.js        Google auth/session + the profile-edit screen. Owns the session.
   timer.js       디데이 (D-day / rank progress bars) — the landing tab
-  weight.js      체중 (weight chart, 주/일 buckets), reads from Supabase
+  weight.js      체중 (weight chart, 년/주/일 buckets), reads from Supabase
   tier.js        게임 티어 (drag-and-drop tier list), realtime + poll
   timetable.js   시간표 (Everytime-style weekly class grid, public view / owner edit)
   ranks.js       랭크 (personal competitive-rank tracker: accounts, per-role ranks)
@@ -150,8 +150,10 @@ alone does nothing until applied.
   entry + a migration widening the CHECKs on `game_accounts.game` and
   `game_rank_records.role`/`tier`.
 - Ranks are compared on one ladder: each division is a step (Bronze 5 = 0 …
-  Champion 1 = 39, Top 500 = 40). Progress % is kept apart and optional, so a
-  missing % never counts as a value.
+  Champion 1 = 44, Top 500 = 45). Steps are computed from `GAMES` at render
+  time and never stored, so inserting a tier (as Emerald was) needs no data
+  migration. Progress % is kept apart and optional, so a missing % never
+  counts as a value.
 - Recording is built to be cheap: the form opens pre-filled from that role's
   latest rank, % is optional, and each role card's ▲/▼ logs a one-division
   change in one tap with an undo in the status line.
@@ -165,7 +167,7 @@ alone does nothing until applied.
 Hand-rolled, no chart lib: `weight.js` draws on a `<canvas>`, reading its
 colors via `cssVar("--app-...")` so it stays in step with the theme tokens.
 
-Two fixed granularities (주/일), no zoom. Each view buckets the full history and
+Three fixed granularities (년 = one dot per month, 주, 일), no zoom. Each view buckets the full history and
 plots one dot per bucket. A bucket's **value is the mean of its records and its
 x position is the mean of their dates** — a week whose only record is a
 Wednesday sits on that Wednesday, not on the Monday the week starts. (Placing
@@ -175,7 +177,7 @@ projection, say so in the UI, because the tab's contract with the reader is
 that every plotted point is measured data.
 
 - **x axis** is real elapsed time from the first record to the last
-  (`PX_PER_DAY`: 주 5, 일 14). The timeline is as wide as the history needs and
+  (`PX_PER_DAY`: 년 1, 주 5, 일 14). The timeline is as wide as the history needs and
   pans by dragging (scrollbar hidden). A `.chart-track` div carries the full
   width; the canvas itself is viewport-sized, `position: sticky`, and redraws
   at an offset on every pan — so its backing store stays at full device pixel
@@ -183,7 +185,10 @@ that every plotted point is measured data.
   and had to drop resolution, which is what made the 일 line look stepped.)
 - **Gridlines** are on a fixed calendar step chosen from `PX_PER_DAY`, anchored
   on the latest record, so every gap is identical and the right-most label is
-  the newest date in the data. They are never derived from bucket positions.
+  the newest date in the data. 년 is the exception: its dots are months, so its
+  lines fall on month starts every N months, aligned to January (labelled with
+  the year) — a constant month interval rather than a constant day count.
+  Gridlines are never derived from bucket positions.
 - **y axis** is a separate pinned canvas, refitted on every repaint to the
   points in view (plus the nearest point past each edge, so lines running off
   screen stay in bounds), with a fixed 14px edge margin and a 1kg minimum span.
