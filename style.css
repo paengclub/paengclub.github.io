@@ -2001,6 +2001,110 @@ button.rk-ov-cell:hover {
     background: var(--app-danger-weak);
 }
 
+/* 시간표 겹쳐보기 */
+
+.tt-toolbar .secondary-button.active {
+    color: var(--app-primary);
+    background: var(--app-primary-weak);
+}
+
+/* in overlay mode a chip is a toggle; its dot is the person's colour key */
+.tt-person-chip.is-overlay {
+    color: var(--app-muted);
+    background: var(--app-surface);
+    box-shadow: inset 0 0 0 1px var(--app-line);
+}
+
+.tt-person-chip.is-overlay img,
+.tt-person-chip.is-overlay .avatar-fallback {
+    opacity: 0.45;
+}
+
+.tt-person-chip.is-overlay.active {
+    color: var(--app-text);
+    background: color-mix(in srgb, var(--person) 12%, var(--app-surface));
+    box-shadow: inset 0 0 0 1.5px var(--person);
+}
+
+.tt-person-chip.is-overlay.active img,
+.tt-person-chip.is-overlay.active .avatar-fallback {
+    opacity: 1;
+}
+
+.tt-chip-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: var(--app-radius-pill);
+    background: var(--app-line-strong);
+}
+
+.tt-person-chip.is-overlay.active .tt-chip-dot {
+    background: var(--person);
+}
+
+/* shared free time, behind the lanes */
+.tt-free {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--app-success) 12%, transparent);
+    pointer-events: none;
+}
+
+.tt-free span {
+    color: var(--app-success);
+    font-size: 0.7rem;
+    font-weight: 700;
+    opacity: 0.8;
+}
+
+.tt-lane-block {
+    padding: 5px 4px;
+    font-size: 0.68rem;
+}
+
+.tt-lane-block strong {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+}
+
+.tt-free-summary {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: var(--app-radius-sm);
+    background: color-mix(in srgb, var(--app-success) 8%, var(--app-surface));
+}
+
+.tt-free-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 0.92rem;
+}
+
+.tt-free-row {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 8px;
+    padding: 5px 0;
+    font-size: 0.87rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.tt-free-day {
+    color: var(--app-success);
+    font-weight: 800;
+}
+
 /* ----------------------------------------------------------------- motion */
 
 @media (prefers-reduced-motion: reduce) {

@@ -39,7 +39,7 @@ codebase without reading every file.
   timer.js       디데이 (D-day / rank progress bars) — the landing tab
   weight.js      체중 (weight chart, 년/주/일 buckets), reads from Supabase
   tier.js        게임 티어 (drag-and-drop tier list, member edit/delete), realtime + poll
-  timetable.js   시간표 (Everytime-style weekly class grid, public view / owner edit)
+  timetable.js   시간표 (Everytime-style weekly class grid, public view / owner edit, 겹쳐보기 overlay)
   ranks.js       랭크 (personal competitive-rank tracker: accounts, per-role ranks)
 /migrations      applied SQL, one file per change (record only; run via Supabase)
 style.css        all styles. Uses --app-* CSS custom properties for theming.
@@ -180,6 +180,21 @@ alone does nothing until applied.
   (listener released in `cleanupRanks`).
 - Dates are local (`todayString()`), never `toISOString()` — UTC would file
   anything before 9am KST under the previous day.
+
+## 시간표 겹쳐보기 (`features/timetable.js`)
+
+- 겹쳐보기 turns the person chips into multi-select toggles (first time on:
+  everyone with a timetable) and gives each person a colour from
+  `OVERLAY_COLORS`. Green is deliberately absent — green means shared free
+  time.
+- Each day column splits into one lane per selected person instead of
+  stacking blocks, so every course name stays readable. With two or more
+  people, time when nobody has class is tinted, and listed under the grid as
+  "모두 공강인 시간" (within the grid's hour range, stretches of 30+ minutes).
+- `gridScaffold()` builds the header, hour labels and day columns for both
+  the single and overlay views. Free time is computed from merged busy
+  intervals (`busyIntervals` → `freeIntervals`); free blocks are drawn at
+  exact height, classes keep a minimum so short ones stay tappable.
 
 ## 게임 티어 edit mode (`features/tier.js`)
 

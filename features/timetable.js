@@ -2,6 +2,12 @@
 // Anyone can view anyone's schedule (public read); only the signed-in owner
 // can add/edit/delete their own courses. Switch whose schedule you're looking
 // at with the person chips above the grid.
+//
+// 겹쳐보기 overlays several people at once: the chips become multi-select,
+// each person gets a colour, and every day column splits into one lane per
+// person (stacking blocks on top of each other would hide the names). Time
+// when nobody selected has class is tinted, and listed under the grid as
+// "모두 공강인 시간" — finding shared free time is what the overlay is for.
 // Exports renderTimetable, cleanupTimetable.
 import { supabase } from "/supabaseClient.js";
 import { getCurrentSession, signInWithGoogle } from "/features/auth.js";
@@ -24,6 +30,14 @@ let panelMode = null; // null | "view" | "edit" | "add"
 let selectedCourse = null;
 let chosenColor = COLOR_PALETTE[0];
 let selectedDays = new Set();
+
+// overlay state survives tab switches, like the rest of this module's state
+// no green: green means shared free time on the overlay
+const OVERLAY_COLORS = ["#3182f6", "#f04452", "#8b5cf6", "#f59e0b", "#ec4899", "#0ea5e9", "#64748b"];
+let overlayMode = false;
+const overlayIds = new Set();
+// a free stretch shorter than this isn't worth listing as shared free time
+const MIN_FREE_MINUTES = 30;
 
 function roundToStep(minute) {
     return Math.round(minute / TIME_STEP_MINUTES) * TIME_STEP_MINUTES;
@@ -322,9 +336,9 @@ function renderPanel() {
 
 // --- grid ---
 
-function renderGrid(viewerCourses) {
-    const days = activeDays(viewerCourses);
-    const { startHour, endHour } = hourRange(viewerCourses);
+// Header row, hour labels and one empty column per day, shared by the single
+// and overlay views.
+function gridScaffold(days, startHour, endHour) {
     const hourCount = endHour - startHour;
     const gridStyle = `grid-template-columns: 44px repeat(${days.length}, minmax(0, 1fr)); grid-template-rows: 30px repeat(${hourCount}, ${HOUR_ROW_PX}px);`;
 
@@ -348,35 +362,160 @@ function renderGrid(viewerCourses) {
     }
     grid.appendChild(timeCol);
 
-    const rangeStart = startHour * 60;
-    const rangeMinutes = hourCount * 60;
-
-    days.forEach((day, index) => {
+    const dayCols = days.map((day, index) => {
         const dayCol = el("div", {
             class: "tt-day-col",
             style: `grid-column:${index + 2};grid-row:2 / span ${hourCount};background-size:100% ${HOUR_ROW_PX}px`
         });
+        grid.appendChild(dayCol);
+        return dayCol;
+    });
 
+    const rangeStart = startHour * 60;
+    const rangeMinutes = hourCount * 60;
+    // classes get a minimum height so a short one stays tappable; free time
+    // is drawn exact so a short gap never spills over its neighbours
+    const place = (from, to, minPercent = 4) => ({
+        top: ((from - rangeStart) / rangeMinutes) * 100,
+        height: Math.max(((to - from) / rangeMinutes) * 100, minPercent)
+    });
+    return { grid, dayCols, rangeStart, rangeEnd: rangeStart + rangeMinutes, place };
+}
+
+function renderGrid(viewerCourses) {
+    const days = activeDays(viewerCourses);
+    const { startHour, endHour } = hourRange(viewerCourses);
+    const { grid, dayCols, place } = gridScaffold(days, startHour, endHour);
+
+    days.forEach((day, index) => {
         coursesFor(viewerId)
             .filter((course) => course.days.includes(day))
             .forEach((course) => {
-                const top = ((course.start_minute - rangeStart) / rangeMinutes) * 100;
-                const height = ((course.end_minute - course.start_minute) / rangeMinutes) * 100;
-                dayCol.appendChild(el("button", {
+                const { top, height } = place(course.start_minute, course.end_minute);
+                dayCols[index].appendChild(el("button", {
                     type: "button",
                     class: "tt-block",
-                    style: `top:${top}%;height:${Math.max(height, 4)}%;background:${course.color}`,
+                    style: `top:${top}%;height:${height}%;background:${course.color}`,
                     onclick: () => openDetail(course)
                 }, [
                     el("strong", { text: course.name }),
                     course.location ? el("span", { text: course.location }) : null
                 ]));
             });
-
-        grid.appendChild(dayCol);
     });
 
     return grid;
+}
+
+// --- overlay ---
+
+function personColor(personId) {
+    const index = Math.max(people.findIndex((person) => person.id === personId), 0);
+    return OVERLAY_COLORS[index % OVERLAY_COLORS.length];
+}
+
+function overlayPeople() {
+    return people.filter((person) => overlayIds.has(person.id));
+}
+
+// Merged [start, end] minute ranges when any of these people has class.
+function busyIntervals(day, ids) {
+    const spans = courses
+        .filter((course) => ids.includes(course.user_id) && course.days.includes(day))
+        .map((course) => [course.start_minute, course.end_minute])
+        .sort((a, b) => a[0] - b[0]);
+    const merged = [];
+    for (const [from, to] of spans) {
+        const last = merged[merged.length - 1];
+        if (last && from <= last[1]) last[1] = Math.max(last[1], to);
+        else merged.push([from, to]);
+    }
+    return merged;
+}
+
+// Gaps in the merged busy time, within the hours the grid shows.
+function freeIntervals(day, ids, rangeStart, rangeEnd) {
+    const free = [];
+    let cursor = rangeStart;
+    for (const [from, to] of busyIntervals(day, ids)) {
+        if (from > cursor) free.push([cursor, Math.min(from, rangeEnd)]);
+        cursor = Math.max(cursor, to);
+    }
+    if (cursor < rangeEnd) free.push([cursor, rangeEnd]);
+    return free.filter(([from, to]) => to > from);
+}
+
+function renderOverlayGrid(selected) {
+    const all = selected.flatMap((person) => coursesFor(person.id));
+    const days = activeDays(all);
+    const { startHour, endHour } = hourRange(all);
+    const { grid, dayCols, rangeStart, rangeEnd, place } = gridScaffold(days, startHour, endHour);
+    const ids = selected.map((person) => person.id);
+    const lanes = selected.length;
+
+    days.forEach((day, index) => {
+        const column = dayCols[index];
+        // shared free time sits behind the lanes; only meaningful with 2+
+        if (lanes >= 2) {
+            for (const [from, to] of freeIntervals(day, ids, rangeStart, rangeEnd)) {
+                const { top, height } = place(from, to, 0);
+                column.appendChild(el("div", { class: "tt-free", style: `top:${top}%;height:${height}%` },
+                    to - from >= 40 ? [el("span", { text: "공강" })] : []));
+            }
+        }
+        selected.forEach((person, lane) => {
+            for (const course of coursesFor(person.id).filter((item) => item.days.includes(day))) {
+                const { top, height } = place(course.start_minute, course.end_minute);
+                column.appendChild(el("button", {
+                    type: "button",
+                    class: "tt-block tt-lane-block",
+                    style: `top:${top}%;height:${height}%;left:calc(${(lane * 100) / lanes}% + 1px);width:calc(${100 / lanes}% - 2px);right:auto;background:${personColor(person.id)}`,
+                    title: `${displayName(person)} · ${course.name} ${formatMinutes(course.start_minute)}–${formatMinutes(course.end_minute)}`,
+                    onclick: () => openDetail(course)
+                }, [el("strong", { text: course.name })]));
+            }
+        });
+    });
+
+    return grid;
+}
+
+function renderFreeSummary(selected) {
+    if (selected.length < 2) return null;
+    const all = selected.flatMap((person) => coursesFor(person.id));
+    const { startHour, endHour } = hourRange(all);
+    const ids = selected.map((person) => person.id);
+
+    return el("section", { class: "tt-free-summary" }, [
+        el("div", { class: "tt-free-title" }, [
+            el("strong", { text: "모두 공강인 시간" }),
+            el("span", { class: "muted-text", text: `${startHour}시–${endHour}시 기준, ${MIN_FREE_MINUTES}분 이상` })
+        ]),
+        ...activeDays(all).map((day) => {
+            const slots = freeIntervals(day, ids, startHour * 60, endHour * 60)
+                .filter(([from, to]) => to - from >= MIN_FREE_MINUTES);
+            return el("div", { class: "tt-free-row" }, [
+                el("span", { class: "tt-free-day", text: DAY_LABELS[day] }),
+                el("span", {
+                    class: slots.length ? "" : "muted-text",
+                    text: slots.length
+                        ? slots.map(([from, to]) => `${formatMinutes(from)}–${formatMinutes(to)}`).join(" · ")
+                        : "없음"
+                })
+            ]);
+        })
+    ]);
+}
+
+// First time on: everyone who has a timetable (plus whoever was being viewed).
+function setOverlay(on) {
+    overlayMode = on;
+    if (on && overlayIds.size === 0) {
+        for (const person of people) if (coursesFor(person.id).length > 0) overlayIds.add(person.id);
+        if (viewerId) overlayIds.add(viewerId);
+    }
+    closePanel();
+    renderBody();
 }
 
 function renderCourseList(viewerCourses) {
@@ -394,11 +533,19 @@ function renderCourseList(viewerCourses) {
 function renderPeopleRow() {
     const row = el("div", { class: "tt-people" });
     for (const person of people) {
+        const picked = overlayMode ? overlayIds.has(person.id) : person.id === viewerId;
         row.appendChild(el("button", {
             type: "button",
-            class: `tt-person-chip${person.id === viewerId ? " active" : ""}`,
+            class: `tt-person-chip${picked ? " active" : ""}${overlayMode ? " is-overlay" : ""}`,
+            style: overlayMode ? `--person:${personColor(person.id)}` : null,
+            "aria-pressed": overlayMode ? String(picked) : null,
             onclick: () => {
-                viewerId = person.id;
+                if (overlayMode) {
+                    if (overlayIds.has(person.id)) overlayIds.delete(person.id);
+                    else overlayIds.add(person.id);
+                } else {
+                    viewerId = person.id;
+                }
                 closePanel();
                 renderBody();
             }
@@ -406,7 +553,8 @@ function renderPeopleRow() {
             person.avatar_url
                 ? el("img", { class: "avatar small", referrerpolicy: "no-referrer", src: person.avatar_url, alt: "" })
                 : el("span", { class: "avatar small avatar-fallback", text: initials(displayName(person)) }),
-            el("span", { text: displayName(person) })
+            el("span", { text: displayName(person) }),
+            overlayMode ? el("span", { class: "tt-chip-dot", "aria-hidden": "true" }) : null
         ]));
     }
     return row;
@@ -419,7 +567,21 @@ function renderBody() {
     const toolbar = document.getElementById("ttToolbar");
     if (!peopleWrap || !gridWrap) return;
 
+    for (const id of overlayIds) if (!people.some((person) => person.id === id)) overlayIds.delete(id);
     peopleWrap.replaceChildren(renderPeopleRow());
+
+    if (overlayMode) {
+        const selected = overlayPeople();
+        toolbar.replaceChildren(
+            el("div", { class: "muted-text", text: selected.length ? `${selected.length}명 겹쳐보기 · 이름을 눌러 추가하거나 빼세요` : "겹쳐볼 사람을 선택해 주세요" }),
+            el("button", { class: "secondary-button compact active", type: "button", text: "겹쳐보기 끄기", onclick: () => setOverlay(false) })
+        );
+        gridWrap.replaceChildren(selected.length
+            ? renderOverlayGrid(selected)
+            : el("div", { class: "empty-line", text: "위에서 사람을 선택하면 시간표가 겹쳐 보여요." }));
+        listWrap.replaceChildren(...[renderFreeSummary(selected)].filter(Boolean));
+        return;
+    }
 
     const viewer = people.find((person) => person.id === viewerId);
     const viewerCourses = viewerId ? coursesFor(viewerId) : [];
@@ -428,7 +590,8 @@ function renderBody() {
     toolbar.replaceChildren(
         ...[
             el("div", { class: "muted-text", text: viewer ? `${displayName(viewer)}의 시간표` : "사람을 선택하세요" }),
-            isOwnViewer ? el("button", { class: "secondary-button compact", type: "button", text: "+ 과목 추가", onclick: openAddForm }) : null
+            isOwnViewer ? el("button", { class: "secondary-button compact", type: "button", text: "+ 과목 추가", onclick: openAddForm }) : null,
+            people.length > 1 ? el("button", { class: "secondary-button compact", type: "button", text: "겹쳐보기", onclick: () => setOverlay(true) }) : null
         ].filter(Boolean)
     );
 
